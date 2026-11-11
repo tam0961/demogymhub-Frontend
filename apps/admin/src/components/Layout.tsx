@@ -23,14 +23,18 @@ export function RequireAuth() {
 
 function ShiftGate() {
   const { can } = usePermission()
+  const { user } = useAuth()
   return (
-    <ShiftProvider canOpen={can('shifts.open')}>
+    <ShiftProvider canOpen={can('shifts.open') && !isAdminAll(user)}>
       <Shell />
     </ShiftProvider>
   )
 }
 
-interface NavItem { to: string; label: string; icon: IconName; perm: string[] | null }
+interface NavItem { to: string; label: string; icon: IconName; perm: string[] | null; cashier?: boolean }
+
+export const isAdminAll = (u: { roles: string[] } | null | undefined) => !!u && (u.roles.includes('owner') || u.roles.includes('super_admin'))
+const navVisible = (n: NavItem, canAny: (...p: string[]) => boolean, admin: boolean) => (!n.perm || canAny(...n.perm)) && !(n.cashier && admin)
 interface NavGroup { title: string; items: NavItem[] }
 export const NAV_GROUPS: NavGroup[] = [
   { title: 'Vận hành', items: [
@@ -45,7 +49,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/packages', label: 'Gói dịch vụ', icon: 'packages', perm: ['packages.read'] },
     { to: '/payments', label: 'Phiếu thu', icon: 'payments', perm: ['payments.read'] },
     { to: '/debt', label: 'Công nợ', icon: 'debt', perm: ['contracts.read'] },
-    { to: '/shift', label: 'Chốt ca', icon: 'shift', perm: ['shifts.open', 'shifts.close'] },
+    { to: '/shift', label: 'Chốt ca', icon: 'shift', perm: ['shifts.open', 'shifts.close'], cashier: true },
     { to: '/reports/closing', label: 'Đối soát', icon: 'closing', perm: ['reports.view'] },
   ] },
   { title: 'Thống kê', items: [
@@ -86,7 +90,7 @@ function Shell() {
   }, [activeGroup])
   useEffect(() => setOpen(false), [loc.pathname])
 
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((n) => !n.perm || canAny(...n.perm)) })).filter((g) => g.items.length)
+  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((n) => navVisible(n, canAny, isAdminAll(user))) })).filter((g) => g.items.length)
   const roleLabel = user ? roleLabelOf(user) : ''
 
   return (
@@ -164,7 +168,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
   const connected = useConnected()
   const [q, setQ] = useState('')
 
-  const screens = useMemo(() => ALL_ITEMS.filter((n) => !n.perm || canAny(...n.perm)), [canAny])
+  const screens = useMemo(() => ALL_ITEMS.filter((n) => navVisible(n, canAny, isAdminAll(user))), [canAny, user])
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -209,8 +213,9 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
 function ShiftChip() {
   const { shift, loaded, openModal } = useShift()
   const { can } = usePermission()
+  const { user } = useAuth()
   const nav = useNavigate()
-  if (!loaded || !can('shifts.open')) return null
+  if (!loaded || !can('shifts.open') || isAdminAll(user)) return null
   if (shift) {
     return (
       <button type="button" className="chip chip-ok" onClick={() => nav('/shift')} title="Xem hoặc đóng ca">

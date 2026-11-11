@@ -52,7 +52,7 @@ export interface ListMeta { page: number; limit: number; total: number }
 export interface ListResp<T> { data: T[]; meta: ListMeta }
 
 export type ContractStatus = 'draft' | 'signed' | 'active' | 'frozen' | 'expired' | 'cancelled'
-export interface ContractEvent { id: string; type: string; by_user: string | null; reason: string | null; diff: unknown; created_at: string }
+export interface ContractEvent { id: string; type: string; by_user: string | null; by_user_name?: string | null; reason: string | null; diff: unknown; created_at: string }
 export type PayMethod = 'cash' | 'transfer' | 'vietqr' | 'ewallet'
 export type PayStatus = 'pending' | 'confirmed' | 'failed' | 'refunded'
 export interface Payment {

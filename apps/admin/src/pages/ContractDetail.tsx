@@ -155,7 +155,7 @@ export default function ContractDetail() {
             {(c.events ?? []).slice().reverse().map((e) => (
               <li key={e.id}>
                 <b>{EVENT_LABEL[e.type] ?? e.type}</b>
-                <div className="cell-sub">{fmtDateTime(e.created_at)}{e.by_user ? `, ${e.by_user}` : ''}</div>
+                <div className="cell-sub">{fmtDateTime(e.created_at)}{e.by_user_name ? `, ${e.by_user_name}` : ''}</div>
                 {e.reason && <div>Lý do: {e.reason}</div>}
               </li>
             ))}

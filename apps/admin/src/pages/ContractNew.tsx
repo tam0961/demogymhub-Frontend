@@ -67,7 +67,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
       .then((r) => {
         const list = r.data.data.filter((p) => p.active && (!p.branch_id || p.branch_id === effBranch))
         setPkgs(list)
-        setPkgId((cur) => (list.some((p) => p.id === cur) ? cur : list[0]?.id ?? ''))
+        setPkgId((cur) => (list.some((p) => p.id === cur) ? cur : ''))
       })
       .catch(() => setPkgs([]))
   }, [effBranch])
@@ -178,8 +178,9 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
               )}
             </div>
           )}
-          <Field label="Gói tập" htmlFor="cn-pkg" hint={pkgs.length === 0 ? 'Chi nhánh này chưa có gói đang bán' : undefined}>
+          <Field label="Gói tập" htmlFor="cn-pkg" hint={pkgs.length === 0 ? 'Chi nhánh này chưa có gói đang bán' : pkg && pkg.price === 0 ? 'Gói này có giá 0 ₫, hãy kiểm tra lại trước khi tiếp tục' : undefined}>
             <Select id="cn-pkg" value={pkgId} onChange={(e) => setPkgId(e.target.value)}>
+              <option value="">Chọn gói tập</option>
               {pkgs.map((p) => <option key={p.id} value={p.id}>{pkgLabel(p)}</option>)}
             </Select>
           </Field>
