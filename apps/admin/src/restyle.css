@@ -290,3 +290,5 @@
 /* QA fix: keep money values on one line and scale them down in narrow cards */
 .kpi2-value { white-space: nowrap; }
 .kpi-row:has(> :nth-child(5)) .kpi2-value { font-size: clamp(16px, 1.45vw, 21px); }
+
+.pending-box-ok { background: var(--ok-soft); color: var(--ok); }

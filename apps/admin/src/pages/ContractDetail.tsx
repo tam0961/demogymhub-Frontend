@@ -156,7 +156,7 @@ export default function ContractDetail() {
               <li key={e.id}>
                 <b>{EVENT_LABEL[e.type] ?? e.type}</b>
                 <div className="cell-sub">{fmtDateTime(e.created_at)}{e.by_user_name ? `, ${e.by_user_name}` : ''}</div>
-                {e.reason && <div>Lý do: {e.reason}</div>}
+                {e.reason && <div>{e.type.startsWith('payment') ? `Hình thức: ${(METHOD_LABEL as Record<string, string>)[e.reason] ?? e.reason}` : `Lý do: ${e.reason}`}</div>}
               </li>
             ))}
             {(c.events ?? []).length === 0 && <li className="hint-muted">Chưa có sự kiện</li>}

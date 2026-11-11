@@ -41,7 +41,7 @@ export function PendingPanel({ payment, onConfirmed }: { payment: Payment; onCon
 
   return (
     <div className="stack">
-      <div className="pending-box" role="status">
+      <div className={status === 'pending' ? 'pending-box' : 'pending-box pending-box-ok'} role="status">
         <PayBadge status={status} />
         {status === 'pending' ? (
           <span>Chờ xác nhận {fmtMoney(payment.amount)}. Khoản này chưa được tính là đã thu.</span>
