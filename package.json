@@ -1,0 +1,11 @@
+{
+  "name": "gymhub-frontend",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "npm -w apps/admin run dev",
+    "build": "npm -w apps/admin run build",
+    "typecheck": "npm -w apps/admin run typecheck",
+    "test": "npm -w apps/admin run test"
+  }
+}
