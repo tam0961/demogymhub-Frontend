@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 
 export default function Forbidden() {
   return (
-    <div className="center-page">
+    <div className="login-page">
       <div className="error-page">
         <div className="code display">403</div>
         <h1>Không đủ quyền truy cập</h1>

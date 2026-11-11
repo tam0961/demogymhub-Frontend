@@ -5,7 +5,7 @@ import { fmtDateTime } from '../lib/format'
 import { setAccessToken } from '../lib/session'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../components/Toast'
-import { Badge, Button, Field, Input } from '../components/ui'
+import { Avatar, Button, Chip, DataTable, Field, Input, PageHeader, Panel, type Column } from '../components/ui'
 import type { SessionRow } from '../types'
 
 export default function Me() {
@@ -63,45 +63,43 @@ export default function Me() {
     }
   }
 
+  const cols: Column<SessionRow>[] = [
+    { key: 'dev', header: 'Thiết bị', render: (s) => <>{s.device ?? s.user_agent ?? 'Không rõ'} {s.current && <Chip tone="ok">Phiên này</Chip>}</> },
+    { key: 'ip', header: 'IP', render: (s) => s.ip ?? '-' },
+    { key: 'c', header: 'Tạo lúc', sortValue: (s) => s.created_at, render: (s) => fmtDateTime(s.created_at) },
+    { key: 'l', header: 'Dùng gần nhất', sortValue: (s) => s.last_used_at, render: (s) => fmtDateTime(s.last_used_at) },
+    { key: 'a', header: '', className: 'actions', render: (s) => !s.current && <Button small variant="danger" onClick={() => revoke(s.id)}>Thu hồi</Button> },
+  ]
+
   return (
     <>
-      <div className="page-head"><h1>Tài khoản của tôi</h1></div>
-      <section className="card pad stack">
-        <dl className="kv">
-          <dt>Họ tên</dt><dd>{user?.name}</dd>
-          <dt>Email</dt><dd>{user?.email}</dd>
-          <dt>Vai trò</dt><dd>{user?.roles.map((r) => <Badge key={r}>{r}</Badge>)}</dd>
-        </dl>
-      </section>
-
-      <h2 className="sec">Đổi mật khẩu</h2>
-      <form className="card pad stack narrow" onSubmit={change}>
-        {err && <div className="form-error" role="alert">{err}</div>}
-        <Field label="Mật khẩu hiện tại" htmlFor="pw-cur"><Input id="pw-cur" type="password" autoComplete="current-password" required value={cur} onChange={(e) => setCur(e.target.value)} /></Field>
-        <Field label="Mật khẩu mới" htmlFor="pw-new"><Input id="pw-new" type="password" autoComplete="new-password" required value={nw} onChange={(e) => setNw(e.target.value)} /></Field>
-        <Field label="Nhập lại mật khẩu mới" htmlFor="pw-new2"><Input id="pw-new2" type="password" autoComplete="new-password" required value={nw2} onChange={(e) => setNw2(e.target.value)} /></Field>
-        <div><Button variant="primary" type="submit" disabled={busy}>{busy ? 'Đang lưu...' : 'Đổi mật khẩu'}</Button></div>
-      </form>
-
-      <h2 className="sec">Phiên đăng nhập</h2>
-      <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>Thiết bị</th><th>IP</th><th>Tạo lúc</th><th>Dùng gần nhất</th><th /></tr></thead>
-            <tbody>
-              {sessions.map((s) => (
-                <tr key={s.id}>
-                  <td>{s.device ?? s.user_agent ?? 'Không rõ'} {s.current && <Badge tone="ok">Phiên này</Badge>}</td>
-                  <td>{s.ip ?? '-'}</td>
-                  <td>{fmtDateTime(s.created_at)}</td>
-                  <td>{fmtDateTime(s.last_used_at)}</td>
-                  <td className="actions">{!s.current && <Button small variant="danger" onClick={() => revoke(s.id)}>Thu hồi</Button>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {sErr && <div className="empty" role="alert">{sErr}</div>}
-        </div>
+      <PageHeader title="Tài khoản của tôi" />
+      <div className="grid-2">
+        <Panel title="Hồ sơ">
+          <div className="cell-person" style={{ marginBottom: 12 }}>
+            <Avatar name={user?.name ?? '?'} size={48} />
+            <div><div className="cell-main">{user?.name}</div><div className="cell-sub">{user?.email}</div></div>
+          </div>
+          <dl className="kv">
+            <dt>Vai trò</dt><dd className="chips">{user?.roles.map((r) => <Chip key={r}>{r}</Chip>)}</dd>
+            <dt>Chi nhánh</dt><dd>{user?.branches.map((b) => b.name).join(', ') || '-'}</dd>
+          </dl>
+        </Panel>
+        <Panel title="Đổi mật khẩu">
+          <form className="stack" onSubmit={change}>
+            {err && <div className="form-error" role="alert">{err}</div>}
+            <Field label="Mật khẩu hiện tại" htmlFor="pw-cur"><Input id="pw-cur" type="password" autoComplete="current-password" required value={cur} onChange={(e) => setCur(e.target.value)} /></Field>
+            <Field label="Mật khẩu mới" htmlFor="pw-new" hint="Tối thiểu 8 ký tự"><Input id="pw-new" type="password" autoComplete="new-password" required value={nw} onChange={(e) => setNw(e.target.value)} /></Field>
+            <Field label="Nhập lại mật khẩu mới" htmlFor="pw-new2"><Input id="pw-new2" type="password" autoComplete="new-password" required value={nw2} onChange={(e) => setNw2(e.target.value)} /></Field>
+            <div><Button variant="primary" type="submit" disabled={busy}>{busy ? 'Đang lưu...' : 'Đổi mật khẩu'}</Button></div>
+          </form>
+        </Panel>
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <Panel title="Phiên đăng nhập" count={`${sessions.length} phiên`} flush>
+          {sErr && <div className="form-error" role="alert" style={{ margin: 12 }}>{sErr}</div>}
+          <DataTable columns={cols} rows={sessions} rowKey={(s) => s.id} pageSize={25} pageSizes={[25, 50]} emptyText="Không có phiên" itemLabel="phiên" />
+        </Panel>
       </div>
     </>
   )

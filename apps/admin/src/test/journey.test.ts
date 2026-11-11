@@ -39,7 +39,7 @@ describe('contractActions', () => {
 
 describe('format helpers', () => {
   it('money and parse', () => {
-    expect(fmtMoney(1200000)).toMatch(/^1\.200\.000\s?đ$/)
+    expect(fmtMoney(1200000)).toMatch(/^1\.200\.000\s?₫$/)
     expect(parseMoney('1.200.000 đ')).toBe(1200000)
     expect(priceWithVat(600000, 8)).toBe(648000)
   })
@@ -116,8 +116,9 @@ describe('mock MVP journey', () => {
     expect(after.debt_amount).toBe(0)
     await http.post(`/contracts/${c.id}/activate`, {})
 
-    const ci = (await http.post('/checkins', { member_code: 'TH0009' })).data.data
-    expect(ci.result).toBe('allowed')
+    const other = (await http.post('/checkins', { member_code: 'HV0009' })).data.data
+    expect(other.result).toBe('denied')
+    expect(other.reason).toBe('WRONG_BRANCH')
 
     const closed = (await http.post(`/shifts/${(await http.get('/shifts/current')).data.data.id}/close`, { counted_cash: 0 })).data.data
     expect(closed.expected_cash).toBe(100000 + c.total_amount)
@@ -126,9 +127,16 @@ describe('mock MVP journey', () => {
 
   it('check-in denied reasons and override permission', async () => {
     await http.post('/auth/login', { email: 'letan@gymhub.vn', password: 'letan123' })
-    expect((await http.post('/checkins', { member_code: 'TH0003' })).data.data.reason).toBe('EXPIRED')
-    expect((await http.post('/checkins', { member_code: 'TH0004' })).data.data.reason).toBe('FROZEN')
+    expect((await http.post('/checkins', { member_code: 'HV0003' })).data.data.reason).toBe('WRONG_BRANCH')
     expect((await err(http.post('/checkins/override', { member_id: 'm3', reason: 'x' }))).status).toBe(403)
+    await http.post('/auth/login', { email: 'quanly@gymhub.vn', password: 'quanly123' })
+    expect((await http.post('/checkins', { member_code: 'HV0003' })).data.data.reason).toBe('EXPIRED')
+    expect((await http.post('/checkins', { member_code: 'HV0004' })).data.data.reason).toBe('FROZEN')
+    expect((await http.post('/checkins', { member_code: 'HV0009' })).data.data.result).toBe('allowed')
+    await http.post('/auth/login', { email: 'admin@gymhub.vn', password: 'admin123' })
+    const vo = await err(http.post('/checkins', { member_code: 'HV0009' }))
+    expect(vo.status).toBe(403)
+    expect(vo.data.error.code).toBe('VIEW_ONLY')
     await http.post('/auth/login', { email: 'quanly@gymhub.vn', password: 'quanly123' })
     expect((await http.post('/checkins/override', { member_id: 'm3', reason: 'khách quen' })).data.data.result).toBe('allowed')
   })

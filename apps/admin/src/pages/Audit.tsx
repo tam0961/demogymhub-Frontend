@@ -1,36 +1,30 @@
-import { useCallback, useEffect, useState } from 'react'
-import { api } from '../lib/api'
+import { useEffect, useState } from 'react'
+import { fetchAll } from '../lib/fetchAll'
 import { apiError } from '../lib/errors'
 import { downloadBlob, fmtDateTime, toCSV } from '../lib/format'
-import { Badge, Button, Field, Input, Pager } from '../components/ui'
-import type { AuditRow, ListResp } from '../types'
-
-const LIMIT = 20
+import { Button, Chip, DataTable, Icon, PageHeader, type Column } from '../components/ui'
+import type { AuditRow } from '../types'
 
 export function auditToCSV(rows: AuditRow[]) {
   return toCSV([['Thời gian', 'Người thực hiện', 'Hành động', 'Đối tượng', 'Kết quả', 'IP'], ...rows.map((r) => [r.created_at, r.actor_email ?? r.actor ?? '', r.action, r.resource ?? '', r.result ?? '', r.ip ?? ''])])
 }
+
+export const auditDenied = (r: AuditRow) => r.action.includes('denied') || r.result === 'DENY'
 
 export default function Audit() {
   const [actor, setActor] = useState('')
   const [action, setAction] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
-  const [page, setPage] = useState(1)
   const [rows, setRows] = useState<AuditRow[]>([])
-  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  const query = useCallback((p: number, limit: number) => ({ actor: actor || undefined, action: action || undefined, from: from || undefined, to: to || undefined, page: p, limit }), [actor, action, from, to])
 
   useEffect(() => {
     const t = setTimeout(async () => {
       setLoading(true)
       try {
-        const { data } = await api.get<ListResp<AuditRow>>('/audit-logs', { params: query(page, LIMIT) })
-        setRows(data.data)
-        setTotal(data.meta.total)
+        setRows(await fetchAll<AuditRow>('/audit-logs', { actor: actor || undefined, action: action || undefined, from: from || undefined, to: to || undefined }, 5))
         setError('')
       } catch (e) {
         setError(apiError(e).message)
@@ -39,54 +33,32 @@ export default function Audit() {
       }
     }, 250)
     return () => clearTimeout(t)
-  }, [query, page])
+  }, [actor, action, from, to])
 
-  const exportCsv = async () => {
-    try {
-      const { data } = await api.get<ListResp<AuditRow>>('/audit-logs', { params: query(1, 1000) })
-      downloadBlob(new Blob(['﻿' + auditToCSV(data.data)], { type: 'text/csv;charset=utf-8' }), 'nhat-ky.csv')
-    } catch (e) {
-      setError(apiError(e).message)
-    }
-  }
-  const set = (f: (v: string) => void) => (v: string) => {
-    f(v)
-    setPage(1)
-  }
+  const columns: Column<AuditRow>[] = [
+    { key: 'at', header: 'Thời gian', sortValue: (r) => r.created_at, render: (r) => fmtDateTime(r.created_at) },
+    { key: 'actor', header: 'Người thực hiện', sortValue: (r) => r.actor_email ?? r.actor, render: (r) => r.actor_email ?? r.actor ?? '-' },
+    { key: 'action', header: 'Hành động', sortValue: (r) => r.action, render: (r) => <span className="cell-main">{r.action}</span> },
+    { key: 'target', header: 'Đối tượng', render: (r) => r.target_id ?? r.resource ?? '-' },
+    { key: 'ip', header: 'IP', render: (r) => r.ip ?? '-' },
+    { key: 'result', header: 'Kết quả', render: (r) => (auditDenied(r) ? <Chip tone="bad">Bị từ chối</Chip> : r.result ? <Chip tone="ok">Cho phép</Chip> : <span className="hint-muted">-</span>) },
+  ]
 
   return (
     <>
-      <div className="page-head">
-        <h1>Nhật ký hệ thống</h1>
-        <Button onClick={exportCsv}>Xuất CSV</Button>
-      </div>
-      <div className="filters">
-        <Field label="Người thực hiện" htmlFor="au-actor"><Input id="au-actor" placeholder="ID người dùng (UUID)" value={actor} onChange={(e) => set(setActor)(e.target.value)} /></Field>
-        <Field label="Hành động" htmlFor="au-action"><Input id="au-action" value={action} onChange={(e) => set(setAction)(e.target.value)} /></Field>
-        <Field label="Từ ngày" htmlFor="au-from"><Input id="au-from" type="date" value={from} onChange={(e) => set(setFrom)(e.target.value)} /></Field>
-        <Field label="Đến ngày" htmlFor="au-to"><Input id="au-to" type="date" value={to} onChange={(e) => set(setTo)(e.target.value)} /></Field>
+      <PageHeader title="Nhật ký thao tác" sub="Mọi thao tác nhạy cảm và các lần bị từ chối quyền" />
+      <div className="toolbar">
+        <input className="input" aria-label="Người thực hiện" placeholder="Người thực hiện (email, mã)" value={actor} onChange={(e) => setActor(e.target.value)} />
+        <input className="input" aria-label="Hành động" placeholder="Hành động, ví dụ contracts.cancel" value={action} onChange={(e) => setAction(e.target.value)} />
+        <input className="input" type="date" aria-label="Từ ngày" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <input className="input" type="date" aria-label="Đến ngày" value={to} onChange={(e) => setTo(e.target.value)} />
+        <div className="grow">
+          <span className="hint-muted">{rows.length} bản ghi</span>
+          <Button onClick={() => downloadBlob(new Blob(['﻿' + auditToCSV(rows)], { type: 'text/csv;charset=utf-8' }), 'nhat-ky.csv')} disabled={rows.length === 0}><Icon name="download" size={16} />Xuất CSV</Button>
+        </div>
       </div>
       <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>Thời gian</th><th>Người thực hiện</th><th>Hành động</th><th>Đối tượng</th><th>Kết quả</th></tr></thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{fmtDateTime(r.created_at)}</td>
-                  <td>{r.actor_email ?? r.actor ?? '-'}</td>
-                  <td>{r.action}</td>
-                  <td>{r.target_id ?? r.resource ?? '-'}</td>
-                  <td>{r.action.includes('denied') ? <Badge tone="bad">DENY</Badge> : r.result ? <Badge tone={r.result === 'DENY' ? 'bad' : 'ok'}>{r.result}</Badge> : '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loading && <div className="empty">Đang tải...</div>}
-          {!loading && error && <div className="empty" role="alert">{error}</div>}
-          {!loading && !error && rows.length === 0 && <div className="empty">Không có bản ghi</div>}
-        </div>
-        <Pager page={page} limit={LIMIT} total={total} onPage={setPage} />
+        <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} defaultSort={{ key: 'at', dir: 'desc' }} loading={loading} error={error} emptyText="Không có bản ghi" itemLabel="bản ghi" />
       </div>
     </>
   )

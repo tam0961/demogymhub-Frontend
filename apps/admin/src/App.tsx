@@ -1,10 +1,10 @@
+import { Suspense, lazy, type ComponentType, type ReactNode } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { RequireAuth } from './components/Layout'
 import { PermRoute } from './components/PermRoute'
 import Audit from './pages/Audit'
 import Closing from './pages/Closing'
 import ContractDetail from './pages/ContractDetail'
-import ContractNew from './pages/ContractNew'
 import Contracts from './pages/Contracts'
 import ForgotPassword from './pages/ForgotPassword'
 import Forbidden from './pages/Forbidden'
@@ -21,7 +21,11 @@ import ShiftPage from './pages/ShiftPage'
 import Today from './pages/Today'
 import Users from './pages/Users'
 import { usePermission } from './context/usePermission'
-import type { ReactNode } from 'react'
+
+const pageModules = import.meta.glob('./pages/{Access,Debt}.tsx') as Record<string, () => Promise<{ default: ComponentType }>>
+const optionalPage = (file: string) => lazy(pageModules[`./pages/${file}.tsx`] ?? (() => import('./pages/NotFound')))
+const Access = optionalPage('Access')
+const Debt = optionalPage('Debt')
 
 function AnyPerm({ any, children }: { any: string[]; children: ReactNode }) {
   const { canAny } = usePermission()
@@ -30,16 +34,19 @@ function AnyPerm({ any, children }: { any: string[]; children: ReactNode }) {
 
 export default function App() {
   return (
+    <Suspense fallback={<div className="loading">Đang tải...</div>}>
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<RequireAuth />}>
         <Route index element={<Today />} />
+        <Route path="access" element={<PermRoute permission="checkins.read"><Access /></PermRoute>} />
+        <Route path="debt" element={<PermRoute permission="contracts.read"><Debt /></PermRoute>} />
         <Route path="members" element={<PermRoute permission="members.read"><Members /></PermRoute>} />
         <Route path="packages" element={<PermRoute permission="packages.read"><Packages /></PermRoute>} />
         <Route path="contracts" element={<PermRoute permission="contracts.read"><Contracts /></PermRoute>} />
-        <Route path="contracts/new" element={<PermRoute permission="contracts.create"><ContractNew /></PermRoute>} />
+        <Route path="contracts/new" element={<PermRoute permission="contracts.read"><Contracts /></PermRoute>} />
         <Route path="contracts/:id" element={<PermRoute permission="contracts.read"><ContractDetail /></PermRoute>} />
         <Route path="payments" element={<PermRoute permission="payments.read"><Payments /></PermRoute>} />
         <Route path="shift" element={<AnyPerm any={['shifts.open', 'shifts.close']}><ShiftPage /></AnyPerm>} />
@@ -53,5 +60,6 @@ export default function App() {
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
+    </Suspense>
   )
 }

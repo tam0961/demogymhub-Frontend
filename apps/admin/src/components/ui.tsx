@@ -1,6 +1,27 @@
-import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+/*
+ * Shared UI kit (restyle "vang"). Import everything from './components/ui' (or '../components/ui').
+ *
+ * Layout:   PageHeader{title,sub?,action?}  Panel{title?,count?,note?,flush?}  KpiRow > Kpi{value,label}
+ * Table:    DataTable<T>{columns[{key,header,render,sortValue?,numeric?}],rows,rowKey,onRowClick?,selectable?,
+ *           selected?,onSelectionChange?,defaultSort?,pageSize?,loading?,error?,emptyText?,itemLabel?}
+ * Status:   Chip{tone:'ok'|'warn'|'bad'|'neutral'}  BranchTag{branch,cross?}  memberStatus(contract)->{label,tone}
+ * Inputs:   Field/FormField{label,htmlFor,hint?,error?,full?}  Input  Select  Textarea  Segmented  Tabs
+ * Misc:     Button{variant:'primary'|'secondary'|'danger',small}  Avatar{name,src?,size?}  EmptyState  Icon
+ * Overlay:  Modal{title,onClose,footer?,size:'normal'|'large'} (./Modal)  useToast()(text,isError?) (./Toast)
+ * Format:   fmtMoney (700.000 d)  fmtDate (13/09/2026)  daysLeftText (Con n ngay)  fmtDateTime  fmtTime
+ * Rules:    yellow only for primary action / active tab / active nav; all strings Vietnamese; React escapes user text.
+ */
+import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import type { Branch, ContractStatus, MemberStatus, PayStatus } from '../types'
-import { CONTRACT_STATUS, PAY_STATUS } from '../lib/format'
+import { CONTRACT_STATUS, PAY_STATUS, initials, type ChipTone } from '../lib/format'
+
+export { Icon } from './icons'
+export { DataTable, sortRows, paginate, pageButtons } from './DataTable'
+export type { Column } from './DataTable'
+export { Modal } from './Modal'
+export { ToastProvider, useToast } from './Toast'
+export { fmtMoney, fmtDate, fmtDateTime, fmtTime, daysLeft, daysLeftText, memberStatus, initials } from '../lib/format'
+export type { ChipTone } from '../lib/format'
 
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger'; small?: boolean }
 export function Button({ variant = 'secondary', small, className = '', type = 'button', ...rest }: BtnProps) {
@@ -11,19 +32,22 @@ export function Button({ variant = 'secondary', small, className = '', type = 'b
 interface FieldProps {
   label: string
   error?: string
+  hint?: string
   full?: boolean
   htmlFor: string
   children: ReactNode
 }
-export function Field({ label, error, full, htmlFor, children }: FieldProps) {
+export function Field({ label, error, hint, full, htmlFor, children }: FieldProps) {
   return (
     <div className={`field ${full ? 'full' : ''}`}>
       <label htmlFor={htmlFor}>{label}</label>
       {children}
+      {hint && !error && <span className="field-hint">{hint}</span>}
       {error && <span className="field-error" role="alert">{error}</span>}
     </div>
   )
 }
+export const FormField = Field
 
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { invalid?: boolean }>(function Input({ invalid, ...rest }, ref) {
   return <input ref={ref} className="input" aria-invalid={invalid || undefined} {...rest} />
@@ -31,6 +55,10 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className="select" {...props} />
+}
+
+export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className="input" {...props} />
 }
 
 interface TabsProps<T extends string> {
@@ -50,8 +78,31 @@ export function Tabs<T extends string>({ tabs, value, onChange }: TabsProps<T>) 
   )
 }
 
-export function Badge({ tone, children }: { tone?: 'ok' | 'warn' | 'bad' | 'nb' | 'q7'; children: ReactNode }) {
+interface SegmentedProps<T extends string> {
+  options: { value: T; label: string; dot?: 'q2' | 'nb' | 'q7' | 'all' }[]
+  value: T
+  onChange: (v: T) => void
+  ariaLabel: string
+}
+export function Segmented<T extends string>({ options, value, onChange, ariaLabel }: SegmentedProps<T>) {
+  return (
+    <div className="segmented" role="group" aria-label={ariaLabel}>
+      {options.map((o) => (
+        <button key={o.value} type="button" className={`seg ${o.dot === 'all' ? 'seg-all' : ''}`} aria-pressed={o.value === value} onClick={() => onChange(o.value)}>
+          {o.dot && o.dot !== 'all' && <span className={`dot dot-${o.dot}`} aria-hidden="true" />}
+          {o.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+export function Badge({ tone, children }: { tone?: 'ok' | 'warn' | 'bad' | 'q2' | 'nb' | 'q7'; children: ReactNode }) {
   return <span className={`badge ${tone ? `badge-${tone}` : ''}`}>{children}</span>
+}
+
+export function Chip({ tone = 'neutral', children }: { tone?: ChipTone; children: ReactNode }) {
+  return <span className={`pill pill-${tone}`}>{children}</span>
 }
 
 const STATUS: Record<MemberStatus, { tone: 'ok' | 'warn' | 'bad'; label: string }> = {
@@ -76,7 +127,79 @@ export function PayBadge({ status }: { status: PayStatus }) {
 export function BranchBadge({ branch }: { branch?: Branch }) {
   if (!branch) return <Badge>Tất cả</Badge>
   const c = branch.code.toLowerCase()
-  return <Badge tone={c === 'nb' || c === 'q7' ? c : undefined}>{branch.code}</Badge>
+  return <Badge tone={c === 'q2' || c === 'nb' || c === 'q7' ? c : undefined}>{branch.code}</Badge>
+}
+
+export const branchColor = (code?: string | null) => {
+  const c = (code ?? '').toLowerCase()
+  return c === 'q2' || c === 'nb' || c === 'q7' ? c : 'all'
+}
+
+export function BranchTag({ branch, cross }: { branch?: { code: string; name: string } | null; cross?: boolean }) {
+  if (!branch) return <span className="hint-muted">-</span>
+  const c = branchColor(branch.code)
+  return (
+    <span className="branch-tag">
+      <span className={`tag tag-${c}`}><span className={`dot dot-${c}`} aria-hidden="true" />{branch.name}</span>
+      {cross && <span className="branch-cross">Liên chi nhánh</span>}
+    </span>
+  )
+}
+
+export function Avatar({ name, src, size = 36 }: { name: string; src?: string | null; size?: number }) {
+  const style = { width: size, height: size, fontSize: Math.round(size * 0.38) }
+  if (src) return <img className="avatar" style={style} src={src} alt={name} />
+  return <span className="avatar" style={style} aria-hidden="true">{initials(name)}</span>
+}
+
+export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
+  return (
+    <div className="empty">
+      <div>{title}</div>
+      {hint && <div className="hint-muted">{hint}</div>}
+      {action && <div style={{ marginTop: 10 }}>{action}</div>}
+    </div>
+  )
+}
+
+export function PageHeader({ title, sub, action }: { title: string; sub?: ReactNode; action?: ReactNode }) {
+  return (
+    <div className="page-head">
+      <div>
+        <h1>{title}</h1>
+        {sub && <p className="page-sub">{sub}</p>}
+      </div>
+      {action && <div className="page-action">{action}</div>}
+    </div>
+  )
+}
+
+interface PanelProps { title?: string; count?: ReactNode; note?: ReactNode; flush?: boolean; className?: string; children: ReactNode }
+export function Panel({ title, count, note, flush, className = '', children }: PanelProps) {
+  const right = count ?? note
+  return (
+    <section className={`panel ${className}`}>
+      {(title || right != null) && (
+        <div className="panel-head">
+          {title && <h2>{title}</h2>}
+          {right != null && <span className="panel-note">{right}</span>}
+        </div>
+      )}
+      <div className={flush ? '' : 'panel-body'}>{children}</div>
+    </section>
+  )
+}
+
+export function Kpi({ value, label }: { value: ReactNode; label: string }) {
+  return (
+    <div className="kpi2">
+      <div className="kpi2-value">{value}</div>
+      <div className="kpi2-label">{label}</div>
+    </div>
+  )
+}
+export function KpiRow({ children }: { children: ReactNode }) {
+  return <div className="kpi-row">{children}</div>
 }
 
 export function Pager({ page, limit, total, onPage }: { page: number; limit: number; total: number; onPage: (p: number) => void }) {
@@ -91,27 +214,5 @@ export function Pager({ page, limit, total, onPage }: { page: number; limit: num
         <Button small disabled={page >= pages} onClick={() => onPage(page + 1)}>Sau</Button>
       </div>
     </div>
-  )
-}
-
-const ICONS: Record<string, string> = {
-  today: 'M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10',
-  members: 'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21a8 8 0 0116 0',
-  packages: 'M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8',
-  menu: 'M4 6h16M4 12h16M4 18h16',
-  contracts: 'M7 3h8l4 4v14H7zM15 3v4h4M10 12h6M10 16h6',
-  payments: 'M3 6h18v12H3zM3 10h18M7 15h3',
-  reports: 'M4 20V10M10 20V4M16 20v-8M22 20H2',
-  users: 'M9 11a3 3 0 100-6 3 3 0 000 6zM3 20a6 6 0 0112 0M17 8a3 3 0 010 6M21 20a6 6 0 00-4-5.6',
-  roles: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z',
-  audit: 'M9 4h6M8 2h8v4H8zM6 4H5v18h14V4h-1M9 12h6M9 16h6',
-  me: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0',
-  closing: 'M5 4h14v16H5zM9 8h6M9 12h6M9 16h3',
-}
-export function Icon({ name, size = 20 }: { name: keyof typeof ICONS; size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d={ICONS[name]} />
-    </svg>
   )
 }

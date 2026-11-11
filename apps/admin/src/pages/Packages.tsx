@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
+import { fmtMoney, packageKind } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
-import { useToast } from '../components/Toast'
-import { Badge, BranchBadge, Button, Field, Input, Select } from '../components/ui'
+import { BranchTag, Button, Chip, DataTable, Field, Input, PageHeader, Select, useToast, type Column } from '../components/ui'
 import type { ListResp, PackageType, Pkg } from '../types'
-
-const TYPE_LABEL: Record<PackageType, string> = { day: 'Theo ngày', month: 'Theo tháng', session: 'Theo buổi' }
-const money = (n: number) => new Intl.NumberFormat('vi-VN').format(n) + ' đ'
 
 export default function Packages() {
   const { user } = useAuth()
@@ -40,53 +37,33 @@ export default function Packages() {
   }, [load])
 
   const canEdit = can('packages.update')
+  const columns: Column<Pkg>[] = [
+    { key: 'name', header: 'Tên gói', sortValue: (p) => p.name, render: (p) => <span className="cell-main">{p.name}</span> },
+    { key: 'kind', header: 'Loại', sortValue: (p) => packageKind(p.type, p.name), render: (p) => <Chip>{packageKind(p.type, p.name)}</Chip> },
+    { key: 'price', header: 'Giá', numeric: true, sortValue: (p) => p.price, render: (p) => fmtMoney(p.price) },
+    { key: 'term', header: 'Thời hạn / số buổi', numeric: true, sortValue: (p) => (p.type === 'session' ? p.sessions : p.duration_days), render: (p) => (p.type === 'session' ? `${p.sessions ?? 0} buổi` : `${p.duration_days ?? 0} ngày`) },
+    { key: 'vat', header: 'VAT', numeric: true, sortValue: (p) => p.vat_percent, render: (p) => `${p.vat_percent}%` },
+    { key: 'branch', header: 'Chi nhánh', sortValue: (p) => user?.branches.find((b) => b.id === p.branch_id)?.name, render: (p) => <BranchTag branch={user?.branches.find((b) => b.id === p.branch_id)} /> },
+    { key: 'active', header: 'Trạng thái', sortValue: (p) => (p.active ? 0 : 1), render: (p) => (p.active ? <Chip tone="ok">Đang bán</Chip> : <Chip>Ngưng bán</Chip>) },
+  ]
 
   return (
     <>
-      <div className="page-head">
-        <h1>Gói tập</h1>
-        <RequirePermission permission="packages.create">
-          <Button variant="primary" onClick={() => setEditing('new')}>Thêm gói tập</Button>
-        </RequirePermission>
-      </div>
+      <PageHeader
+        title="Gói dịch vụ"
+        action={<RequirePermission permission="packages.create"><Button variant="primary" onClick={() => setEditing('new')}>Thêm gói</Button></RequirePermission>}
+      />
       <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Tên gói</th>
-                <th>Loại</th>
-                <th className="num">Thời hạn / số buổi</th>
-                <th className="num">Giá</th>
-                <th className="num">VAT</th>
-                <th>Chi nhánh</th>
-                <th>Trạng thái</th>
-                {canEdit && <th />}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((p) => (
-                <tr key={p.id} className={canEdit ? 'clickable' : ''} onClick={canEdit ? () => setEditing(p) : undefined}>
-                  <td><b>{p.name}</b></td>
-                  <td>{TYPE_LABEL[p.type]}</td>
-                  <td className="num">{p.type === 'session' ? `${p.sessions ?? 0} buổi` : `${p.duration_days ?? 0} ngày`}</td>
-                  <td className="num">{money(p.price)}</td>
-                  <td className="num">{p.vat_percent}%</td>
-                  <td><BranchBadge branch={user?.branches.find((b) => b.id === p.branch_id)} /></td>
-                  <td>{p.active ? <Badge tone="ok">Đang bán</Badge> : <Badge>Ngưng bán</Badge>}</td>
-                  {canEdit && (
-                    <td className="actions">
-                      <Button small onClick={(e) => { e.stopPropagation(); setEditing(p) }}>Sửa</Button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loading && <div className="empty">Đang tải...</div>}
-          {!loading && error && <div className="empty" role="alert">{error}</div>}
-          {!loading && !error && rows.length === 0 && <div className="empty">Chưa có gói tập</div>}
-        </div>
+        <DataTable
+          columns={columns}
+          rows={rows}
+          rowKey={(p) => p.id}
+          onRowClick={canEdit ? setEditing : undefined}
+          loading={loading}
+          error={error}
+          emptyText="Chưa có gói dịch vụ"
+          itemLabel="gói"
+        />
       </div>
       {editing && (
         <PackageModal
@@ -94,7 +71,7 @@ export default function Packages() {
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null)
-            toast('Đã lưu gói tập')
+            toast('Đã lưu gói dịch vụ')
             load()
           }}
         />
@@ -148,7 +125,7 @@ function PackageModal({ pkg, onClose, onSaved }: { pkg: Pkg | null; onClose: () 
 
   return (
     <Modal
-      title={pkg ? 'Sửa gói tập' : 'Thêm gói tập'}
+      title={pkg ? 'Sửa gói dịch vụ' : 'Thêm gói dịch vụ'}
       onClose={onClose}
       footer={
         <>

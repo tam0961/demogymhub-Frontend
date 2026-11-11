@@ -2,6 +2,7 @@ import axios from 'axios'
 import { attachAuth, singleFlight } from './authInterceptor'
 import { getAccessToken, setAccessToken, getBranchId } from './session'
 import { getVisitorId } from './fingerprint'
+import { reportApi } from './connection'
 import { mockAdapter } from '../mock/adapter'
 
 export const USE_MOCK = import.meta.env.VITE_USE_MOCK === '1'
@@ -48,3 +49,14 @@ attachAuth(api, {
     window.dispatchEvent(new Event(LOGOUT_EVENT))
   },
 })
+
+api.interceptors.response.use(
+  (r) => {
+    reportApi(true)
+    return r
+  },
+  (e) => {
+    reportApi(!!(e as { response?: unknown }).response)
+    return Promise.reject(e)
+  },
+)

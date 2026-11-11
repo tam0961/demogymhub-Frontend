@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { EVENT_LABEL, METHOD_LABEL, contractActions, downloadBlob, fmtDate, fmtDateTime, fmtMoney } from '../lib/format'
+import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, contractActions, daysLeftText, downloadBlob, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
 import { usePermission } from '../context/usePermission'
 import { FormDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
 import { PayModal, PendingPanel } from '../components/PayModal'
 import { SignaturePad } from '../components/SignaturePad'
 import { useToast } from '../components/Toast'
-import { Button, ContractBadge, Field, Input, PayBadge } from '../components/ui'
+import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, type Column } from '../components/ui'
 import type { Contract, Payment } from '../types'
 
 type Dlg = null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
@@ -92,79 +92,83 @@ export default function ContractDetail() {
   const pays = c.payments ?? []
   const pendingSum = pays.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0)
 
+  const st = memberStatus({ status: c.status, end_date: c.end_date })
+  const payCols: Column<Payment>[] = [
+    { key: 'at', header: 'Thời gian', sortValue: (p) => p.created_at, render: (p) => fmtDateTime(p.created_at) },
+    { key: 'method', header: 'Hình thức', render: (p) => <>{METHOD_LABEL[p.method]}{p.ref ? <div className="cell-sub">{p.ref}</div> : null}</> },
+    { key: 'status', header: 'Trạng thái', render: (p) => <><Chip tone={PAY_STATUS[p.status].tone ?? 'neutral'}>{PAY_STATUS[p.status].label}</Chip>{p.refund_requested && p.status === 'confirmed' ? <div className="cell-sub">Đã đề nghị hoàn</div> : null}</> },
+    { key: 'amount', header: 'Số tiền', numeric: true, sortValue: (p) => p.amount, render: (p) => fmtMoney(p.amount) },
+    {
+      key: 'act', header: '', className: 'actions',
+      render: (p) => (
+        <>
+          {p.status === 'pending' && <Button small onClick={() => setDlg({ pending: p })}>{p.method === 'vietqr' ? 'Xem QR / xác nhận' : 'Xác nhận'}</Button>}
+          {p.status === 'confirmed' && can('payments.refund_request') && !p.refund_requested && <Button small onClick={() => setDlg({ refundReq: p })}>Đề nghị hoàn</Button>}
+          {p.status === 'confirmed' && can('payments.refund') && <Button small variant="danger" onClick={() => setDlg({ refund: p })}>Hoàn tiền</Button>}
+        </>
+      ),
+    },
+  ]
+
   return (
     <>
-      <div className="page-head">
-        <h1>{c.code} <ContractBadge status={c.status} /></h1>
-        <Link className="btn" to="/contracts">Danh sách</Link>
+      <PageHeader
+        title={c.code}
+        sub={<><Chip tone={st.tone}>{st.label}</Chip> <BranchTag branch={c.branch} /></>}
+        action={<Link className="btn" to="/contracts">Danh sách hợp đồng</Link>}
+      />
+
+      <KpiRow>
+        <Kpi value={fmtMoney(c.total_amount)} label="Giá trị" />
+        <Kpi value={fmtMoney(c.paid_amount)} label="Đã thu" />
+        <Kpi value={<span className={c.debt_amount > 0 ? 'text-bad' : ''}>{fmtMoney(c.debt_amount)}</span>} label="Còn nợ" />
+        <Kpi value={c.sessions_total != null ? `${c.sessions_left ?? 0}/${c.sessions_total}` : daysLeftText(c.end_date) || '-'} label={c.sessions_total != null ? 'Số buổi còn' : 'Thời hạn còn lại'} />
+      </KpiRow>
+
+      <div className="detail-grid">
+        <Panel title="Thông tin hợp đồng">
+          <dl className="kv">
+            <dt>Hội viên</dt><dd>{c.member.name} ({c.member.code}), {c.member.phone}</dd>
+            <dt>Dịch vụ</dt><dd>{c.package.name}</dd>
+            <dt>Bắt đầu</dt><dd>{fmtDate(c.start_date)}</dd>
+            <dt>Kết thúc</dt><dd>{fmtDate(c.end_date)}</dd>
+            {c.frozen_until && (<><dt>Bảo lưu đến</dt><dd>{fmtDate(c.frozen_until)}</dd></>)}
+            <dt>Giảm giá</dt><dd>{fmtMoney(c.discount)}</dd>
+            {c.note && (<><dt>Ghi chú</dt><dd>{c.note}</dd></>)}
+          </dl>
+          {pendingSum > 0 && <div className="pending-box" role="status" style={{ marginTop: 12 }}><Chip tone="warn">Chờ xác nhận</Chip> {fmtMoney(pendingSum)} chưa tính vào đã thu.</div>}
+          <div className="actions-area" role="group" aria-label="Thao tác hợp đồng">
+            {a.sign && <Button variant={variant('sign')} onClick={() => setDlg('sign')}>Ký hợp đồng</Button>}
+            {a.activate && <Button variant={variant('activate')} onClick={() => setDlg('activate')}>Kích hoạt</Button>}
+            {a.activateBlockedByDebt && <Button onClick={() => setDlg('activate')}>Kích hoạt (chưa đủ tiền)</Button>}
+            {a.pay && <Button variant={variant('pay')} onClick={() => setDlg('pay')}>Thu tiền</Button>}
+            {a.renew && <Button onClick={renew} disabled={busy}>Gia hạn</Button>}
+            {a.freeze && <Button onClick={() => setDlg('freeze')}>Bảo lưu</Button>}
+            {a.unfreeze && <Button onClick={() => run(() => post('unfreeze'), 'Đã kết thúc bảo lưu')}>Hủy bảo lưu</Button>}
+            {a.pdf && <Button onClick={pdf}>Tải PDF</Button>}
+            {a.cancel && <Button variant="danger" onClick={() => setDlg('cancel')}>Hủy hợp đồng</Button>}
+          </div>
+        </Panel>
+
+        <Panel title="Lịch sử hợp đồng" count={`${(c.events ?? []).length} sự kiện`}>
+          <ol className="timeline">
+            {(c.events ?? []).slice().reverse().map((e) => (
+              <li key={e.id}>
+                <b>{EVENT_LABEL[e.type] ?? e.type}</b>
+                <div className="cell-sub">{fmtDateTime(e.created_at)}{e.by_user ? `, ${e.by_user}` : ''}</div>
+                {e.reason && <div>Lý do: {e.reason}</div>}
+              </li>
+            ))}
+            {(c.events ?? []).length === 0 && <li className="hint-muted">Chưa có sự kiện</li>}
+          </ol>
+        </Panel>
       </div>
 
-      <section className="card pad stack">
-        <dl className="kv kv-2">
-          <dt>Hội viên</dt><dd>{c.member.name} ({c.member.code}) - {c.member.phone}</dd>
-          <dt>Gói tập</dt><dd>{c.package.name}</dd>
-          <dt>Bắt đầu</dt><dd>{fmtDate(c.start_date)}</dd>
-          <dt>Kết thúc</dt><dd>{fmtDate(c.end_date)}</dd>
-          {c.sessions_total != null && (<><dt>Số buổi còn</dt><dd className="num">{c.sessions_left}/{c.sessions_total}</dd></>)}
-          {c.frozen_until && (<><dt>Bảo lưu đến</dt><dd>{fmtDate(c.frozen_until)}</dd></>)}
-          <dt>Giảm giá</dt><dd className="num">{fmtMoney(c.discount)}</dd>
-          <dt>Tổng tiền</dt><dd className="num"><b>{fmtMoney(c.total_amount)}</b></dd>
-          <dt>Đã thu</dt><dd className="num">{fmtMoney(c.paid_amount)}</dd>
-          <dt>Còn nợ</dt><dd className={`num ${c.debt_amount > 0 ? 'text-bad' : ''}`}><b>{fmtMoney(c.debt_amount)}</b></dd>
-        </dl>
-        {pendingSum > 0 && <div className="pending-box" role="status"><PayBadge status="pending" /> {fmtMoney(pendingSum)} đang chờ xác nhận, chưa tính vào đã thu.</div>}
-        {c.note && <div className="hint-muted">Ghi chú: {c.note}</div>}
-
-        <div className="actions-area" aria-label="Thao tác hợp đồng">
-          {a.sign && <Button variant={variant('sign')} onClick={() => setDlg('sign')}>Ký hợp đồng</Button>}
-          {a.activate && <Button variant={variant('activate')} onClick={() => setDlg('activate')}>Kích hoạt</Button>}
-          {a.activateBlockedByDebt && <Button onClick={() => setDlg('activate')}>Kích hoạt (chưa đủ tiền)</Button>}
-          {a.pay && <Button variant={variant('pay')} onClick={() => setDlg('pay')}>Thu tiền</Button>}
-          {a.renew && <Button onClick={renew} disabled={busy}>Gia hạn</Button>}
-          {a.freeze && <Button onClick={() => setDlg('freeze')}>Bảo lưu</Button>}
-          {a.unfreeze && <Button onClick={() => run(() => post('unfreeze'), 'Đã kết thúc bảo lưu')}>Hủy bảo lưu</Button>}
-          {a.pdf && <Button onClick={pdf}>Tải PDF</Button>}
-          {a.cancel && <Button variant="danger" onClick={() => setDlg('cancel')}>Hủy hợp đồng</Button>}
-        </div>
-      </section>
-
-      <h2 className="sec">Thanh toán</h2>
-      <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr><th>Thời gian</th><th>Phương thức</th><th>Trạng thái</th><th className="num">Số tiền</th><th /></tr>
-            </thead>
-            <tbody>
-              {pays.map((p) => (
-                <tr key={p.id}>
-                  <td>{fmtDateTime(p.created_at)}</td>
-                  <td>{METHOD_LABEL[p.method]}{p.ref ? ` (${p.ref})` : ''}</td>
-                  <td><PayBadge status={p.status} />{p.refund_requested && p.status === 'confirmed' ? ' Đã đề nghị hoàn' : ''}</td>
-                  <td className="num">{fmtMoney(p.amount)}</td>
-                  <td className="actions">
-                    {p.status === 'pending' && <Button small onClick={() => setDlg({ pending: p })}>{p.method === 'vietqr' ? 'Xem QR / xác nhận' : 'Xác nhận'}</Button>}
-                    {p.status === 'confirmed' && can('payments.refund_request') && !p.refund_requested && <Button small onClick={() => setDlg({ refundReq: p })}>Đề nghị hoàn</Button>}
-                    {p.status === 'confirmed' && can('payments.refund') && <Button small variant="danger" onClick={() => setDlg({ refund: p })}>Hoàn tiền</Button>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {pays.length === 0 && <div className="empty">Chưa có khoản thanh toán</div>}
-        </div>
+      <div style={{ marginTop: 16 }}>
+        <Panel title="Thanh toán" count={`${pays.length} khoản`} flush>
+          <DataTable columns={payCols} rows={pays} rowKey={(p) => p.id} pageSize={25} pageSizes={[25, 50]} emptyText="Chưa có khoản thanh toán" itemLabel="khoản" />
+        </Panel>
       </div>
-
-      <h2 className="sec">Lịch sử hợp đồng</h2>
-      <ol className="timeline card pad">
-        {(c.events ?? []).slice().reverse().map((e) => (
-          <li key={e.id}>
-            <b>{EVENT_LABEL[e.type] ?? e.type}</b> <span className="hint-muted">{fmtDateTime(e.created_at)}{e.by_user ? ` - ${e.by_user}` : ''}</span>
-            {e.reason && <div>Lý do: {e.reason}</div>}
-          </li>
-        ))}
-        {(c.events ?? []).length === 0 && <li className="hint-muted">Chưa có sự kiện</li>}
-      </ol>
 
       {dlg === 'sign' && (
         <Modal

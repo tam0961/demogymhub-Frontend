@@ -1,118 +1,111 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { api } from '../lib/api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { fetchAll } from '../lib/fetchAll'
 import { apiError } from '../lib/errors'
-import { fmtDate, fmtMoney } from '../lib/format'
+import { CONTRACT_STATUS_OPTIONS, contractStatusLabel, contractsToCSV } from '../lib/contracts'
+import { METHOD_LABEL, downloadBlob, fmtDate, fmtMoney } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission } from '../context/usePermission'
-import { ContractBadge, Pager, Tabs } from '../components/ui'
-import type { Contract, ContractStatus, ListResp } from '../types'
-
-const LIMIT = 10
-type Filter = 'all' | ContractStatus
-const TABS: { value: Filter; label: string }[] = [
-  { value: 'all', label: 'Tất cả' },
-  { value: 'draft', label: 'Nháp' },
-  { value: 'signed', label: 'Đã ký' },
-  { value: 'active', label: 'Đang hiệu lực' },
-  { value: 'frozen', label: 'Bảo lưu' },
-  { value: 'expired', label: 'Hết hạn' },
-  { value: 'cancelled', label: 'Đã hủy' },
-]
+import { Button, Chip, DataTable, Icon, PageHeader, Select, type Column } from '../components/ui'
+import ContractNew from './ContractNew'
+import type { Contract } from '../types'
 
 export default function Contracts() {
   const { branchId } = useBranch()
   const nav = useNavigate()
+  const loc = useLocation()
+  const [params] = useSearchParams()
+  const creating = loc.pathname === '/contracts/new'
   const [q, setQ] = useState('')
-  const [dq, setDq] = useState('')
-  const [status, setStatus] = useState<Filter>('all')
-  const [expiring, setExpiring] = useState(false)
-  const [page, setPage] = useState(1)
+  const [status, setStatus] = useState('')
   const [rows, setRows] = useState<Contract[]>([])
-  const [total, setTotal] = useState(0)
+  const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setDq(q)
-      setPage(1)
-    }, 300)
-    return () => clearTimeout(t)
-  }, [q])
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const { data } = await api.get<ListResp<Contract>>('/contracts', {
-        params: { q: dq || undefined, status: status === 'all' ? undefined : status, branch_id: branchId ?? undefined, expiring_within_days: expiring ? 7 : undefined, page, limit: LIMIT },
-      })
-      setRows(data.data)
-      setTotal(data.meta.total)
+      setRows(await fetchAll<Contract>('/contracts', { branch_id: branchId ?? undefined }))
     } catch (e) {
       setError(apiError(e).message)
     } finally {
       setLoading(false)
     }
-  }, [dq, status, expiring, branchId, page])
-
+  }, [branchId])
   useEffect(() => {
     load()
   }, [load])
 
+  const filtered = useMemo(() => {
+    const k = q.trim().toLowerCase()
+    return rows.filter((c) => {
+      if (status && contractStatusLabel(c).label !== status) return false
+      if (!k) return true
+      return c.code.toLowerCase().includes(k) || c.member.name.toLowerCase().includes(k) || c.member.code.toLowerCase().includes(k) || c.member.phone.includes(k)
+    })
+  }, [rows, q, status])
+
+  const exportCsv = () => downloadBlob(new Blob(['﻿' + contractsToCSV(filtered)], { type: 'text/csv;charset=utf-8' }), 'hop-dong.csv')
+
+  const columns: Column<Contract>[] = [
+    { key: 'code', header: 'Mã HĐ', sortValue: (c) => c.code, render: (c) => <><div className="cell-main">{c.code}</div><div className="cell-sub">{c.branch?.name ?? ''}</div></> },
+    { key: 'member', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><div className="cell-main">{c.member.name}</div><div className="cell-sub">{c.member.code}</div></> },
+    { key: 'pkg', header: 'Dịch vụ', sortValue: (c) => c.package.name, render: (c) => c.package.name },
+    { key: 'signed', header: 'Ngày ký', sortValue: (c) => c.signed_at ?? c.created_at, render: (c) => fmtDate(c.signed_at ?? c.created_at) },
+    { key: 'end', header: 'Hết hạn', sortValue: (c) => c.end_date, render: (c) => fmtDate(c.end_date) },
+    {
+      key: 'total', header: 'Giá trị', numeric: true, sortValue: (c) => c.total_amount,
+      render: (c) => <><div className="cell-main">{fmtMoney(c.total_amount)}</div><div className="cell-sub">{c.last_payment_method ? METHOD_LABEL[c.last_payment_method] : ''}</div></>,
+    },
+    { key: 'debt', header: 'Còn nợ', numeric: true, sortValue: (c) => c.debt_amount, render: (c) => (c.debt_amount > 0 ? <span className="text-bad cell-main">{fmtMoney(c.debt_amount)}</span> : <span className="hint-muted">-</span>) },
+    { key: 'status', header: 'Trạng thái', sortValue: (c) => contractStatusLabel(c).label, render: (c) => { const s = contractStatusLabel(c); return <Chip tone={s.tone}>{s.label}</Chip> } },
+  ]
+
   return (
     <>
-      <div className="page-head">
-        <h1>Hợp đồng</h1>
-        <RequirePermission permission="contracts.create">
-          <Link className="btn btn-primary" to="/contracts/new">Tạo hợp đồng</Link>
-        </RequirePermission>
-      </div>
+      <PageHeader
+        title="Hợp đồng"
+        action={<RequirePermission permission="contracts.create"><Button variant="primary" onClick={() => nav('/contracts/new')}>Tạo hợp đồng mới</Button></RequirePermission>}
+      />
       <div className="toolbar">
-        <input className="input" type="search" placeholder="Tìm theo mã HĐ, tên, SĐT" aria-label="Tìm hợp đồng" value={q} onChange={(e) => setQ(e.target.value)} />
-        <label className="check">
-          <input type="checkbox" checked={expiring} onChange={(e) => { setExpiring(e.target.checked); setPage(1) }} />
-          Sắp hết hạn (7 ngày)
-        </label>
-      </div>
-      <div className="toolbar">
-        <Tabs tabs={TABS} value={status} onChange={(v) => { setStatus(v); setPage(1) }} />
+        <input className="input" type="search" placeholder="Tìm mã HĐ, tên, mã hội viên" aria-label="Tìm hợp đồng" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Select aria-label="Lọc trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="">Mọi trạng thái</option>
+          {CONTRACT_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+        </Select>
+        <div className="grow">
+          <span className="hint-muted">{filtered.length} hợp đồng</span>
+          <Button onClick={exportCsv} disabled={filtered.length === 0}><Icon name="download" size={16} />Xuất CSV</Button>
+        </div>
       </div>
       <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Mã HĐ</th>
-                <th>Hội viên</th>
-                <th>Gói</th>
-                <th>Trạng thái</th>
-                <th className="num">Hết hạn</th>
-                <th className="num">Tổng tiền</th>
-                <th className="num">Còn nợ</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c) => (
-                <tr key={c.id} className="clickable" onClick={() => nav(`/contracts/${c.id}`)}>
-                  <td><Link to={`/contracts/${c.id}`} onClick={(e) => e.stopPropagation()}>{c.code}</Link></td>
-                  <td><b>{c.member.name}</b><div className="hint-muted">{c.member.code}</div></td>
-                  <td>{c.package.name}</td>
-                  <td><ContractBadge status={c.status} /></td>
-                  <td className="num">{fmtDate(c.end_date)}</td>
-                  <td className="num">{fmtMoney(c.total_amount)}</td>
-                  <td className={`num ${c.debt_amount > 0 ? 'text-bad' : ''}`}>{fmtMoney(c.debt_amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loading && <div className="empty">Đang tải...</div>}
-          {!loading && error && <div className="empty" role="alert">{error}</div>}
-          {!loading && !error && rows.length === 0 && <div className="empty">Không có hợp đồng phù hợp</div>}
-        </div>
-        <Pager page={page} limit={LIMIT} total={total} onPage={setPage} />
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          rowKey={(c) => c.id}
+          onRowClick={(c) => nav(`/contracts/${c.id}`)}
+          selectable
+          selected={selected}
+          onSelectionChange={setSelected}
+          loading={loading}
+          error={error}
+          emptyText="Không có hợp đồng phù hợp"
+          defaultSort={{ key: 'signed', dir: 'desc' }}
+          itemLabel="hợp đồng"
+        />
       </div>
+      {creating && (
+        <RequirePermission permission="contracts.create">
+          <ContractNew
+            memberId={params.get('member_id')}
+            onClose={() => nav('/contracts')}
+            onCreated={(id) => { load(); nav(`/contracts/${id}`) }}
+          />
+        </RequirePermission>
+      )}
     </>
   )
 }
+

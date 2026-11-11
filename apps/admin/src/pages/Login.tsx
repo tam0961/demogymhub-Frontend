@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { AuthBrand } from '../components/AuthBrand'
 import { Button, Field, Input } from '../components/ui'
 import { apiError } from '../lib/errors'
 import { USE_MOCK } from '../lib/api'
@@ -37,20 +38,21 @@ export default function Login() {
   }
 
   return (
-    <div className="center-page">
+    <div className="login-page">
       <form className="card login-card" onSubmit={submit}>
-        <h1 className="display">GymHub</h1>
-        <p style={{ margin: 0, color: 'var(--muted)' }}>Đăng nhập để quản lý phòng tập</p>
+        <AuthBrand />
+        <h1 className="display">Đăng nhập</h1>
+        <p className="login-sub">Nhập tài khoản để vào hệ thống quản lý.</p>
         {error && <div className="form-error" role="alert">{error}</div>}
         <Field label="Email" htmlFor="email">
-          <Input id="email" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input id="email" type="email" autoComplete="username" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Mật khẩu" htmlFor="password">
           <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        <Button variant="primary" type="submit" disabled={busy}>{busy ? 'Đang đăng nhập...' : 'Đăng nhập'}</Button>
-        <Link to="/forgot-password">Quên mật khẩu?</Link>
-        {USE_MOCK && <small style={{ color: 'var(--muted)' }}>Mock: admin@gymhub.vn / admin123, letan@gymhub.vn / letan123, quanly@gymhub.vn / quanly123</small>}
+        <Button variant="primary" className="btn-block" type="submit" disabled={busy}>{busy ? 'Đang đăng nhập...' : 'Đăng nhập'}</Button>
+        <div className="link-row"><Link to="/forgot-password">Quên mật khẩu?</Link></div>
+        {USE_MOCK && <small className="hint-muted">Mock: admin@gymhub.vn / admin123, letan@gymhub.vn / letan123, quanly@gymhub.vn / quanly123</small>}
       </form>
     </div>
   )

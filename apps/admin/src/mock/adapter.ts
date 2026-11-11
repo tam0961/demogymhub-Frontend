@@ -2,8 +2,9 @@ import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from '
 import type { AuditRow, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, RoleRow, SessionRow, Shift } from '../types'
 
 const branches = [
-  { id: 'b-nb', code: 'NB', name: 'Chi nhánh NB' },
-  { id: 'b-q7', code: 'Q7', name: 'Chi nhánh Q7' },
+  { id: 'b-q2', code: 'Q2', name: 'Chi nhánh Quận 2' },
+  { id: 'b-nb', code: 'NB', name: 'Chi nhánh Nhà Bè' },
+  { id: 'b-q7', code: 'Q7', name: 'Chi nhánh Quận 7' },
 ]
 
 const P = {
@@ -18,14 +19,14 @@ const MANAGER_EXTRA = ['contracts.approve', 'contracts.freeze', 'contracts.cance
 const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log']
 
 const users: Record<string, { pw: string; me: Me }> = {
-  'admin@gymhub.vn': { pw: 'admin123', me: { id: 'u1', email: 'admin@gymhub.vn', name: 'Chủ phòng', roles: ['super_admin'], permissions: ALL, branches } },
+  'admin@gymhub.vn': { pw: 'admin123', me: { id: 'u1', email: 'admin@gymhub.vn', name: 'Chủ phòng', roles: ['super_admin'], permissions: ALL, branches, can_checkin: false, checkin_branch: null } },
   'quanly@gymhub.vn': {
     pw: 'quanly123',
-    me: { id: 'u3', email: 'quanly@gymhub.vn', name: 'Quản lý Q7', roles: ['manager'], permissions: [...Object.values(P).flat(), ...MANAGER_EXTRA], branches },
+    me: { id: 'u3', email: 'quanly@gymhub.vn', name: 'Phạm Minh Quân', roles: ['manager'], permissions: [...Object.values(P).flat(), ...MANAGER_EXTRA], branches: [branches[1]], can_checkin: true, checkin_branch: branches[1] },
   },
   'letan@gymhub.vn': {
     pw: 'letan123',
-    me: { id: 'u2', email: 'letan@gymhub.vn', name: 'Lễ tân NB', roles: ['receptionist'], permissions: [...Object.values(P).flat()], branches: [branches[0]] },
+    me: { id: 'u2', email: 'letan@gymhub.vn', name: 'Lê Thu Hà', roles: ['receptionist'], permissions: [...Object.values(P).flat()], branches: [branches[2]], can_checkin: true, checkin_branch: branches[2] },
   },
 }
 
@@ -34,28 +35,39 @@ const roleDefs: RoleRow[] = [
   { id: 'r2', name: 'owner', description: 'Chủ phòng tập', permissions: ALL },
   { id: 'r3', name: 'manager', description: 'Quản lý chi nhánh', permissions: [...Object.values(P).flat(), ...MANAGER_EXTRA] },
   { id: 'r4', name: 'receptionist', description: 'Lễ tân', permissions: Object.values(P).flat() },
+  { id: 'r5', name: 'accountant', description: 'Kế toán', permissions: ['payments.read', 'payments.confirm', 'reports.view', 'reports.view_revenue', 'reports.export', 'contracts.read'] },
 ]
 const adminUsers = [
   { id: 'u1', email: 'admin@gymhub.vn', name: 'Chủ phòng', roles: [{ id: 'ur1', role: 'super_admin', branch_id: null as string | null }] },
-  { id: 'u3', email: 'quanly@gymhub.vn', name: 'Quản lý Q7', roles: [{ id: 'ur3', role: 'manager', branch_id: 'b-q7' as string | null }] },
-  { id: 'u2', email: 'letan@gymhub.vn', name: 'Lễ tân NB', roles: [{ id: 'ur2', role: 'receptionist', branch_id: 'b-nb' as string | null }] },
+  { id: 'u3', email: 'quanly@gymhub.vn', name: 'Phạm Minh Quân', roles: [{ id: 'ur3', role: 'manager', branch_id: 'b-nb' as string | null }] },
+  { id: 'u2', email: 'letan@gymhub.vn', name: 'Lê Thu Hà', roles: [{ id: 'ur2', role: 'receptionist', branch_id: 'b-q7' as string | null }] },
+  { id: 'u5', email: 'ketoan@gymhub.vn', name: 'Kế toán', roles: [{ id: 'ur5', role: 'accountant', branch_id: null as string | null }] },
 ]
 
-const names = ['Nguyễn Văn An', 'Trần Thị Bình', 'Lê Hoàng Cường', 'Phạm Minh Đức', 'Võ Thu Hà', 'Đặng Quốc Huy', 'Bùi Ngọc Lan', 'Hoàng Gia Khang', 'Phan Thanh Mai', 'Đỗ Anh Tuấn', 'Ngô Thùy Linh', 'Dương Bảo Long']
-const statuses: Member['status'][] = ['active', 'active', 'expired', 'frozen']
-const members: Member[] = names.map((name, i) => ({
-  id: `m${i + 1}`,
-  code: `TH${String(i + 1).padStart(4, '0')}`,
-  name,
-  phone: `09000000${String(10 + i)}`,
-  email: i % 3 === 0 ? `hv${i + 1}@example.com` : null,
-  gender: i % 2 ? 'female' : 'male',
-  dob: `199${i % 10}-0${(i % 9) + 1}-15`,
-  status: statuses[i % 4],
-  branch_id: i % 2 ? 'b-q7' : 'b-nb',
-  avatar_url: null,
-  created_at: new Date(Date.now() - i * 86400000 * 9).toISOString(),
-}))
+let rnd = 7
+const rand = (n: number) => {
+  rnd = (rnd * 1103515245 + 12345) & 0x7fffffff
+  return rnd % n
+}
+const last = ['Nguyễn', 'Trần', 'Lê', 'Phạm', 'Hoàng', 'Huỳnh', 'Phan', 'Vũ', 'Võ', 'Đặng', 'Bùi', 'Đỗ', 'Ngô', 'Dương', 'Lý']
+const mid = ['Văn', 'Thị', 'Minh', 'Gia', 'Thanh', 'Hồng', 'Quốc', 'Ngọc', 'Anh', 'Thùy']
+const first = ['An', 'Bình', 'Cường', 'Đức', 'Hà', 'Huy', 'Lan', 'Khang', 'Mai', 'Tuấn', 'Linh', 'Long', 'Yến', 'Phúc', 'Vy', 'Châu', 'Dũng', 'Nhi', 'Hiếu', 'Trinh']
+const members: Member[] = Array.from({ length: 60 }, (_, i) => {
+  const female = i % 3 === 1 || mid[(i * 7) % 10] === 'Thị' || mid[(i * 7) % 10] === 'Ngọc'
+  return {
+    id: `m${i + 1}`,
+    code: `HV${String(i + 1).padStart(4, '0')}`,
+    name: `${last[(i * 4 + 1) % 15]} ${female && i % 2 ? 'Thị' : mid[(i * 7) % 10]} ${first[(i * 3 + 2) % 20]}`,
+    phone: `09${String(10000000 + ((i * 913577) % 89999999)).slice(0, 8)}`,
+    email: i % 3 === 0 ? `hv${i + 1}@example.com` : null,
+    dob: `199${i % 10}-0${(i % 9) + 1}-15`,
+    gender: female ? 'female' : 'male',
+    status: 'active',
+    branch_id: i % 7 === 5 ? 'b-q2' : i % 5 < 2 ? 'b-q7' : 'b-nb',
+    avatar_url: null,
+    created_at: new Date(Date.now() - (i * 9 + 3) * 86400000).toISOString(),
+  }
+})
 
 const packages: Pkg[] = [
   { id: 'p1', name: 'Vé ngày', type: 'day', duration_days: 1, sessions: null, price: 80000, vat_percent: 8, branch_id: 'b-nb', active: true },
@@ -63,6 +75,14 @@ const packages: Pkg[] = [
   { id: 'p3', name: 'Gói 12 buổi PT', type: 'session', duration_days: null, sessions: 12, price: 3600000, vat_percent: 8, branch_id: 'b-nb', active: true },
   { id: 'p4', name: 'Gói 3 tháng (ngưng bán)', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 8, branch_id: 'b-q7', active: false },
   { id: 'p5', name: 'Gói 1 tháng Q7', type: 'month', duration_days: 30, sessions: null, price: 650000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p7', name: 'Gói 3 tháng', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p9', name: 'Gói 12 tháng', type: 'month', duration_days: 365, sessions: null, price: 5000000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p8', name: 'Gói 12 tháng Q7', type: 'month', duration_days: 365, sessions: null, price: 5400000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p10', name: 'Gói 10 buổi PT Q7', type: 'session', duration_days: null, sessions: 10, price: 3000000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p11', name: 'Gói 1 tháng Q2', type: 'month', duration_days: 30, sessions: null, price: 650000, vat_percent: 8, branch_id: 'b-q2', active: true },
+  { id: 'p12', name: 'Gói 3 tháng Q2', type: 'month', duration_days: 90, sessions: null, price: 1600000, vat_percent: 8, branch_id: 'b-q2', active: true },
+  { id: 'p13', name: 'Gói 12 tháng Q2', type: 'month', duration_days: 365, sessions: null, price: 5400000, vat_percent: 8, branch_id: 'b-q2', active: true },
+  { id: 'p14', name: 'Gói 10 buổi PT Q2', type: 'session', duration_days: null, sessions: 10, price: 3000000, vat_percent: 8, branch_id: 'b-q2', active: true },
   { id: 'p6', name: 'Gói 6 tháng Q7', type: 'month', duration_days: 180, sessions: null, price: 3000000, vat_percent: 8, branch_id: 'b-q7', active: true },
 ]
 
@@ -83,6 +103,25 @@ function pkgOf(id: string) {
 }
 function memberOf(id: string) {
   return members.find((m) => m.id === id) as Member
+}
+const ORDER = ['active', 'frozen', 'signed', 'draft', 'expired', 'cancelled']
+function currentOf(memberId: string) {
+  const cs = contracts.filter((c) => c.member_id === memberId)
+  return ORDER.map((st) => cs.find((c) => c.status === st)).find(Boolean) ?? null
+}
+function memberOut(m: Member): Member {
+  const c = currentOf(m.id)
+  const b = branches.find((x) => x.id === m.branch_id)
+  return {
+    ...m,
+    status: c?.status === 'active' ? 'active' : c?.status === 'frozen' ? 'frozen' : 'expired',
+    branch: b ?? null,
+    current_contract: c ? { id: c.id, code: c.code, status: c.status, package_name: c.package.name, package_type: c.package.type, start_date: c.start_date, end_date: c.end_date, sessions_left: c.sessions_left } : null,
+  }
+}
+function contractOut(c: Contract): Contract {
+  const last = payments.filter((p) => p.contract_id === c.id && p.status === 'confirmed').sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
+  return { ...c, last_payment_method: last?.method ?? null, branch: branches.find((b) => b.id === c.branch_id) ?? null }
 }
 function log(actor: string, action: string, resource: string, result = 'ALLOW', ago = 0) {
   audit.unshift({ id: nid('a'), actor_email: actor, actor, action, resource, result, ip: '127.0.0.1', created_at: new Date(Date.now() - ago).toISOString() })
@@ -117,19 +156,102 @@ function seedContract(memberId: string, packageId: string, status: Contract['sta
   recalc(c)
   return c
 }
-seedContract('m1', 'p2', 'active', 648000, -10)
-seedContract('m2', 'p3', 'active', 3888000, -20)
+const PKG_BY_BRANCH: Record<string, string[]> = { 'b-nb': ['p2', 'p7', 'p9', 'p3'], 'b-q7': ['p5', 'p6', 'p8', 'p10'], 'b-q2': ['p11', 'p12', 'p13', 'p14'] }
+const REMAIN = [1, 1, 2, 3, 5, 6, 9, 15, 20, 28, 45, 70, 120, 200, 300]
 seedContract('m3', 'p2', 'expired', 648000, -45)
-seedContract('m4', 'p5', 'frozen', 702000, -15)
-seedContract('m5', 'p2', 'signed', 300000, null)
-seedContract('m6', 'p5', 'draft', 0, null)
-seedContract('m7', 'p5', 'active', 702000, -26)
+seedContract('m4', 'p2', 'frozen', 648000, -15)
+for (let k = 1; k <= 60; k++) {
+  if (k === 3 || k === 4 || k === 9) continue
+  const m = memberOf(`m${k}`)
+  const pid = PKG_BY_BRANCH[m.branch_id][rand(4)]
+  const pk = pkgOf(pid)
+  const dur = pk.duration_days ?? 30
+  const total = Math.round(pk.price * (1 + pk.vat_percent / 100))
+  const r = rand(100)
+  const part = rand(5) === 0 ? Math.round(total / 2) : total
+  if (r < 58) seedContract(m.id, pid, 'active', part, Math.min(REMAIN[rand(15)], dur - 1) - dur)
+  else if (r < 70) seedContract(m.id, pid, 'expired', total, -(dur + 5 + rand(40)))
+  else if (r < 77) seedContract(m.id, pid, 'frozen', total, -(Math.min(dur, 30) - 5))
+  else if (r < 85) seedContract(m.id, pid, 'signed', Math.round(total / 2), null)
+  else if (r < 91) seedContract(m.id, pid, 'draft', 0, null).created_at = iso(0)
+  else if (r < 94) seedContract(m.id, pid, 'cancelled', 0, -20)
+}
 ;([-6, -5, -4, -3, -2, -1].forEach((d, i) =>
   payments.push({ id: nid('pay'), contract_id: contracts[i % contracts.length].id, method: (['cash', 'transfer', 'vietqr', 'cash', 'ewallet', 'cash'] as PayMethod[])[i], amount: 400000 + i * 120000, status: 'confirmed', ref: null, shift_id: null, note: null, created_by: 'Hệ thống', created_at: iso(d), confirmed_at: iso(d) }),
 ))
+payments.push(
+  { id: nid('pay'), contract_id: contracts[0].id, method: 'cash', amount: 700000, status: 'confirmed', ref: null, shift_id: null, note: null, created_by: 'Hệ thống', created_at: iso(0), confirmed_at: iso(0) },
+  { id: nid('pay'), contract_id: contracts[1].id, method: 'transfer', amount: 100000, status: 'confirmed', ref: null, shift_id: null, note: null, created_by: 'Hệ thống', created_at: iso(0), confirmed_at: iso(0) },
+)
+contracts.slice(0, 2).forEach(recalc)
+payments[3].refund_requested = true
+const todayStart = new Date().setHours(0, 0, 0, 0)
+members
+  .filter((m) => contracts.some((c) => c.member_id === m.id && c.status === 'active'))
+  .slice(0, 12)
+  .forEach((m, k) => {
+    const at = Math.max(todayStart + 60000, Date.now() - (15 * k + 5) * 60000)
+    checkins.push({
+      id: nid('ci'), member: { id: m.id, code: m.code, name: m.name }, result: 'allowed', reason: null, created_at: new Date(at).toISOString(),
+      checked_out_at: k < 2 ? null : new Date(at + 50 * 60000).toISOString(), branch_id: m.branch_id, direction: 'in',
+    })
+  })
 log('admin@gymhub.vn', 'auth.login', 'session', 'ALLOW', 3600000)
 log('letan@gymhub.vn', 'contracts.cancel', 'contract', 'DENY', 7200000)
 log('quanly@gymhub.vn', 'payments.confirm', 'payment', 'ALLOW', 9000000)
+
+const METHOD_CYCLE: PayMethod[] = ['cash', 'transfer', 'vietqr', 'ewallet', 'cash', 'transfer']
+for (let k = 0; k < 60; k++) {
+  const mi = (k * 7) % 60 + 1
+  if (mi === 3 || mi === 4 || mi === 9) continue
+  const m = memberOf(`m${mi}`)
+  const pid = PKG_BY_BRANCH[m.branch_id][rand(4)]
+  const pk = pkgOf(pid)
+  const dur = pk.duration_days ?? 30
+  const total = Math.round(pk.price * (1 + pk.vat_percent / 100))
+  const r = rand(100)
+  const ago = 5 + rand(150)
+  const part = rand(4) === 0 ? Math.round(total * 0.4) : total
+  const c =
+    r < 55 ? seedContract(m.id, pid, 'active', part, -Math.min(ago, dur - 2))
+    : r < 80 ? seedContract(m.id, pid, 'expired', total, -(dur + ago))
+    : r < 88 ? seedContract(m.id, pid, 'frozen', total, -Math.min(dur - 3, 20))
+    : r < 94 ? seedContract(m.id, pid, 'signed', Math.round(total / 2), null)
+    : seedContract(m.id, pid, 'cancelled', 0, -ago)
+  c.signed_at = iso(c.start_date ? -Math.max(1, Math.round((Date.now() - new Date(c.start_date).getTime()) / DAY)) : -2)
+  c.created_at = c.signed_at
+  payments.filter((p) => p.contract_id === c.id).forEach((p, i) => {
+    p.method = METHOD_CYCLE[(k + i) % METHOD_CYCLE.length]
+    p.created_at = c.signed_at as string
+    p.confirmed_at = c.signed_at
+    p.ref = p.method === 'cash' ? null : `GD${100000 + k * 37 + i}`
+  })
+  recalc(c)
+}
+const pendingSeed = payments.filter((p) => p.status === 'confirmed' && p.method === 'vietqr').slice(0, 3)
+pendingSeed.forEach((p) => {
+  p.status = 'pending'
+  p.confirmed_at = null
+  recalc(contracts.find((x) => x.id === p.contract_id) as Contract)
+})
+const VIEW_ONLY_MSG = 'Tài khoản quản trị chỉ xem thống kê, không thực hiện check-in.'
+const REASONS: CheckinItem['reason'][] = ['EXPIRED', 'NO_ACTIVE_CONTRACT', 'FROZEN', 'WRONG_BRANCH', 'NO_SESSIONS']
+for (let k = 0; k < 90; k++) {
+  const m = members[(k * 11) % 60]
+  const at = Date.now() - (1 + Math.floor(k / 6)) * DAY - rand(10 * 3600000)
+  const denied = k % 9 === 4
+  checkins.push({
+    id: nid('ci'), member: { id: m.id, code: m.code, name: m.name }, result: denied ? 'denied' : 'allowed', reason: denied ? REASONS[k % REASONS.length] : null,
+    created_at: new Date(at).toISOString(), checked_out_at: denied ? null : new Date(at + (40 + rand(50)) * 60000).toISOString(), branch_id: m.branch_id, direction: 'in',
+  })
+}
+checkins.sort((a, b) => b.created_at.localeCompare(a.created_at))
+const ACTIONS = ['contracts.create', 'contracts.sign', 'contracts.activate', 'payments.create', 'payments.confirm', 'members.update', 'checkins.override', 'shifts.open', 'shifts.close', 'contracts.cancel']
+for (let k = 0; k < 40; k++) {
+  const who = ['letan@gymhub.vn', 'quanly@gymhub.vn', 'admin@gymhub.vn'][k % 3]
+  log(who, ACTIONS[k % ACTIONS.length], `HD${String(10 + k).padStart(5, '0')}`, k % 11 === 5 ? 'DENY' : 'ALLOW', (k + 1) * 5400000 + rand(3600000))
+}
+audit.sort((a, b) => b.created_at.localeCompare(a.created_at))
 
 const sessions: SessionRow[] = [
   { id: 's1', user_agent: 'Chrome trên Windows', ip: '127.0.0.1', created_at: iso(-1), last_used_at: iso(0), current: true },
@@ -229,12 +351,12 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     if (branchFilter) rows = rows.filter((m) => m.branch_id === branchFilter)
     if (params.status) rows = rows.filter((m) => m.status === params.status)
     if (q) rows = rows.filter((m) => m.name.toLowerCase().includes(q) || m.phone.includes(q) || m.code.toLowerCase().includes(q))
-    return paged(rows)
+    return paged(rows.map(memberOut))
   }
   if (url === '/members' && method === 'post') {
     need('members.create')
     if (members.some((m) => m.phone === body.phone)) fail(config, 409, 'DUPLICATE_PHONE', 'Số điện thoại đã tồn tại')
-    const m: Member = { id: `m${++seq}`, code: `TH${String(seq).padStart(4, '0')}`, avatar_url: null, created_at: new Date().toISOString(), ...body }
+    const m: Member = { id: `m${++seq}`, code: `HV${String(seq).padStart(4, '0')}`, avatar_url: null, created_at: new Date().toISOString(), ...body }
     members.unshift(m)
     return ok(m)
   }
@@ -242,7 +364,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (mm) {
     const m = members.find((x) => x.id === mm[1])
     if (!m) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
-    if (method === 'get') return ok(m)
+    if (method === 'get') return ok(memberOut(m as Member))
     need('members.update')
     if (body.phone && members.some((x) => x.phone === body.phone && x.id !== m?.id)) fail(config, 409, 'DUPLICATE_PHONE', 'Số điện thoại đã tồn tại')
     Object.assign(m as Member, body)
@@ -277,12 +399,13 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     let rows = contracts.filter((c) => myBranch(c.branch_id))
     if (params.member_id) rows = rows.filter((c) => c.member_id === params.member_id)
     if (params.status) rows = rows.filter((c) => c.status === params.status)
+    if (String(params.has_debt) === 'true') rows = rows.filter((c) => c.debt_amount > 0)
     if (params.expiring_within_days) {
       const lim = day(Number(params.expiring_within_days))
       rows = rows.filter((c) => c.status === 'active' && c.end_date && c.end_date <= lim && c.end_date >= day(0))
     }
     if (q) rows = rows.filter((c) => c.code.toLowerCase().includes(q) || c.member.name.toLowerCase().includes(q) || c.member.phone.includes(q))
-    return paged(rows.map((c) => ({ ...c, events: undefined })))
+    return paged(rows.map((c) => ({ ...contractOut(c), events: undefined })))
   }
   if (url === '/contracts' && method === 'post') {
     need('contracts.create')
@@ -308,7 +431,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const bad = (m: string): never => fail(config, 409, 'INVALID_STATE', m)
     if (!act && method === 'get') {
       need('contracts.read')
-      return ok({ ...k, payments: payments.filter((p) => p.contract_id === k.id) })
+      return ok({ ...contractOut(k), payments: payments.filter((p) => p.contract_id === k.id) })
     }
     if (act === 'pdf') {
       need('contracts.read')
@@ -468,18 +591,19 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   const activeFor = (memberId: string) => contracts.filter((c) => c.member_id === memberId && !['draft', 'signed', 'cancelled'].includes(c.status))
   if (url === '/checkins' && method === 'post') {
     need('checkins.create')
-    const key = String(body.member_code ?? '').trim().toLowerCase()
+    if (!me.can_checkin) fail(config, 403, 'VIEW_ONLY', VIEW_ONLY_MSG)
+    const key = String(body.member_code ?? '').trim().toLowerCase().replace(/\s/g, '')
     const m = members.find((x) => x.id === body.member_id || x.code.toLowerCase() === key || x.phone === key)
     if (!m) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy hội viên')
     const mem = m as Member
     const cs = activeFor(mem.id)
     const cur = cs.find((c) => c.status === 'active') ?? cs.find((c) => c.status === 'frozen') ?? cs[0]
     let reason: string | null = null
-    if (!cur) reason = 'NO_ACTIVE_CONTRACT'
+    if (me.checkin_branch && mem.branch_id !== me.checkin_branch.id) reason = 'WRONG_BRANCH'
+    else if (!cur) reason = 'NO_ACTIVE_CONTRACT'
     else if (cur.status === 'frozen') reason = 'FROZEN'
     else if (cur.status === 'expired' || (cur.end_date && cur.end_date < day(0))) reason = 'EXPIRED'
     else if (cur.sessions_total != null && (cur.sessions_left ?? 0) <= 0) reason = 'NO_SESSIONS'
-    else if (branchFilter && cur.branch_id !== branchFilter) reason = 'WRONG_BRANCH'
     const allowed = !reason
     if (allowed && cur && cur.sessions_left != null) cur.sessions_left -= 1
     const id = nid('ci')
@@ -488,6 +612,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   }
   if (url === '/checkins/override' && method === 'post') {
     need('checkins.override')
+    if (!me.can_checkin) fail(config, 403, 'VIEW_ONLY', VIEW_ONLY_MSG)
     const m = memberOf(body.member_id)
     if (!m || !body.reason) fail(config, 422, 'VALIDATION', 'Thiếu lý do mở thủ công')
     const id = nid('ci')
@@ -498,6 +623,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   const com = url.match(/^\/checkins\/([^/]+)\/checkout$/)
   if (com && method === 'post') {
     need('checkins.create')
+    if (!me.can_checkin) fail(config, 403, 'VIEW_ONLY', VIEW_ONLY_MSG)
     const ci = checkins.find((x) => x.id === com[1])
     if (ci) ci.checked_out_at = iso()
     return ok(ci ?? null)
@@ -512,10 +638,24 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     let rows = checkins.filter((x) => myBranch(x.branch_id))
     if (params.result) rows = rows.filter((x) => x.result === params.result)
     if (params.member_id) rows = rows.filter((x) => x.member.id === params.member_id)
+    if (params.date) rows = rows.filter((x) => x.created_at.slice(0, 10) === params.date || new Date(x.created_at).toLocaleDateString('sv') === params.date)
     return paged(rows)
   }
 
   /* reports */
+  if (url === '/reports/checkin-stats') {
+    need('checkins.read')
+    const d = String(params.date ?? day(0))
+    const list = branches.filter((b) => myBranch(b.id)).map((b) => {
+      const mine = checkins.filter((x) => x.branch_id === b.id)
+      const td = mine.filter((x) => new Date(x.created_at).toLocaleDateString('sv') === d)
+      const by = new Map<number, number>()
+      td.filter((x) => x.result === 'allowed').forEach((x) => by.set(new Date(x.created_at).getHours(), (by.get(new Date(x.created_at).getHours()) ?? 0) + 1))
+      return { branch: b, checkins_today: td.filter((x) => x.result === 'allowed').length, denied_today: td.filter((x) => x.result === 'denied').length, inside_now: mine.filter((x) => x.result === 'allowed' && !x.checked_out_at).length, by_hour: [...by.entries()].sort((a, b2) => a[0] - b2[0]).map(([hour, count]) => ({ hour, count })) }
+    })
+    const sum = (k: 'checkins_today' | 'denied_today' | 'inside_now') => list.reduce((t, x) => t + x[k], 0)
+    return ok({ date: d, branches: list, totals: { checkins_today: sum('checkins_today'), denied_today: sum('denied_today'), inside_now: sum('inside_now') } })
+  }
   if (url === '/reports/dashboard') {
     need('reports.view')
     const t = day(0)
@@ -539,6 +679,21 @@ export const mockAdapter: AxiosAdapter = async (config) => {
       inside_now: checkins.filter((x) => x.result === 'allowed' && !x.checked_out_at).length,
       debt_total: cs.filter((c) => !['cancelled', 'draft'].includes(c.status)).reduce((s, c) => s + c.debt_amount, 0),
       revenue_7d: r7,
+    })
+  }
+  if (url === '/reports/today-tasks') {
+    need('contracts.read')
+    const t = day(0)
+    const cs = contracts.filter((c) => myBranch(c.branch_id))
+    const awaiting = cs.filter((c) => c.status === 'draft')
+    const unpaid = cs.filter((c) => !['cancelled', 'draft'].includes(c.status) && c.debt_amount > 0)
+    const expiring = cs.filter((c) => c.status === 'active' && c.end_date && c.end_date >= t && c.end_date <= day(2))
+    const refunds = payments.filter((p) => p.refund_requested && p.status === 'confirmed' && myBranch(contracts.find((c) => c.id === p.contract_id)?.branch_id ?? ''))
+    return ok({
+      awaiting_signature: { count: awaiting.length, items: awaiting.slice(0, 5).map((c) => ({ id: c.id, code: c.code, member_name: c.member.name })) },
+      unpaid: { count: unpaid.length, total_debt: unpaid.reduce((s, c) => s + c.debt_amount, 0), items: unpaid.slice(0, 5).map((c) => ({ id: c.id, code: c.code, member_name: c.member.name, debt_amount: c.debt_amount })) },
+      expiring_in_2_days: { count: expiring.length, items: expiring.slice(0, 5).map((c) => ({ id: c.id, code: c.code, member_name: c.member.name, end_date: c.end_date as string })) },
+      pending_refunds: { count: refunds.length, items: refunds.slice(0, 5).map((p) => ({ id: p.id, contract_code: contracts.find((c) => c.id === p.contract_id)?.code ?? '', amount: p.amount })) },
     })
   }
   if (url === '/reports/daily-closing') {

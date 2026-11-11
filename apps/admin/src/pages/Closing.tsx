@@ -1,10 +1,10 @@
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { METHODS, METHOD_LABEL, fmtDateTime, fmtMoney, todayISO } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
-import { Field, Input } from '../components/ui'
-import type { Closing as ClosingT } from '../types'
+import { Chip, DataTable, Input, Kpi, KpiRow, PageHeader, Panel, type Column } from '../components/ui'
+import type { Closing as ClosingT, Payment } from '../types'
 
 export default function Closing() {
   const { branchId } = useBranch()
@@ -20,45 +20,29 @@ export default function Closing() {
 
   const itemsSum = d ? d.items.reduce((s, p) => s + p.amount, 0) : 0
   const matches = d ? itemsSum === d.total : true
+  const cols: Column<Payment>[] = [
+    { key: 'at', header: 'Xác nhận lúc', sortValue: (p) => p.confirmed_at, render: (p) => fmtDateTime(p.confirmed_at) },
+    { key: 'c', header: 'Hợp đồng', render: (p) => <><div className="cell-main">{p.contract?.code ?? p.contract_id}</div><div className="cell-sub">{p.contract?.member?.name ?? ''}</div></> },
+    { key: 'm', header: 'Hình thức', render: (p) => METHOD_LABEL[p.method] },
+    { key: 'a', header: 'Số tiền', numeric: true, sortValue: (p) => p.amount, render: (p) => fmtMoney(p.amount) },
+  ]
 
   return (
     <>
-      <div className="page-head"><h1>Chốt ngày</h1></div>
-      <div className="filters">
-        <Field label="Ngày" htmlFor="cl-date"><Input id="cl-date" type="date" value={date} onChange={(e) => setDate(e.target.value || todayISO())} /></Field>
-      </div>
-      {error && <div className="empty" role="alert">{error}</div>}
+      <PageHeader title="Chốt ngày" sub="Các khoản đã xác nhận trong ngày" action={<Input aria-label="Ngày chốt" type="date" value={date} onChange={(e) => setDate(e.target.value || todayISO())} />} />
+      {error && <div className="form-error" role="alert">{error}</div>}
       {d && (
         <>
-          <section className="card pad stack">
-            <dl className="kv">
-              {METHODS.map((m) => (
-                <Fragment key={m}><dt>{METHOD_LABEL[m]}</dt><dd className="num">{fmtMoney(d.totals_by_method[m] ?? 0)}</dd></Fragment>
-              ))}
-              <dt><b>Tổng thu</b></dt><dd className="num"><b>{fmtMoney(d.total)}</b></dd>
-            </dl>
-            {!matches && <div className="form-error" role="alert">Tổng các dòng ({fmtMoney(itemsSum)}) không khớp tổng thu. Cần kiểm tra lại.</div>}
-          </section>
-          <h2 className="sec">Các khoản đã xác nhận</h2>
-          <div className="card">
-            <div className="table-wrap">
-              <table className="table">
-                <thead><tr><th>Xác nhận lúc</th><th>Hợp đồng</th><th>Phương thức</th><th className="num">Số tiền</th></tr></thead>
-                <tbody>
-                  {d.items.map((p) => (
-                    <tr key={p.id}>
-                      <td>{fmtDateTime(p.confirmed_at)}</td>
-                      <td>{p.contract?.code ?? p.contract_id}{p.contract?.member?.name ? ` - ${p.contract.member.name}` : ''}</td>
-                      <td>{METHOD_LABEL[p.method]}</td>
-                      <td className="num">{fmtMoney(p.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot><tr><td colSpan={3}>Tổng cộng</td><td className="num"><b>{fmtMoney(itemsSum)}</b></td></tr></tfoot>
-              </table>
-              {d.items.length === 0 && <div className="empty">Không có khoản thu nào</div>}
-            </div>
-          </div>
+          <KpiRow>
+            <Kpi value={fmtMoney(d.total)} label="Tổng thu" />
+            {METHODS.map((m) => <Kpi key={m} value={fmtMoney(d.totals_by_method[m] ?? 0)} label={METHOD_LABEL[m]} />)}
+            <Kpi value={<Chip tone={matches ? 'ok' : 'bad'}>{matches ? 'Khớp' : 'Lệch'}</Chip>} label="Đối chiếu các dòng" />
+          </KpiRow>
+          {!matches && <div className="form-error" role="alert" style={{ marginBottom: 12 }}>Tổng các dòng ({fmtMoney(itemsSum)}) không khớp tổng thu. Cần kiểm tra lại.</div>}
+          <Panel title="Các khoản đã xác nhận" count={`${d.items.length} khoản`} flush>
+            <DataTable columns={cols} rows={d.items} rowKey={(p) => p.id} emptyText="Không có khoản thu nào" itemLabel="khoản" />
+            <div className="totals-row"><span>Tổng cộng</span><b className="num">{fmtMoney(itemsSum)}</b></div>
+          </Panel>
         </>
       )}
     </>

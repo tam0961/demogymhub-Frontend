@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
+import { AuthBrand } from '../components/AuthBrand'
 import { Button, Field, Input } from '../components/ui'
 
 export default function ResetPassword() {
@@ -30,8 +31,9 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="center-page">
+    <div className="login-page">
       <form className="card login-card" onSubmit={submit}>
+        <AuthBrand />
         <h1 className="display">Đặt lại mật khẩu</h1>
         {!token && <div className="form-error" role="alert">Liên kết thiếu mã xác thực.</div>}
         {done ? (
@@ -41,10 +43,10 @@ export default function ResetPassword() {
             {error && <div className="form-error" role="alert">{error}</div>}
             <Field label="Mật khẩu mới" htmlFor="rp-pw"><Input id="rp-pw" type="password" autoComplete="new-password" required value={pw} onChange={(e) => setPw(e.target.value)} /></Field>
             <Field label="Nhập lại mật khẩu" htmlFor="rp-pw2"><Input id="rp-pw2" type="password" autoComplete="new-password" required value={pw2} onChange={(e) => setPw2(e.target.value)} /></Field>
-            <Button variant="primary" type="submit" disabled={busy || !token}>{busy ? 'Đang lưu...' : 'Đặt lại mật khẩu'}</Button>
+            <Button variant="primary" className="btn-block" type="submit" disabled={busy || !token}>{busy ? 'Đang lưu...' : 'Đặt lại mật khẩu'}</Button>
           </>
         )}
-        <Link to="/login">Về đăng nhập</Link>
+        <div className="link-row"><Link to="/login">Về đăng nhập</Link></div>
       </form>
     </div>
   )

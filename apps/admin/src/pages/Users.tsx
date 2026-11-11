@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { diffRoles, needsConfirm } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
-import { useToast } from '../components/Toast'
-import { Badge, Button, Field, Select } from '../components/ui'
+import { Avatar, Button, Chip, DataTable, Field, PageHeader, Select, useToast, type Column } from '../components/ui'
 import type { AdminUser, ListResp, RoleRow } from '../types'
 
 export default function Users() {
@@ -16,6 +15,7 @@ export default function Users() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<AdminUser | null>(null)
+  const [q, setQ] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -33,27 +33,26 @@ export default function Users() {
     load()
   }, [load])
 
+  const filtered = useMemo(() => {
+    const k = q.trim().toLowerCase()
+    return k ? rows.filter((u) => u.name.toLowerCase().includes(k) || u.email.toLowerCase().includes(k)) : rows
+  }, [rows, q])
+
+  const columns: Column<AdminUser>[] = [
+    { key: 'name', header: 'Họ tên', sortValue: (u) => u.name, render: (u) => <div className="cell-person"><Avatar name={u.name} /><div><div className="cell-main">{u.name}</div><div className="cell-sub">{u.email}</div></div></div> },
+    { key: 'roles', header: 'Vai trò', render: (u) => <span className="chips">{u.roles.map((r) => <Chip key={r.id}>{r.role}</Chip>)}</span> },
+    { key: 'act', header: '', className: 'actions', render: (u) => can('roles.assign') && <Button small onClick={() => setEditing(u)}>Sửa vai trò</Button> },
+  ]
+
   return (
     <>
-      <div className="page-head"><h1>Người dùng</h1></div>
+      <PageHeader title="Tài khoản đăng nhập" sub="Người dùng và vai trò được gán" />
+      <div className="toolbar">
+        <input className="input" type="search" placeholder="Tìm tên hoặc email" aria-label="Tìm tài khoản" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="grow"><span className="hint-muted">{filtered.length} tài khoản</span></div>
+      </div>
       <div className="card">
-        <div className="table-wrap">
-          <table className="table">
-            <thead><tr><th>Họ tên</th><th>Email</th><th>Vai trò</th><th /></tr></thead>
-            <tbody>
-              {rows.map((u) => (
-                <tr key={u.id}>
-                  <td><b>{u.name}</b></td>
-                  <td>{u.email}</td>
-                  <td>{u.roles.map((r) => <Badge key={r.id}>{r.role}</Badge>)}</td>
-                  <td className="actions">{can('roles.assign') && <Button small onClick={() => setEditing(u)}>Sửa vai trò</Button>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {loading && <div className="empty">Đang tải...</div>}
-          {!loading && error && <div className="empty" role="alert">{error}</div>}
-        </div>
+        <DataTable columns={columns} rows={filtered} rowKey={(u) => u.id} loading={loading} error={error} emptyText="Không có tài khoản" itemLabel="tài khoản" />
       </div>
       {editing && <RoleEditor user={editing} roles={roles} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); load() }} />}
     </>
@@ -119,7 +118,7 @@ function RoleEditor({ user, roles, onClose, onSaved }: { user: AdminUser; roles:
         {!confirming && (
           <>
             {roles.map((r) => (
-              <label key={r.id} className="check">
+              <label key={r.id} className="check role-opt">
                 <input type="checkbox" checked={after.includes(r.name)} onChange={() => toggle(r.name)} />
                 {r.name}{r.description ? ` - ${r.description}` : ''}
               </label>

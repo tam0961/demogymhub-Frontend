@@ -1,11 +1,61 @@
-import type { CheckinReason, Contract, ContractStatus, PayMethod, PayStatus } from '../types'
+import type { CheckinReason, Contract, ContractStatus, PackageType, PayMethod, PayStatus } from '../types'
 
-export const fmtMoney = (n: number | null | undefined) => `${new Intl.NumberFormat('vi-VN').format(Math.round(n ?? 0))} đ`
-export const fmtDate = (s: string | null | undefined) => (s ? new Date(s).toLocaleDateString('vi-VN') : '-')
+export const fmtMoney = (n: number | null | undefined) => `${new Intl.NumberFormat('vi-VN').format(Math.round(n ?? 0))} ₫`
+const pad = (n: number) => String(n).padStart(2, '0')
+export const fmtDate = (s: string | null | undefined) => {
+  if (!s) return '-'
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s)
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`
+  const d = new Date(s)
+  return Number.isNaN(d.getTime()) ? '-' : `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`
+}
 export const fmtDateTime = (s: string | null | undefined) =>
   s ? new Date(s).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'
 export const fmtTime = (s: string | null | undefined) => (s ? new Date(s).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '-')
 export const todayISO = () => new Date().toISOString().slice(0, 10)
+
+const dayNum = (s: string) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000
+export function daysLeft(end: string | null | undefined, today: string = todayISO()): number | null {
+  if (!end) return null
+  return Math.round(dayNum(end) - dayNum(today))
+}
+export function daysLeftText(end: string | null | undefined, today: string = todayISO()): string {
+  const n = daysLeft(end, today)
+  if (n == null) return ''
+  if (n < 0) return `Quá hạn ${-n} ngày`
+  if (n === 0) return 'Hết hạn hôm nay'
+  return `Còn ${n} ngày`
+}
+
+export type ChipTone = 'ok' | 'warn' | 'bad' | 'neutral'
+export function memberStatus(
+  c: { status: ContractStatus; end_date?: string | null } | null | undefined,
+  today: string = todayISO(),
+): { label: string; tone: ChipTone } {
+  if (!c) return { label: 'Chưa kích hoạt', tone: 'neutral' }
+  switch (c.status) {
+    case 'draft': return { label: 'Chờ ký', tone: 'warn' }
+    case 'signed': return { label: 'Chưa kích hoạt', tone: 'warn' }
+    case 'frozen': return { label: 'Bảo lưu', tone: 'neutral' }
+    case 'cancelled': return { label: 'Đã hủy', tone: 'bad' }
+    case 'expired': return { label: 'Hết hạn', tone: 'bad' }
+    case 'active': {
+      const n = daysLeft(c.end_date, today)
+      if (n != null && n < 0) return { label: 'Hết hạn', tone: 'bad' }
+      if (n != null && n <= 7) return { label: 'Sắp hết hạn', tone: 'warn' }
+      return { label: 'Còn hạn', tone: 'ok' }
+    }
+  }
+}
+
+export const initials = (name: string) => {
+  const w = name.trim().split(/\s+/).filter(Boolean)
+  if (!w.length) return '?'
+  return (w.length === 1 ? w[0].slice(0, 2) : w[0][0] + w[w.length - 1][0]).toUpperCase()
+}
+
+export const packageKind = (t: PackageType, name = '') => (/combo/i.test(name) ? 'Combo' : t === 'session' ? 'PT' : t === 'day' ? 'Lớp' : 'Gym')
+export const GENDER_LABEL = { male: 'Nam', female: 'Nữ', other: 'Khác' } as const
 export const parseMoney = (s: string) => Number(s.replace(/[^\d]/g, '')) || 0
 
 type Tone = 'ok' | 'warn' | 'bad' | undefined

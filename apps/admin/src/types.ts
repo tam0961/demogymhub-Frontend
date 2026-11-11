@@ -6,6 +6,8 @@ export interface Me {
   roles: string[]
   permissions: string[]
   branches: Branch[]
+  can_checkin?: boolean
+  checkin_branch?: Branch | null
 }
 export type MemberStatus = 'active' | 'expired' | 'frozen'
 export type Gender = 'male' | 'female' | 'other'
@@ -21,6 +23,18 @@ export interface Member {
   branch_id: string
   avatar_url: string | null
   created_at: string
+  branch?: Branch | null
+  current_contract?: CurrentContract | null
+}
+export interface CurrentContract {
+  id: string
+  code: string
+  status: ContractStatus
+  package_name: string
+  package_type: PackageType
+  start_date: string | null
+  end_date: string | null
+  sessions_left: number | null
 }
 export type PackageType = 'day' | 'month' | 'session'
 export interface Pkg {
@@ -79,6 +93,8 @@ export interface Contract {
   created_at: string
   member: { id: string; code: string; name: string; phone: string }
   package: { id: string; name: string; type: PackageType }
+  last_payment_method?: PayMethod | null
+  branch?: Branch | null
   events?: ContractEvent[]
   payments?: Payment[]
 }
@@ -119,3 +135,13 @@ export interface AdminUser { id: string; email: string; name: string; roles: Use
 export interface RoleRow { id: string; name: string; description?: string | null; permissions: (string | { key: string })[] }
 export interface AuditRow { id: string; actor_id?: string | null; target_id?: string | null; actor?: string | null; actor_email?: string | null; action: string; resource?: string | null; result?: string | null; ip?: string | null; created_at: string }
 export interface SessionRow { id: string; device?: string | null; user_agent?: string | null; ip?: string | null; created_at: string; last_used_at?: string | null; current?: boolean }
+
+export interface TodayTasks {
+  awaiting_signature: { count: number; items: { id: string; code: string; member_name: string }[] }
+  unpaid: { count: number; total_debt: number; items: { id: string; code: string; member_name: string; debt_amount: number }[] }
+  expiring_in_2_days: { count: number; items: { id: string; code: string; member_name: string; end_date: string }[] }
+  pending_refunds: { count: number; items: { id: string; contract_code: string; amount: number }[] }
+}
+
+export interface CheckinStatsBranch { branch: Branch; checkins_today: number; denied_today: number; inside_now: number; by_hour: { hour: number; count: number }[] }
+export interface CheckinStats { date: string; branches: CheckinStatsBranch[]; totals: { checkins_today: number; denied_today: number; inside_now: number } }

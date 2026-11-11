@@ -1,12 +1,11 @@
-import { Fragment, useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { METHODS, METHOD_LABEL, diffTone, fmtDateTime, fmtMoney, parseMoney } from '../lib/format'
 import { useShift } from '../context/ShiftContext'
 import { usePermission } from '../context/usePermission'
-import { useToast } from '../components/Toast'
-import { Badge, Button, Field, Input } from '../components/ui'
-import type { Payment, ListResp, ShiftClose } from '../types'
+import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, useToast, type Column } from '../components/ui'
+import type { ListResp, Payment, ShiftClose } from '../types'
 
 export default function ShiftPage() {
   const { shift, loaded, refresh, openModal } = useShift()
@@ -21,7 +20,7 @@ export default function ShiftPage() {
 
   useEffect(() => {
     if (!shift) return
-    api.get<ListResp<Payment>>('/payments', { params: { shift_id: shift.id, status: 'confirmed', method: 'cash', limit: 200 } })
+    api.get<ListResp<Payment>>('/payments', { params: { shift_id: shift.id, status: 'confirmed', method: 'cash', limit: 100 } })
       .then((r) => setCashIn(r.data.data.reduce((s, p) => s + p.amount, 0)))
       .catch(() => setCashIn(0))
   }, [shift])
@@ -48,21 +47,23 @@ export default function ShiftPage() {
 
   if (result) {
     const tone = diffTone(result.difference)
+    const rows = METHODS.map((m) => ({ m, v: result.totals_by_method[m] ?? 0 }))
+    const cols: Column<{ m: string; v: number }>[] = [
+      { key: 'm', header: 'Hình thức', render: (r) => METHOD_LABEL[r.m as keyof typeof METHOD_LABEL] },
+      { key: 'v', header: 'Số tiền', numeric: true, render: (r) => fmtMoney(r.v) },
+    ]
     return (
       <>
-        <div className="page-head"><h1>Kết quả đóng ca</h1><Badge>Đã đóng - chỉ xem</Badge></div>
-        <section className="card pad stack">
-          <dl className="kv">
-            <dt>Đóng lúc</dt><dd>{fmtDateTime(closedAt)}</dd>
-            <dt>Tiền mặt dự kiến</dt><dd className="num">{fmtMoney(result.expected_cash)}</dd>
-            <dt>Tiền mặt đếm được</dt><dd className="num">{fmtMoney(result.counted_cash)}</dd>
-            <dt>Chênh lệch</dt><dd className="num"><Badge tone={tone}>{fmtMoney(result.difference)}</Badge></dd>
-          </dl>
-          <h2 className="sec">Tổng theo phương thức</h2>
-          <dl className="kv">
-            {METHODS.map((m) => (<Fragment key={m}><dt>{METHOD_LABEL[m]}</dt><dd className="num">{fmtMoney(result.totals_by_method[m] ?? 0)}</dd></Fragment>))}
-          </dl>
-        </section>
+        <PageHeader title="Kết quả đóng ca" sub={<Chip>Đã đóng, chỉ xem</Chip>} />
+        <KpiRow>
+          <Kpi value={fmtMoney(result.expected_cash)} label="Tiền mặt dự kiến" />
+          <Kpi value={fmtMoney(result.counted_cash)} label="Tiền mặt đếm được" />
+          <Kpi value={<Chip tone={tone}>{fmtMoney(result.difference)}</Chip>} label="Chênh lệch" />
+          <Kpi value={fmtDateTime(closedAt)} label="Đóng lúc" />
+        </KpiRow>
+        <Panel title="Tổng theo hình thức" flush>
+          <DataTable columns={cols} rows={rows} rowKey={(r) => r.m} pageSize={25} pageSizes={[25]} itemLabel="dòng" />
+        </Panel>
       </>
     )
   }
@@ -70,11 +71,11 @@ export default function ShiftPage() {
   if (!shift) {
     return (
       <>
-        <div className="page-head"><h1>Ca thu ngân</h1></div>
-        <section className="card pad stack">
-          <p style={{ margin: 0 }}>Bạn chưa mở ca. Cần mở ca để thu tiền mặt.</p>
-          {can('shifts.open') && <div><Button variant="primary" onClick={openModal}>Mở ca</Button></div>}
-        </section>
+        <PageHeader title="Ca thu ngân" />
+        <Panel title="Chưa có ca đang mở">
+          <p style={{ margin: '0 0 12px' }}>Bạn chưa mở ca. Cần mở ca để thu tiền mặt.</p>
+          {can('shifts.open') ? <Button variant="primary" onClick={openModal}>Mở ca</Button> : <span className="hint-muted">Nhờ người có quyền mở ca.</span>}
+        </Panel>
       </>
     )
   }
@@ -83,27 +84,26 @@ export default function ShiftPage() {
   const diff = parseMoney(counted) - expected
   return (
     <>
-      <div className="page-head"><h1>Đóng ca</h1></div>
-      <form className="card pad stack" onSubmit={close}>
-        {err && <div className="form-error" role="alert">{err}</div>}
-        <dl className="kv">
-          <dt>Mở lúc</dt><dd>{fmtDateTime(shift.opened_at)}</dd>
-          <dt>Tiền đầu ca</dt><dd className="num">{fmtMoney(shift.opening_cash)}</dd>
-          <dt>Thu tiền mặt trong ca</dt><dd className="num">{fmtMoney(cashIn)}</dd>
-          <dt>Tiền mặt dự kiến</dt><dd className="num"><b>{fmtMoney(expected)}</b></dd>
-        </dl>
+      <PageHeader title="Đóng ca" sub={`Mở lúc ${fmtDateTime(shift.opened_at)}`} />
+      <KpiRow>
+        <Kpi value={fmtMoney(shift.opening_cash)} label="Tiền đầu ca" />
+        <Kpi value={fmtMoney(cashIn)} label="Thu tiền mặt trong ca" />
+        <Kpi value={fmtMoney(expected)} label="Tiền mặt dự kiến" />
+        <Kpi value={counted === '' ? '-' : <Chip tone={diffTone(diff)}>{fmtMoney(diff)}</Chip>} label="Chênh lệch" />
+      </KpiRow>
+      <Panel title="Kiểm đếm tiền mặt">
         {can('shifts.close') ? (
-          <>
-            <Field label="Tiền mặt đếm được (đ)" htmlFor="sc-cash">
+          <form className="stack narrow" onSubmit={close}>
+            {err && <div className="form-error" role="alert">{err}</div>}
+            <Field label="Tiền mặt đếm được (đồng)" htmlFor="sc-cash">
               <Input id="sc-cash" inputMode="numeric" required value={counted} onChange={(e) => setCounted(e.target.value)} />
             </Field>
-            {counted !== '' && <div>Chênh lệch: <Badge tone={diffTone(diff)}>{fmtMoney(diff)}</Badge></div>}
             <div><Button variant="primary" type="submit" disabled={busy || counted === ''}>{busy ? 'Đang đóng...' : 'Đóng ca'}</Button></div>
-          </>
+          </form>
         ) : (
           <span className="hint-muted">Bạn không có quyền đóng ca.</span>
         )}
-      </form>
+      </Panel>
     </>
   )
 }

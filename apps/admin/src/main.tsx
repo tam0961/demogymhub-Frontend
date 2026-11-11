@@ -5,6 +5,7 @@ import App from './App'
 import { AuthProvider } from './context/AuthContext'
 import { ToastProvider } from './components/Toast'
 import './styles.css'
+import './restyle.css'
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>

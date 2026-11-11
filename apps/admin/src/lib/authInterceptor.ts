@@ -27,7 +27,8 @@ export function attachAuth(inst: AxiosInstance, opts: Opts) {
     const t = opts.getToken()
     if (t) cfg.headers.set('Authorization', `Bearer ${t}`)
     const b = opts.getBranchId?.()
-    if (b) cfg.headers.set('X-Branch-Id', b)
+    const serverBranch = cfg.method?.toLowerCase() === 'post' && /^\/checkins(\/|$)/.test(cfg.url ?? '')
+    if (b && !serverBranch) cfg.headers.set('X-Branch-Id', b)
     const v = await opts.getVisitorId?.().catch(() => null)
     if (v) cfg.headers.set('X-Visitor-ID', v)
     return cfg
