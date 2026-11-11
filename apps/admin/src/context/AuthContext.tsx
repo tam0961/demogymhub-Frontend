@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api, renewAccessToken, LOGOUT_EVENT } from '../lib/api'
 import { setAccessToken } from '../lib/session'
+import { clearSessionHint, hasSessionHint, setSessionHint } from '../lib/sessionHint'
 import type { Me } from '../types'
 
 export interface AuthValue {
@@ -27,16 +28,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let alive = true
     ;(async () => {
       try {
-        await renewAccessToken()
-        const me = await fetchMe()
-        if (alive) setUser(me)
+        if (hasSessionHint()) {
+          await renewAccessToken()
+          const me = await fetchMe()
+          if (alive) setUser(me)
+        }
       } catch {
         setAccessToken(null)
+        clearSessionHint()
       } finally {
         if (alive) setReady(true)
       }
     })()
-    const onLogout = () => setUser(null)
+    const onLogout = () => {
+      clearSessionHint()
+      setUser(null)
+    }
     window.addEventListener(LOGOUT_EVENT, onLogout)
     return () => {
       alive = false
@@ -47,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const { data } = await api.post('/auth/login', { email, password })
     setAccessToken(data.data.access_token)
+    setSessionHint()
     setUser(await fetchMe())
   }, [])
 
@@ -57,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       /* best effort */
     }
     setAccessToken(null)
+    clearSessionHint()
     setUser(null)
   }, [])
 

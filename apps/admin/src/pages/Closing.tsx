@@ -14,7 +14,11 @@ export default function Closing() {
 
   useEffect(() => {
     api.get('/reports/daily-closing', { params: { date, branch_id: branchId ?? undefined } })
-      .then((r) => { setD(r.data.data); setError('') })
+      .then((r) => {
+        const raw = r.data.data
+        setD({ ...raw, totals_by_method: raw.totals_by_method ?? raw.by_method ?? {}, items: raw.items ?? raw.transactions ?? [] })
+        setError('')
+      })
       .catch((e) => setError(apiError(e).message))
   }, [date, branchId])
 
