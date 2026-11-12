@@ -10,7 +10,8 @@ import { PayModal, PendingPanel } from '../components/PayModal'
 import { SignaturePad } from '../components/SignaturePad'
 import { useToast } from '../components/Toast'
 import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, type Column } from '../components/ui'
-import type { Contract, Payment } from '../types'
+import { MemberAvatar } from '../components/MemberAvatar'
+import type { Contract, Member, Payment } from '../types'
 
 type Dlg = null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
 
@@ -26,6 +27,12 @@ export default function ContractDetail() {
   const [dErr, setDErr] = useState('')
   const [sig, setSig] = useState<string | null>(null)
   const [days, setDays] = useState('7')
+  const [mem, setMem] = useState<Member | null>(null)
+  const memberId = c?.member_id
+  useEffect(() => {
+    if (!memberId || !can('members.read')) return
+    api.get(`/members/${memberId}`).then((r) => setMem(r.data.data)).catch(() => {})
+  }, [memberId, can])
 
   const load = useCallback(async () => {
     try {
@@ -128,7 +135,7 @@ export default function ContractDetail() {
       <div className="detail-grid">
         <Panel title="Thông tin hợp đồng">
           <dl className="kv">
-            <dt>Hội viên</dt><dd>{c.member.name} ({c.member.code}), {c.member.phone}</dd>
+            <dt>Hội viên</dt><dd><span className="cell-person"><MemberAvatar member={{ id: c.member.id, name: c.member.name, has_photo: mem?.has_photo, photo_version: mem?.photo_version }} size={32} /><span>{c.member.name} ({c.member.code}), {c.member.phone}</span></span></dd>
             <dt>Dịch vụ</dt><dd>{c.package.name}</dd>
             <dt>Bắt đầu</dt><dd>{fmtDate(c.start_date)}</dd>
             <dt>Kết thúc</dt><dd>{fmtDate(c.end_date)}</dd>

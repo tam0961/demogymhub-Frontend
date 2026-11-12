@@ -8,7 +8,9 @@ import { useBranch } from '../context/BranchContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
 import { QRImage } from '../components/QRImage'
-import { Avatar, BranchTag, Button, Chip, DataTable, Field, Icon, Input, PageHeader, Select, useToast, type Column } from '../components/ui'
+import { FaceModal, type FaceResult } from '../components/FaceModal'
+import { MemberAvatar } from '../components/MemberAvatar'
+import { BranchTag, Button, Chip, DataTable, Field, Icon, Input, PageHeader, Select, useToast, type Column } from '../components/ui'
 import type { Branch, CheckinItem, Contract, Gender, ListResp, Member, MemberStatus, Payment } from '../types'
 
 const PAGE = 100
@@ -88,12 +90,12 @@ export default function Members() {
   }
 
   const columns: Column<Member>[] = [
-    { key: 'code', header: 'Mã', sortValue: (m) => m.code, render: (m) => <><div className="cell-main">{m.code}</div><div className="cell-sub">{m.code.replace('HV', 'FACE-')}</div></> },
+    { key: 'code', header: 'Mã', sortValue: (m) => m.code, render: (m) => <><div className="cell-main">{m.code}</div>{m.face_id && <div className="cell-sub">{m.face_id}</div>}</> },
     {
       key: 'name', header: 'Thông tin khách hàng', sortValue: (m) => m.name,
       render: (m) => (
         <div className="cell-person">
-          <Avatar name={m.name} src={m.avatar_url} />
+          <MemberAvatar member={m} />
           <div><div className="cell-main">{m.name}</div><div className="cell-sub">{m.phone}{m.gender ? ` · ${GENDER_LABEL[m.gender]}` : ''}</div></div>
         </div>
       ),
@@ -154,6 +156,10 @@ export default function Members() {
           member={profile}
           canEdit={can('members.update')}
           onEdit={() => { setEditing(profile); setProfile(null) }}
+          onUpdated={(m) => {
+            setProfile((p) => (p ? { ...p, ...m, current_contract: m.current_contract ?? p.current_contract, branch: m.branch ?? p.branch } : p))
+            setRows((rs) => rs.map((r) => (r.id === m.id ? { ...r, ...m, current_contract: m.current_contract ?? r.current_contract, branch: m.branch ?? r.branch } : r)))
+          }}
           onClose={() => setProfile(null)}
         />
       )}
@@ -174,11 +180,12 @@ export default function Members() {
 
 interface ProfileData { contracts: Contract[]; payments: Payment[]; checkins: CheckinItem[] }
 
-function MemberProfile({ member, canEdit, onEdit, onClose }: { member: Member; canEdit: boolean; onEdit: () => void; onClose: () => void }) {
+function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member: Member; canEdit: boolean; onEdit: () => void; onUpdated: (m: Member) => void; onClose: () => void }) {
   const { user } = useAuth()
   const { can } = usePermission()
   const [data, setData] = useState<ProfileData | null>(null)
   const [error, setError] = useState('')
+  const [faceOpen, setFaceOpen] = useState(false)
   const branch = member.branch ?? user?.branches.find((b) => b.id === member.branch_id)
 
   useEffect(() => {
@@ -200,8 +207,19 @@ function MemberProfile({ member, canEdit, onEdit, onClose }: { member: Member; c
     }
   }, [member.id, member.name, can])
 
+  const saveFace = async (r: FaceResult) => {
+    let m = member
+    if (r.photo) {
+      m = { ...m, ...(await api.put(`/members/${member.id}/photo`, { content_type: r.photo.content_type, image_base64: r.photo.image_base64 })).data.data }
+      onUpdated(m)
+    }
+    const nf = r.faceId || null
+    if ((member.face_id ?? null) !== nf) onUpdated({ ...m, ...(await api.patch(`/members/${member.id}`, { face_id: nf })).data.data })
+  }
+
   const pkgOf = (c: Contract) => `${c.code}, ${c.package.name}`
   return (
+    <>
     <Modal
       title={member.name}
       size="large"
@@ -209,17 +227,19 @@ function MemberProfile({ member, canEdit, onEdit, onClose }: { member: Member; c
       footer={<>{canEdit && <Button onClick={onEdit}>Sửa thông tin</Button>}<Button onClick={onClose}>Đóng</Button></>}
     >
       <div className="profile-head">
-        <div className="profile-photo">{member.avatar_url ? <img src={member.avatar_url} alt={member.name} /> : <Avatar name={member.name} size={72} />}</div>
+        <div className="profile-photo"><MemberAvatar member={member} size={120} /></div>
         <dl className="kv">
           <dt>Mã hội viên</dt><dd>{member.code}</dd>
           <dt>Điện thoại</dt><dd>{member.phone}</dd>
           <dt>Giới tính</dt><dd>{member.gender ? GENDER_LABEL[member.gender] : '-'}</dd>
           <dt>Chi nhánh</dt><dd><BranchTag branch={branch} /></dd>
           <dt>Ngày tham gia</dt><dd>{fmtDate(member.created_at)}</dd>
+          <dt>Face ID</dt><dd>{member.face_id ?? 'Chưa đăng ký'}</dd>
           {member.email && <><dt>Email</dt><dd>{member.email}</dd></>}
         </dl>
         <div className="qr-box"><QRImage text={member.code} size={110} /></div>
       </div>
+      {canEdit && <div style={{ marginBottom: 8 }}><Button onClick={() => setFaceOpen(true)}>Chụp ảnh, đăng ký khuôn mặt</Button></div>}
       {error && <div className="form-error" role="alert">{error}</div>}
       {!data && !error && <div className="hint-muted">Đang tải...</div>}
       {data && (
@@ -282,6 +302,8 @@ function MemberProfile({ member, canEdit, onEdit, onClose }: { member: Member; c
         </>
       )}
     </Modal>
+    {faceOpen && <FaceModal member={member} initialFaceId={member.face_id ?? ''} onSave={saveFace} onClose={() => setFaceOpen(false)} />}
+    </>
   )
 }
 

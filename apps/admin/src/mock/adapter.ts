@@ -109,11 +109,17 @@ function currentOf(memberId: string) {
   const cs = contracts.filter((c) => c.member_id === memberId)
   return ORDER.map((st) => cs.find((c) => c.status === st)).find(Boolean) ?? null
 }
+const photos = new Map<string, { content_type: string; image_base64: string; version: number }>()
+const bonusDays = new Map<string, number>()
 function memberOut(m: Member): Member {
   const c = currentOf(m.id)
   const b = branches.find((x) => x.id === m.branch_id)
+  const ph = photos.get(m.id)
   return {
     ...m,
+    face_id: m.face_id ?? null,
+    has_photo: !!ph,
+    photo_version: ph?.version ?? null,
     status: c?.status === 'active' ? 'active' : c?.status === 'frozen' ? 'frozen' : 'expired',
     branch: b ?? null,
     current_contract: c ? { id: c.id, code: c.code, status: c.status, package_name: c.package.name, package_type: c.package.type, start_date: c.start_date, end_date: c.end_date, sessions_left: c.sessions_left } : null,
@@ -356,9 +362,29 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/members' && method === 'post') {
     need('members.create')
     if (members.some((m) => m.phone === body.phone)) fail(config, 409, 'DUPLICATE_PHONE', 'Số điện thoại đã tồn tại')
-    const m: Member = { id: `m${++seq}`, code: `HV${String(seq).padStart(4, '0')}`, avatar_url: null, created_at: new Date().toISOString(), ...body }
+    if (body.face_id && members.some((m) => m.face_id === body.face_id)) fail(config, 409, 'DUPLICATE_FACE_ID', 'Face ID đã được dùng cho hội viên khác')
+    const m: Member = { id: `m${++seq}`, code: `HV${String(seq).padStart(4, '0')}`, avatar_url: null, created_at: new Date().toISOString(), ...body, face_id: body.face_id ?? null }
     members.unshift(m)
-    return ok(m)
+    return ok(memberOut(m))
+  }
+  const pm0 = url.match(/^\/members\/([^/]+)\/photo$/)
+  if (pm0) {
+    const m = members.find((x) => x.id === pm0[1])
+    if (!m) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
+    if (method === 'get') {
+      need('members.read')
+      const ph = photos.get(pm0[1])
+      if (!ph) fail(config, 404, 'NOT_FOUND', 'Hội viên chưa có ảnh')
+      const bin = atob((ph as { image_base64: string }).image_base64)
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      return { data: new Blob([bytes], { type: (ph as { content_type: string }).content_type }), status: 200, statusText: 'OK', headers: { 'content-type': (ph as { content_type: string }).content_type }, config }
+    }
+    need('members.update')
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(body.content_type) || !body.image_base64) fail(config, 400, 'INVALID_IMAGE', 'Ảnh không hợp lệ')
+    if (String(body.image_base64).length > 400 * 1024) fail(config, 413, 'PHOTO_TOO_LARGE', 'Ảnh quá lớn')
+    photos.set(pm0[1], { content_type: body.content_type, image_base64: body.image_base64, version: Date.now() })
+    return ok(memberOut(m as Member))
   }
   const mm = url.match(/^\/members\/(.+)$/)
   if (mm) {
@@ -367,8 +393,9 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     if (method === 'get') return ok(memberOut(m as Member))
     need('members.update')
     if (body.phone && members.some((x) => x.phone === body.phone && x.id !== m?.id)) fail(config, 409, 'DUPLICATE_PHONE', 'Số điện thoại đã tồn tại')
+    if (body.face_id && members.some((x) => x.face_id === body.face_id && x.id !== m?.id)) fail(config, 409, 'DUPLICATE_FACE_ID', 'Face ID đã được dùng cho hội viên khác')
     Object.assign(m as Member, body)
-    return ok(m)
+    return ok(memberOut(m as Member))
   }
 
   if (url === '/packages' && method === 'get') {
@@ -413,10 +440,27 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const pk = packages.find((x) => x.id === body.package_id)
     if (!m || !pk) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy hội viên hoặc gói')
     if (pk!.branch_id && pk!.branch_id !== m!.branch_id) fail(config, 422, 'BRANCH_MISMATCH', 'Gói tập không thuộc chi nhánh của hội viên')
-    const discount = Number(body.discount ?? 0)
+    const pr = body.promo as { type?: string; value?: number } | undefined
+    let prev: Contract | undefined
+    if (body.renewed_from_id) {
+      prev = contracts.find((x) => x.id === body.renewed_from_id)
+      if (!prev || prev.member_id !== m!.id) fail(config, 422, 'VALIDATION', 'Hợp đồng gia hạn không hợp lệ')
+    }
+    if (pr) {
+      const types = ['bonus_months', 'bonus_days', 'bonus_sessions', 'percent', 'amount']
+      if (!types.includes(String(pr.type)) || !Number.isInteger(pr.value) || (pr.value as number) <= 0 || (pr.type === 'percent' && (pr.value as number) > 100)) fail(config, 422, 'VALIDATION', 'Khuyến mãi không hợp lệ')
+      if (pr.type === 'bonus_sessions' && pk!.type !== 'session') fail(config, 422, 'VALIDATION', 'Chỉ tặng buổi cho gói theo buổi')
+      if ((pr.type === 'bonus_months' || pr.type === 'bonus_days') && pk!.type === 'session') fail(config, 422, 'VALIDATION', 'Gói theo buổi không tặng ngày hoặc tháng')
+    }
     const c = seedContract(m!.id, pk!.id, 'draft', 0, null, me.name)
+    const v = pr?.value ?? 0
+    const discount = pr?.type === 'percent' ? Math.round((c.total_amount * v) / 100) : pr?.type === 'amount' ? Math.min(v, c.total_amount) : 0
     c.discount = discount
     c.total_amount = Math.max(0, c.total_amount - discount)
+    if (pr?.type === 'bonus_months') bonusDays.set(c.id, v * 30)
+    if (pr?.type === 'bonus_days') bonusDays.set(c.id, v)
+    if (pr?.type === 'bonus_sessions' && c.sessions_total != null) { c.sessions_total += v; c.sessions_left = c.sessions_total }
+    if (prev) { c.renewed_from_id = prev.id; addEvent(prev, 'renewed', me.name) }
     c.note = body.note ?? null
     recalc(c)
     log(me.email, 'contracts.create', c.code)
@@ -455,7 +499,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
         }
         const start = body.start_date ?? day(0)
         k.start_date = start
-        k.end_date = new Date(new Date(start).getTime() + (pk.duration_days ?? 365) * DAY).toISOString().slice(0, 10)
+        k.end_date = new Date(new Date(start).getTime() + ((pk.duration_days ?? 365) + (bonusDays.get(k.id) ?? 0)) * DAY).toISOString().slice(0, 10)
         k.status = 'active'
         k.activated_at = iso()
         addEvent(k, 'activated', me.name, body.allow_debt ? 'Kích hoạt có công nợ' : null)

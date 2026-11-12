@@ -292,3 +292,26 @@
 .kpi-row:has(> :nth-child(5)) .kpi2-value { font-size: clamp(16px, 1.45vw, 21px); }
 
 .pending-box-ok { background: var(--ok-soft); color: var(--ok); }
+
+/* contract form (3 columns), face modal, member photo */
+.form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 640px) { .form-grid.cols-3 { grid-template-columns: 1fr; } }
+.info-ok { padding: 10px 14px; border-radius: var(--r-sm); background: var(--ok-soft); color: var(--ok); font-weight: 600; }
+.select:disabled, .input:disabled { background: var(--surface-2); color: var(--muted); cursor: not-allowed; }
+.select option:disabled { color: #9aa0a6; }
+.face-row { display: flex; flex-direction: column; gap: 6px; }
+.face-label { font-size: 13px; font-weight: 600; color: var(--muted); }
+.face-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.face-check { min-height: 28px; }
+.face-grid { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 16px; }
+.face-side { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.face-photo { width: 140px; height: 140px; border-radius: var(--r-md); background: var(--surface-2); border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.face-photo img { width: 100%; height: 100%; object-fit: cover; }
+.face-main { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.face-cam { background: #000; color: #cfd2d6; border-radius: var(--r-md); aspect-ratio: 4 / 3; max-height: 260px; width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.face-cam video { width: 100%; height: 100%; object-fit: cover; }
+.face-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.face-upload { position: relative; }
+.face-upload:focus-within { outline: 2px solid var(--brand-deep); outline-offset: 2px; }
+@media (max-width: 640px) { .face-grid { grid-template-columns: 1fr; } .face-side { flex-direction: row; justify-content: flex-start; } .face-photo { width: 96px; height: 96px; } }
+.profile-photo .avatar { width: 100%; height: 100%; border-radius: 0; border: 0; font-size: 40px; }

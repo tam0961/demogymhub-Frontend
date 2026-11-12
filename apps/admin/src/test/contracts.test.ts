@@ -5,7 +5,7 @@ import type { Contract } from '../types'
 
 const base: CreateInput = {
   member: { name: 'Nguyễn Văn An', phone: '0903123456', gender: 'male', branch_id: 'b1' },
-  package_id: 'p1', discount: 0, note: '', signature: 'data:image/png;base64,xx', paid: 700000, method: 'cash', canApprove: false, startDate: '2026-11-11', today: '2026-11-11',
+  package_id: 'p1', promo: null, note: '', signature: 'data:image/png;base64,xx', paid: 700000, method: 'cash', canApprove: false, startDate: '2026-11-11', today: '2026-11-11',
 }
 
 function recorder(opts: { total?: number; payStatus?: string; failOn?: string } = {}) {
@@ -65,6 +65,32 @@ describe('runCreateContract', () => {
     expect(err.step).toBe('payment')
     expect(err.outcome).toMatchObject({ memberId: 'm1', contractId: 'c1', signed: true, activated: false })
     expect(r.calls.some((c) => c.url.includes('activate'))).toBe(false)
+  })
+  it('sends promo and renewed_from_id on the contract and no top-level discount', async () => {
+    const r = recorder()
+    await runCreateContract(r.post, { ...base, member: { id: 'm9' }, promo: { type: 'bonus_months', value: 2 }, renewed_from_id: 'old1' }, msg)
+    expect(r.calls[0]).toEqual({ url: '/contracts', body: { member_id: 'm9', package_id: 'p1', promo: { type: 'bonus_months', value: 2 }, renewed_from_id: 'old1', note: undefined } })
+    expect(r.calls[0].body).not.toHaveProperty('discount')
+  })
+  it('omits promo with zero value', async () => {
+    const r = recorder()
+    await runCreateContract(r.post, { ...base, member: { id: 'm9' }, promo: { type: 'percent', value: 0 } }, msg)
+    expect((r.calls[0].body as { promo?: unknown }).promo).toBeUndefined()
+  })
+  it('creates member with face_id, uploads photo, then contract, in order', async () => {
+    const r = recorder()
+    const put = async (url: string, body?: unknown) => { r.calls.push({ url: 'PUT ' + url, body }); return { data: { data: {} } } }
+    await runCreateContract(r.post, { ...base, faceId: '2507033', photo: { content_type: 'image/jpeg', image_base64: 'AAA' } }, msg, put)
+    expect(r.calls.slice(0, 3).map((c) => c.url)).toEqual(['/members', 'PUT /members/m1/photo', '/contracts'])
+    expect(r.calls[0].body).toMatchObject({ face_id: '2507033' })
+    expect(r.calls[1].body).toEqual({ content_type: 'image/jpeg', image_base64: 'AAA' })
+  })
+  it('keeps going with a note when the photo upload fails', async () => {
+    const r = recorder()
+    const put = async (): Promise<{ data: { data: unknown } }> => { throw new Error('too big') }
+    const out = await runCreateContract(r.post, { ...base, photo: { content_type: 'image/jpeg', image_base64: 'AAA' } }, msg, put)
+    expect(out.contractId).toBe('c1')
+    expect(out.notes[0]).toContain('Chưa lưu được ảnh')
   })
   it('fails on the first step with nothing created', async () => {
     const r = recorder({ failOn: '/members' })

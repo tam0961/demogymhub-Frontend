@@ -22,6 +22,9 @@ export interface Member {
   status: MemberStatus
   branch_id: string
   avatar_url: string | null
+  face_id?: string | null
+  has_photo?: boolean
+  photo_version?: number | null
   created_at: string
   branch?: Branch | null
   current_contract?: CurrentContract | null

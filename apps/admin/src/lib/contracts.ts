@@ -1,5 +1,6 @@
 import type { Contract, Gender, PayMethod, Payment } from '../types'
 import { METHOD_LABEL, fmtDate, fmtMoney, memberStatus, toCSV } from './format'
+import type { Promo } from './promo'
 
 export const CONTRACT_STATUS_OPTIONS = ['Còn hạn', 'Sắp hết hạn', 'Hết hạn', 'Bảo lưu', 'Chưa kích hoạt', 'Chờ ký', 'Đã hủy']
 
@@ -26,7 +27,10 @@ type Post = (url: string, body?: unknown) => Promise<{ data: { data: any } }> //
 export interface CreateInput {
   member: { id: string } | { name: string; phone: string; gender: Gender | ''; branch_id: string }
   package_id: string
-  discount: number
+  promo?: Promo | null
+  renewed_from_id?: string | null
+  photo?: { content_type: string; image_base64: string } | null
+  faceId?: string | null
   note: string
   signature: string | null
   paid: number
@@ -50,7 +54,7 @@ export class CreateFlowError extends Error {
   }
 }
 
-export async function runCreateContract(post: Post, input: CreateInput, errText: (e: unknown) => string): Promise<CreateOutcome> {
+export async function runCreateContract(post: Post, input: CreateInput, errText: (e: unknown) => string, put?: Post): Promise<CreateOutcome> {
   const out: CreateOutcome = { signed: false, activated: false, notes: [] }
   const run = async <T,>(step: CreateFlowError['step'], fn: () => Promise<T>): Promise<T> => {
     try {
@@ -63,11 +67,21 @@ export async function runCreateContract(post: Post, input: CreateInput, errText:
   if ('id' in input.member) memberId = input.member.id
   else {
     const m = input.member
-    const r = await run('member', () => post('/members', { name: m.name.trim(), phone: m.phone.trim(), gender: m.gender || null, branch_id: m.branch_id, status: 'active', email: null, dob: null }))
+    const r = await run('member', () => post('/members', { name: m.name.trim(), phone: m.phone.trim(), gender: m.gender || null, branch_id: m.branch_id, status: 'active', email: null, dob: null, ...(input.faceId ? { face_id: input.faceId } : {}) }))
     memberId = r.data.data.id
     out.memberId = memberId
+    if (input.photo && put) {
+      try {
+        await put(`/members/${memberId}/photo`, input.photo)
+      } catch (e) {
+        out.notes.push(`Chưa lưu được ảnh hội viên: ${errText(e)}. Hãy chụp lại ở hồ sơ hội viên.`)
+      }
+    }
   }
-  const created = await run('contract', () => post('/contracts', { member_id: memberId, package_id: input.package_id, discount: input.discount || undefined, note: input.note.trim() || undefined }))
+  const promo = input.promo && input.promo.value > 0 ? { type: input.promo.type, value: Math.floor(input.promo.value) } : undefined
+  const created = await run('contract', () => post('/contracts', {
+    member_id: memberId, package_id: input.package_id, promo, renewed_from_id: input.renewed_from_id || undefined, note: input.note.trim() || undefined,
+  }))
   const contract = created.data.data
   out.contractId = contract.id
   if (!input.signature) {
