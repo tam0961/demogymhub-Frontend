@@ -84,6 +84,8 @@ export async function runCreateContract(post: Post, input: CreateInput, errText:
   }))
   const contract = created.data.data
   out.contractId = contract.id
+  const bundled = (contract.bundled_contracts ?? []) as { code: string }[]
+  if (bundled.length) out.notes.push(`Đã gán thêm gói member ${bundled.map((b) => b.code).join(', ')}`)
   if (!input.signature) {
     out.notes.push('Hợp đồng đang ở trạng thái nháp, chờ ký.')
     return out

@@ -28,6 +28,26 @@ export interface Member {
   created_at: string
   branch?: Branch | null
   current_contract?: CurrentContract | null
+  pt_contract?: PtContract | null
+}
+export interface PtContract {
+  id: string
+  code: string
+  status: ContractStatus
+  package_name: string
+  start_date: string | null
+  end_date: string | null
+  sessions_total: number | null
+  sessions_left: number | null
+  usage_deadline: string | null
+  usage_valid: boolean
+}
+export type PtReason = 'MEMBER_PACKAGE_EXPIRED' | 'NO_PT_PACKAGE' | 'PT_USAGE_EXPIRED'
+export interface PtEligibility {
+  eligible: boolean
+  reasons: PtReason[]
+  member_package: { ok: boolean; contract_code: string | null; end_date: string | null }
+  pt_package: { ok: boolean; contract_code: string | null; end_date: string | null; usage_deadline: string | null; sessions_left: number | null }
 }
 export interface CurrentContract {
   id: string
@@ -40,17 +60,25 @@ export interface CurrentContract {
   sessions_left: number | null
 }
 export type PackageType = 'day' | 'month' | 'session'
+export type PackageCategory = 'member' | 'pt_1on1' | 'pt_1on2' | 'pt_group'
 export interface Pkg {
   id: string
   name: string
   type: PackageType
+  category: PackageCategory
   duration_days: number | null
   sessions: number | null
   price: number
   vat_percent: number
   branch_id: string | null
   active: boolean
+  bundled_member_package?: BundledPkg | null
+  replaces_id?: string | null
+  contracts_count?: number
+  in_use?: boolean
 }
+export interface BundledPkg { id: string; name: string; duration_days: number | null; price: number }
+export interface BundledContract { id: string; code: string; status: ContractStatus; start_date: string | null; end_date: string | null; package: { id: string; name: string; type: PackageType; category: PackageCategory } }
 export interface ListMeta { page: number; limit: number; total: number }
 export interface ListResp<T> { data: T[]; meta: ListMeta }
 
@@ -95,7 +123,10 @@ export interface Contract {
   note: string | null
   created_at: string
   member: { id: string; code: string; name: string; phone: string }
-  package: { id: string; name: string; type: PackageType }
+  package: { id: string; name: string; type: PackageType; category: PackageCategory }
+  usage_deadline?: string | null
+  bundle_of_id?: string | null
+  bundled_contracts?: BundledContract[]
   last_payment_method?: PayMethod | null
   branch?: Branch | null
   events?: ContractEvent[]
@@ -148,3 +179,20 @@ export interface TodayTasks {
 
 export interface CheckinStatsBranch { branch: Branch; checkins_today: number; denied_today: number; inside_now: number; by_hour: { hour: number; count: number }[] }
 export interface CheckinStats { date: string; branches: CheckinStatsBranch[]; totals: { checkins_today: number; denied_today: number; inside_now: number } }
+
+export type PtStatus = 'scheduled' | 'completed' | 'cancelled' | 'no_show'
+export interface PtSession {
+  id: string
+  branch_id: string
+  trainer: { id: string; name: string }
+  member: { id: string; code: string; name: string; phone: string }
+  contract_id: string | null
+  contract_code: string | null
+  sessions_left: number | null
+  start_at: string
+  end_at: string
+  status: PtStatus
+  source: string
+  note: string | null
+  completed_at: string | null
+}

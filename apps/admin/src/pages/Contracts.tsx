@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { fetchAll } from '../lib/fetchAll'
 import { apiError } from '../lib/errors'
 import { CONTRACT_STATUS_OPTIONS, contractStatusLabel, contractsToCSV } from '../lib/contracts'
-import { METHOD_LABEL, downloadBlob, fmtDate, fmtMoney } from '../lib/format'
+import { METHOD_LABEL, categoryLabel, isPtCategory, downloadBlob, fmtDate, fmtMoney } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission } from '../context/usePermission'
 import { Button, Chip, DataTable, Icon, PageHeader, Select, type Column } from '../components/ui'
@@ -50,14 +50,17 @@ export default function Contracts() {
   const exportCsv = () => downloadBlob(new Blob(['﻿' + contractsToCSV(filtered)], { type: 'text/csv;charset=utf-8' }), 'hop-dong.csv')
 
   const columns: Column<Contract>[] = [
-    { key: 'code', header: 'Mã HĐ', sortValue: (c) => c.code, render: (c) => <><div className="cell-main">{c.code}</div><div className="cell-sub">{c.branch?.name ?? ''}</div></> },
+    { key: 'code', header: 'Mã HĐ', sortValue: (c) => c.code, render: (c) => <><div className="cell-main">{c.code}{c.bundle_of_id && <> <span className="hint-muted">Kèm PT</span></>}</div><div className="cell-sub">{c.branch?.name ?? ''}</div></> },
     { key: 'member', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><div className="cell-main">{c.member.name}</div><div className="cell-sub">{c.member.code}</div></> },
-    { key: 'pkg', header: 'Dịch vụ', sortValue: (c) => c.package.name, render: (c) => c.package.name },
+    { key: 'pkg', header: 'Dịch vụ', sortValue: (c) => c.package.name, render: (c) => <>{c.package.name} <Chip>{categoryLabel(c.package.category)}</Chip></> },
     { key: 'signed', header: 'Ngày ký', sortValue: (c) => c.signed_at ?? c.created_at, render: (c) => fmtDate(c.signed_at ?? c.created_at) },
-    { key: 'end', header: 'Hết hạn', sortValue: (c) => c.end_date, render: (c) => fmtDate(c.end_date) },
+    {
+      key: 'end', header: 'Hết hạn', sortValue: (c) => c.end_date,
+      render: (c) => (isPtCategory(c.package.category) && c.usage_deadline ? <><div>{fmtDate(c.end_date)}</div><div className="cell-sub">Dùng đến {fmtDate(c.usage_deadline)}</div></> : fmtDate(c.end_date)),
+    },
     {
       key: 'total', header: 'Giá trị', numeric: true, sortValue: (c) => c.total_amount,
-      render: (c) => <><div className="cell-main">{fmtMoney(c.total_amount)}</div><div className="cell-sub">{c.last_payment_method ? METHOD_LABEL[c.last_payment_method] : ''}</div></>,
+      render: (c) => <><div className="cell-main">{c.bundle_of_id && c.total_amount === 0 ? <span className="hint-muted">Kèm gói PT</span> : fmtMoney(c.total_amount)}</div><div className="cell-sub">{c.last_payment_method ? METHOD_LABEL[c.last_payment_method] : ''}</div></>,
     },
     { key: 'debt', header: 'Còn nợ', numeric: true, sortValue: (c) => c.debt_amount, render: (c) => (c.debt_amount > 0 ? <span className="text-bad cell-main">{fmtMoney(c.debt_amount)}</span> : <span className="hint-muted">-</span>) },
     { key: 'status', header: 'Trạng thái', sortValue: (c) => contractStatusLabel(c).label, render: (c) => { const s = contractStatusLabel(c); return <Chip tone={s.tone}>{s.label}</Chip> } },

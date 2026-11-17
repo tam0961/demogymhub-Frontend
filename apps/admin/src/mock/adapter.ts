@@ -1,5 +1,6 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
-import type { AuditRow, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, RoleRow, SessionRow, Shift } from '../types'
+import { ptUsageDeadline } from '../lib/pt'
+import type { AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
 
 const branches = [
   { id: 'b-q2', code: 'Q2', name: 'Chi nhánh Quận 2' },
@@ -70,21 +71,31 @@ const members: Member[] = Array.from({ length: 60 }, (_, i) => {
 })
 
 const packages: Pkg[] = [
-  { id: 'p1', name: 'Vé ngày', type: 'day', duration_days: 1, sessions: null, price: 80000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p2', name: 'Gói 1 tháng', type: 'month', duration_days: 30, sessions: null, price: 600000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p3', name: 'Gói 12 buổi PT', type: 'session', duration_days: null, sessions: 12, price: 3600000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p4', name: 'Gói 3 tháng (ngưng bán)', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 8, branch_id: 'b-q7', active: false },
-  { id: 'p5', name: 'Gói 1 tháng Q7', type: 'month', duration_days: 30, sessions: null, price: 650000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p7', name: 'Gói 3 tháng', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p9', name: 'Gói 12 tháng', type: 'month', duration_days: 365, sessions: null, price: 5000000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p8', name: 'Gói 12 tháng Q7', type: 'month', duration_days: 365, sessions: null, price: 5400000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p10', name: 'Gói 10 buổi PT Q7', type: 'session', duration_days: null, sessions: 10, price: 3000000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p11', name: 'Gói 1 tháng Q2', type: 'month', duration_days: 30, sessions: null, price: 650000, vat_percent: 8, branch_id: 'b-q2', active: true },
-  { id: 'p12', name: 'Gói 3 tháng Q2', type: 'month', duration_days: 90, sessions: null, price: 1600000, vat_percent: 8, branch_id: 'b-q2', active: true },
-  { id: 'p13', name: 'Gói 12 tháng Q2', type: 'month', duration_days: 365, sessions: null, price: 5400000, vat_percent: 8, branch_id: 'b-q2', active: true },
-  { id: 'p14', name: 'Gói 10 buổi PT Q2', type: 'session', duration_days: null, sessions: 10, price: 3000000, vat_percent: 8, branch_id: 'b-q2', active: true },
-  { id: 'p6', name: 'Gói 6 tháng Q7', type: 'month', duration_days: 180, sessions: null, price: 3000000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p1', name: 'Vé ngày', category: 'member', type: 'day', duration_days: 1, sessions: null, price: 80000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p2', name: 'Gói 1 tháng', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 600000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p3', name: 'Gói 12 buổi PT', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 12, price: 3600000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p4', name: 'Gói 3 tháng (ngưng bán)', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 8, branch_id: 'b-q7', active: false },
+  { id: 'p5', name: 'Gói 1 tháng Q7', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 650000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p7', name: 'Gói 3 tháng', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p9', name: 'Gói 12 tháng', category: 'member', type: 'month', duration_days: 365, sessions: null, price: 5000000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p8', name: 'Gói 12 tháng Q7', category: 'member', type: 'month', duration_days: 365, sessions: null, price: 5400000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p10', name: 'Gói 10 buổi PT Q7', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 10, price: 3000000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p11', name: 'Gói 1 tháng Q2', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 650000, vat_percent: 8, branch_id: 'b-q2', active: true },
+  { id: 'p12', name: 'Gói 3 tháng Q2', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1600000, vat_percent: 8, branch_id: 'b-q2', active: true },
+  { id: 'p13', name: 'Gói 12 tháng Q2', category: 'member', type: 'month', duration_days: 365, sessions: null, price: 5400000, vat_percent: 8, branch_id: 'b-q2', active: true },
+  { id: 'p14', name: 'Gói 10 buổi PT Q2', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 10, price: 3000000, vat_percent: 8, branch_id: 'b-q2', active: true },
+  { id: 'p6', name: 'Gói 6 tháng Q7', category: 'member', type: 'month', duration_days: 180, sessions: null, price: 3000000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p15', name: 'Gói 30 buổi PT Q7', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 30, price: 8000000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p16', name: 'Gói 40 buổi PT Q7', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 40, price: 10400000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p17', name: 'Gói 3 tháng Q7', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1600000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p18', name: 'Gói 20 buổi PT nhóm Q7', category: 'pt_group', type: 'session', duration_days: null, sessions: 20, price: 3200000, vat_percent: 8, branch_id: 'b-q7', active: true },
+  { id: 'p19', name: 'Gói 6 tháng Nhà Bè', category: 'member', type: 'month', duration_days: 180, sessions: null, price: 2800000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p20', name: 'Gói 12 buổi PT 1:2 Nhà Bè', category: 'pt_1on2', type: 'session', duration_days: null, sessions: 12, price: 2400000, vat_percent: 8, branch_id: 'b-nb', active: true },
+  { id: 'p21', name: 'Gói 1 tháng khuyến mãi hè', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 500000, vat_percent: 8, branch_id: 'b-nb', active: false },
+  { id: 'p22', name: 'Gói 1 tháng khuyến mãi thu', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 550000, vat_percent: 8, branch_id: 'b-nb', active: true, replaces_id: 'p21' },
+  { id: 'p23', name: 'Gói 8 buổi PT 1:1 (cũ)', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 8, price: 2400000, vat_percent: 8, branch_id: 'b-nb', active: false },
 ]
+const bundleIds = new Map<string, string>([['p3', 'p2'], ['p10', 'p5'], ['p14', 'p11'], ['p15', 'p6'], ['p16', 'p17'], ['p18', 'p5'], ['p23', 'p2']])
 
 const DAY = 86400000
 const iso = (offsetDays = 0) => new Date(Date.now() + offsetDays * DAY).toISOString()
@@ -101,18 +112,55 @@ const audit: AuditRow[] = []
 function pkgOf(id: string) {
   return packages.find((p) => p.id === id) as Pkg
 }
+function pkgOut(p: Pkg): Pkg {
+  const n = contracts.filter((c) => c.package_id === p.id).length
+  const b = bundleIds.get(p.id)
+  const bp = b ? packages.find((x) => x.id === b) : undefined
+  return { ...p, replaces_id: p.replaces_id ?? null, contracts_count: n, in_use: n > 0, bundled_member_package: bp ? { id: bp.id, name: bp.name, duration_days: bp.duration_days, price: bp.price } : null }
+}
 function memberOf(id: string) {
   return members.find((m) => m.id === id) as Member
 }
 const ORDER = ['active', 'frozen', 'signed', 'draft', 'expired', 'cancelled']
+const isPt = (c: Contract) => c.package.category.startsWith('pt_')
 function currentOf(memberId: string) {
-  const cs = contracts.filter((c) => c.member_id === memberId)
+  const cs = contracts.filter((c) => c.member_id === memberId && !isPt(c))
   return ORDER.map((st) => cs.find((c) => c.status === st)).find(Boolean) ?? null
+}
+function ptOf(memberId: string) {
+  const cs = contracts.filter((c) => c.member_id === memberId && isPt(c) && !['draft', 'signed', 'cancelled'].includes(c.status))
+  return ORDER.map((st) => cs.find((c) => c.status === st)).find(Boolean) ?? null
+}
+const usageDeadlineOf = (c: Contract) => ptUsageDeadline(c.end_date, c.sessions_total)
+function ptOut(c: Contract): PtContract {
+  const dl = usageDeadlineOf(c)
+  return {
+    id: c.id, code: c.code, status: c.status, package_name: c.package.name, start_date: c.start_date, end_date: c.end_date,
+    sessions_total: c.sessions_total, sessions_left: c.sessions_left, usage_deadline: dl,
+    usage_valid: ['active', 'expired'].includes(c.status) && (dl ? dl >= day(0) : true),
+  }
+}
+function eligibilityOf(memberId: string): PtEligibility {
+  const mc = currentOf(memberId)
+  const pc = ptOf(memberId)
+  const memberOk = !!mc && mc.status === 'active' && !!mc.end_date && mc.end_date >= day(0)
+  const pt = pc ? ptOut(pc) : null
+  const reasons: PtEligibility['reasons'] = []
+  if (!memberOk) reasons.push('MEMBER_PACKAGE_EXPIRED')
+  if (!pt) reasons.push('NO_PT_PACKAGE')
+  else if (!pt.usage_valid) reasons.push('PT_USAGE_EXPIRED')
+  return {
+    eligible: reasons.length === 0,
+    reasons,
+    member_package: { ok: memberOk, contract_code: mc?.code ?? null, end_date: mc?.end_date ?? null },
+    pt_package: { ok: !!pt?.usage_valid, contract_code: pc?.code ?? null, end_date: pc?.end_date ?? null, usage_deadline: pt?.usage_deadline ?? null, sessions_left: pc?.sessions_left ?? null },
+  }
 }
 const photos = new Map<string, { content_type: string; image_base64: string; version: number }>()
 const bonusDays = new Map<string, number>()
 function memberOut(m: Member): Member {
   const c = currentOf(m.id)
+  const ptContract = ptOf(m.id)
   const b = branches.find((x) => x.id === m.branch_id)
   const ph = photos.get(m.id)
   return {
@@ -123,11 +171,13 @@ function memberOut(m: Member): Member {
     status: c?.status === 'active' ? 'active' : c?.status === 'frozen' ? 'frozen' : 'expired',
     branch: b ?? null,
     current_contract: c ? { id: c.id, code: c.code, status: c.status, package_name: c.package.name, package_type: c.package.type, start_date: c.start_date, end_date: c.end_date, sessions_left: c.sessions_left } : null,
+    pt_contract: ptContract ? ptOut(ptContract) : null,
   }
 }
 function contractOut(c: Contract): Contract {
   const last = payments.filter((p) => p.contract_id === c.id && p.status === 'confirmed').sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
-  return { ...c, last_payment_method: last?.method ?? null, branch: branches.find((b) => b.id === c.branch_id) ?? null }
+  const bundled: BundledContract[] = contracts.filter((x) => x.bundle_of_id === c.id).map((x) => ({ id: x.id, code: x.code, status: x.status, start_date: x.start_date, end_date: x.end_date, package: x.package }))
+  return { ...c, bundle_of_id: c.bundle_of_id ?? null, bundled_contracts: isPt(c) ? bundled : undefined, usage_deadline: isPt(c) ? usageDeadlineOf(c) : undefined, last_payment_method: last?.method ?? null, branch: branches.find((b) => b.id === c.branch_id) ?? null }
 }
 function log(actor: string, action: string, resource: string, result = 'ALLOW', ago = 0) {
   audit.unshift({ id: nid('a'), actor_email: actor, actor, action, resource, result, ip: '127.0.0.1', created_at: new Date(Date.now() - ago).toISOString() })
@@ -151,7 +201,7 @@ function seedContract(memberId: string, packageId: string, status: Contract['sta
     end_date: start && pk.duration_days ? day(startOffset! + pk.duration_days) : start ? day(startOffset! + 30) : null,
     sessions_total: pk.sessions, sessions_left: pk.sessions, signed_at: status === 'draft' ? null : iso(-10), activated_at: ['active', 'frozen', 'expired'].includes(status) ? iso(-10) : null,
     frozen_until: status === 'frozen' ? day(10) : null, renewed_from_id: null, note: null, created_at: iso(-12),
-    member: { id: m.id, code: m.code, name: m.name, phone: m.phone }, package: { id: pk.id, name: pk.name, type: pk.type }, events: [],
+    member: { id: m.id, code: m.code, name: m.name, phone: m.phone }, package: { id: pk.id, name: pk.name, type: pk.type, category: pk.category }, events: [],
   }
   addEvent(c, 'created', by)
   if (status !== 'draft') addEvent(c, 'signed', by)
@@ -162,7 +212,7 @@ function seedContract(memberId: string, packageId: string, status: Contract['sta
   recalc(c)
   return c
 }
-const PKG_BY_BRANCH: Record<string, string[]> = { 'b-nb': ['p2', 'p7', 'p9', 'p3'], 'b-q7': ['p5', 'p6', 'p8', 'p10'], 'b-q2': ['p11', 'p12', 'p13', 'p14'] }
+const PKG_BY_BRANCH: Record<string, string[]> = { 'b-nb': ['p2', 'p7', 'p9', 'p19'], 'b-q7': ['p5', 'p6', 'p8', 'p17'], 'b-q2': ['p11', 'p12', 'p13', 'p11'] }
 const REMAIN = [1, 1, 2, 3, 5, 6, 9, 15, 20, 28, 45, 70, 120, 200, 300]
 seedContract('m3', 'p2', 'expired', 648000, -45)
 seedContract('m4', 'p2', 'frozen', 648000, -15)
@@ -234,6 +284,24 @@ for (let k = 0; k < 60; k++) {
   })
   recalc(c)
 }
+const PT_BY_BRANCH: Record<string, string[]> = { 'b-nb': ['p3', 'p20'], 'b-q7': ['p10', 'p15', 'p16', 'p18'], 'b-q2': ['p14'] }
+function seedPt(m: Member, pid: string, endOffset: number, left: number) {
+  const pk = pkgOf(pid)
+  const c = seedContract(m.id, pid, 'active', Math.round(pk.price * (1 + pk.vat_percent / 100)), endOffset - 90)
+  c.end_date = day(endOffset)
+  c.sessions_left = Math.min(left, pk.sessions ?? left)
+  return c
+}
+const PT_END = [20, 45, -15, -40, -130, -75, 8, -100]
+members.filter((m) => currentOf(m.id)?.status === 'active').slice(0, 26).forEach((m, i) => {
+  const list = PT_BY_BRANCH[m.branch_id]
+  const pid = list[i % list.length]
+  seedPt(m, pid, PT_END[i % PT_END.length], Math.max(0, 9 - (i % 5) * 2))
+})
+members.filter((m) => currentOf(m.id)?.status === 'expired').slice(0, 4).forEach((m, i) => {
+  const list = PT_BY_BRANCH[m.branch_id]
+  seedPt(m, list[0], [-10, 15, -10, 15][i], 5)
+})
 const pendingSeed = payments.filter((p) => p.status === 'confirmed' && p.method === 'vietqr').slice(0, 3)
 pendingSeed.forEach((p) => {
   p.status = 'pending'
@@ -386,6 +454,13 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     photos.set(pm0[1], { content_type: body.content_type, image_base64: body.image_base64, version: Date.now() })
     return ok(memberOut(m as Member))
   }
+  const pe = url.match(/^\/members\/([^/]+)\/pt-eligibility$/)
+  if (pe && method === 'get') {
+    need('members.read')
+    const m = members.find((x) => x.id === pe[1])
+    if (!m) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
+    return ok(eligibilityOf((m as Member).id))
+  }
   const mm = url.match(/^\/members\/(.+)$/)
   if (mm) {
     const m = members.find((x) => x.id === mm[1])
@@ -401,22 +476,46 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/packages' && method === 'get') {
     let rows = packages
     if (branchFilter) rows = rows.filter((p) => !p.branch_id || p.branch_id === branchFilter)
-    return paged(rows.slice())
+    if (params.category) rows = rows.filter((p) => p.category === params.category)
+    if (params.active !== undefined && params.active !== '') rows = rows.filter((p) => p.active === (String(params.active) === 'true'))
+    if (params.q) rows = rows.filter((p) => p.name.toLowerCase().includes(String(params.q).toLowerCase()))
+    return paged(rows.map(pkgOut))
+  }
+  const bundleCheck = (category: string, branch: string | null, bid: unknown) => {
+    if (!bid) return
+    const bp = packages.find((x) => x.id === bid)
+    if (!category.startsWith('pt_') || !bp || bp.category !== 'member' || !bp.active || bp.branch_id !== branch) fail(config, 409, 'INVALID_BUNDLE', 'Gói member đi kèm không hợp lệ')
   }
   if (url === '/packages' && method === 'post') {
     need('packages.create')
-    const p: Pkg = { id: `p${++seq}`, ...body }
+    const { bundled_member_package_id, deactivate_replaced, ...rest } = body as Record<string, unknown>
+    const category = String(rest.category ?? 'member')
+    bundleCheck(category, (rest.branch_id as string) ?? null, bundled_member_package_id)
+    const p = { id: `p${++seq}`, ...rest, category, active: rest.active ?? true, replaces_id: (rest.replaces_id as string) ?? null } as unknown as Pkg
     packages.unshift(p)
-    return ok(p)
+    if (bundled_member_package_id) bundleIds.set(p.id, String(bundled_member_package_id))
+    if (p.replaces_id && deactivate_replaced) {
+      const old = packages.find((x) => x.id === p.replaces_id)
+      if (old) old.active = false
+    }
+    return ok(pkgOut(p))
   }
   const pm = url.match(/^\/packages\/(.+)$/)
   if (pm) {
-    const p = packages.find((x) => x.id === pm[1])
+    const p = packages.find((x) => x.id === pm[1]) as Pkg | undefined
     if (!p) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
-    if (method === 'get') return ok(p)
+    if (method === 'get') return ok(pkgOut(p as Pkg))
     need('packages.update')
-    Object.assign(p as Pkg, body)
-    return ok(p)
+    const { bundled_member_package_id, ...rest } = body as Record<string, unknown>
+    const used = contracts.some((c) => c.package_id === (p as Pkg).id)
+    if (used && (Object.keys(rest).some((k) => k !== 'active') || bundled_member_package_id !== undefined)) fail(config, 409, 'PACKAGE_IN_USE', 'Gói đã có hợp đồng, không sửa được')
+    if (bundled_member_package_id !== undefined) {
+      bundleCheck(String(rest.category ?? (p as Pkg).category), (p as Pkg).branch_id, bundled_member_package_id)
+      if (bundled_member_package_id) bundleIds.set((p as Pkg).id, String(bundled_member_package_id))
+      else bundleIds.delete((p as Pkg).id)
+    }
+    Object.assign(p as Pkg, rest)
+    return ok(pkgOut(p as Pkg))
   }
 
   /* contracts */
@@ -440,6 +539,9 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const pk = packages.find((x) => x.id === body.package_id)
     if (!m || !pk) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy hội viên hoặc gói')
     if (pk!.branch_id && pk!.branch_id !== m!.branch_id) fail(config, 422, 'BRANCH_MISMATCH', 'Gói tập không thuộc chi nhánh của hội viên')
+    if (!pk!.active) fail(config, 409, 'PACKAGE_INACTIVE', 'Gói đã vô hiệu hóa, không bán được')
+    const bundledPk = bundleIds.has(pk!.id) ? pkgOf(bundleIds.get(pk!.id) as string) : undefined
+    if (bundledPk && !bundledPk.active) fail(config, 409, 'BUNDLED_PACKAGE_INACTIVE', 'Gói member đi kèm đã bị vô hiệu hóa')
     const pr = body.promo as { type?: string; value?: number } | undefined
     let prev: Contract | undefined
     if (body.renewed_from_id) {
@@ -463,8 +565,14 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     if (prev) { c.renewed_from_id = prev.id; addEvent(prev, 'renewed', me.name) }
     c.note = body.note ?? null
     recalc(c)
+    if (bundledPk) {
+      const b = seedContract(m!.id, bundledPk.id, 'draft', 0, null, me.name)
+      b.total_amount = 0
+      b.bundle_of_id = c.id
+      recalc(b)
+    }
     log(me.email, 'contracts.create', c.code)
-    return ok(c)
+    return ok(contractOut(c))
   }
   const cm = url.match(/^\/contracts\/([^/]+)(?:\/(\w+))?$/)
   if (cm) {
@@ -490,6 +598,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
         k.status = 'signed'
         k.signed_at = iso()
         addEvent(k, 'signed', me.name)
+        contracts.filter((x) => x.bundle_of_id === k.id && x.status === 'draft').forEach((x) => { x.status = 'signed'; x.signed_at = iso(); addEvent(x, 'signed', me.name) })
       } else if (act === 'activate') {
         need('contracts.activate')
         if (k.status !== 'signed') bad('Chỉ kích hoạt được hợp đồng đã ký')
@@ -499,10 +608,20 @@ export const mockAdapter: AxiosAdapter = async (config) => {
         }
         const start = body.start_date ?? day(0)
         k.start_date = start
-        k.end_date = new Date(new Date(start).getTime() + ((pk.duration_days ?? 365) + (bonusDays.get(k.id) ?? 0)) * DAY).toISOString().slice(0, 10)
+        k.end_date = new Date(new Date(start).getTime() + ((pk.duration_days ?? (pk.category.startsWith('pt_') ? 90 : 365)) + (bonusDays.get(k.id) ?? 0)) * DAY).toISOString().slice(0, 10)
         k.status = 'active'
         k.activated_at = iso()
         addEvent(k, 'activated', me.name, body.allow_debt ? 'Kích hoạt có công nợ' : null)
+        contracts.filter((x) => x.bundle_of_id === k.id && x.status === 'signed').forEach((x) => {
+          const running = contracts.filter((y) => y.member_id === k.member_id && y.id !== x.id && !isPt(y) && ['active', 'frozen'].includes(y.status) && y.end_date && y.end_date >= start)
+          const last = running.map((y) => y.end_date as string).sort().pop()
+          const bs = last ? new Date(new Date(last).getTime() + DAY).toISOString().slice(0, 10) : start
+          x.start_date = bs
+          x.end_date = new Date(new Date(bs).getTime() + (pkgOf(x.package_id).duration_days ?? 30) * DAY).toISOString().slice(0, 10)
+          x.status = 'active'
+          x.activated_at = iso()
+          addEvent(x, 'activated', me.name)
+        })
       } else if (act === 'renew') {
         need('contracts.create')
         if (k.status !== 'active' && k.status !== 'expired') bad('Chỉ gia hạn hợp đồng đang hiệu lực hoặc đã hết hạn')
@@ -527,6 +646,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
         if (k.status === 'cancelled' || k.status === 'expired') bad('Không thể hủy hợp đồng này')
         k.status = 'cancelled'
         addEvent(k, 'cancelled', me.name, body.reason)
+        contracts.filter((x) => x.bundle_of_id === k.id && x.status !== 'cancelled' && x.status !== 'expired').forEach((x) => { x.status = 'cancelled'; addEvent(x, 'cancelled', me.name, body.reason) })
       } else fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
       log(me.email, `contracts.${act}`, k.code)
       return ok(k)
@@ -632,7 +752,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   }
 
   /* checkins */
-  const activeFor = (memberId: string) => contracts.filter((c) => c.member_id === memberId && !['draft', 'signed', 'cancelled'].includes(c.status))
+  const activeFor = (memberId: string) => contracts.filter((c) => c.member_id === memberId && !isPt(c) && !['draft', 'signed', 'cancelled'].includes(c.status))
   if (url === '/checkins' && method === 'post') {
     need('checkins.create')
     if (!me.can_checkin) fail(config, 403, 'VIEW_ONLY', VIEW_ONLY_MSG)

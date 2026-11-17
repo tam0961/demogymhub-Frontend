@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { GENDER_LABEL, METHOD_LABEL, downloadBlob, fmtDate, fmtDateTime, fmtMoney, daysLeftText, memberStatus, toCSV, CONTRACT_STATUS } from '../lib/format'
+import { GENDER_LABEL, METHOD_LABEL, downloadBlob, fmtDate, fmtDateTime, fmtMoney, daysLeftText, memberStatus, toCSV, CONTRACT_STATUS, PT_REASON } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
@@ -11,7 +11,7 @@ import { QRImage } from '../components/QRImage'
 import { FaceModal, type FaceResult } from '../components/FaceModal'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { BranchTag, Button, Chip, DataTable, Field, Icon, Input, PageHeader, Select, useToast, type Column } from '../components/ui'
-import type { Branch, CheckinItem, Contract, Gender, ListResp, Member, MemberStatus, Payment } from '../types'
+import type { Branch, CheckinItem, Contract, Gender, ListResp, Me, Member, MemberStatus, Payment, PtEligibility } from '../types'
 
 const PAGE = 100
 const MAX_PAGES = 20
@@ -32,6 +32,115 @@ async function fetchAll<T>(url: string, params: Record<string, unknown>): Promis
     if (out.length >= data.meta.total || data.data.length === 0) break
   }
   return out
+}
+
+export const showBranchColumn = (user: Pick<Me, 'branches'> | null | undefined, branchId: string | null) => !branchId && (user?.branches.length ?? 0) > 1
+
+export function PtCell({ m }: { m: Member }) {
+  const pt = m.pt_contract
+  if (!pt) return <span className="hint-muted">-</span>
+  return (
+    <div className="pt-cell">
+      <div className="cell-main">{pt.package_name}</div>
+      <div className="cell-sub">{pt.sessions_left ?? 0}/{pt.sessions_total ?? 0} buổi</div>
+      <div className="cell-sub">Hết hạn {fmtDate(pt.end_date)}</div>
+      <div className="cell-sub">
+        Hạn sử dụng {pt.usage_deadline ? `đến ${fmtDate(pt.usage_deadline)}` : 'Không giới hạn'}{' '}
+        {pt.usage_valid ? <Chip tone="ok">Còn hạn sử dụng</Chip> : <Chip tone="bad">Quá hạn sử dụng</Chip>}
+      </div>
+    </div>
+  )
+}
+
+export function memberColumns(showBranch: boolean, branchOf: (m: Member) => Branch | undefined): Column<Member>[] {
+  const cols: Column<Member>[] = [
+    { key: 'code', header: 'Mã', sortValue: (m) => m.code, render: (m) => <><div className="cell-main">{m.code}</div>{m.face_id && <div className="cell-sub">{m.face_id}</div>}</> },
+    {
+      key: 'name', header: 'Thông tin khách hàng', sortValue: (m) => m.name,
+      render: (m) => (
+        <div className="cell-person">
+          <MemberAvatar member={m} />
+          <div><div className="cell-main">{m.name}</div><div className="cell-sub">{m.phone}{m.gender ? ` · ${GENDER_LABEL[m.gender]}` : ''}</div></div>
+        </div>
+      ),
+    },
+    { key: 'status', header: 'Trạng thái', sortValue: (m) => statusOf(m).label, render: (m) => { const s = statusOf(m); return <Chip tone={s.tone}>{s.label}</Chip> } },
+  ]
+  if (showBranch) cols.push({ key: 'branch', header: 'Chi nhánh', sortValue: (m) => branchOf(m)?.name, render: (m) => <BranchTag branch={branchOf(m)} /> })
+  cols.push(
+    {
+      key: 'pkg', header: 'Gói hiện tại', sortValue: (m) => m.current_contract?.package_name,
+      render: (m) => (m.current_contract ? <><div className="cell-main">{m.current_contract.package_name}</div><div className="cell-sub">{m.current_contract.code}</div></> : <span className="hint-muted">-</span>),
+    },
+    { key: 'created', header: 'Ngày đăng ký', sortValue: (m) => m.created_at, render: (m) => fmtDate(m.created_at) },
+    {
+      key: 'end', header: 'Hết hạn', numeric: true, sortValue: (m) => m.current_contract?.end_date,
+      render: (m) => (m.current_contract?.end_date ? <><div className="cell-main">{fmtDate(m.current_contract.end_date)}</div><div className="cell-sub">{daysLeftText(m.current_contract.end_date)}</div></> : <span className="hint-muted">-</span>),
+    },
+    { key: 'pt', header: 'Gói PT', sortValue: (m) => m.pt_contract?.package_name, render: (m) => <PtCell m={m} /> },
+  )
+  return cols
+}
+
+export function membersCsvRows(rows: Member[], showBranch: boolean, branchOf: (m: Member) => Branch | undefined) {
+  const head = ['Mã', 'Họ tên', 'Số điện thoại', 'Giới tính', 'Trạng thái', ...(showBranch ? ['Chi nhánh'] : []), 'Gói hiện tại', 'Mã hợp đồng', 'Ngày đăng ký', 'Hết hạn', 'Gói PT', 'Số buổi PT', 'Hết hạn gói PT', 'Hạn sử dụng gói PT', 'Tình trạng hạn sử dụng PT']
+  const body = rows.map((m) => {
+    const pt = m.pt_contract
+    return [
+      m.code, m.name, m.phone, m.gender ? GENDER_LABEL[m.gender] : '', statusOf(m).label, ...(showBranch ? [branchOf(m)?.name ?? ''] : []),
+      m.current_contract?.package_name ?? '', m.current_contract?.code ?? '', fmtDate(m.created_at), fmtDate(m.current_contract?.end_date),
+      pt?.package_name ?? '', pt ? `${pt.sessions_left ?? 0}/${pt.sessions_total ?? 0}` : '', pt ? fmtDate(pt.end_date) : '',
+      pt ? (pt.usage_deadline ? fmtDate(pt.usage_deadline) : 'Không giới hạn') : '', pt ? (pt.usage_valid ? 'Còn hạn sử dụng' : 'Quá hạn sử dụng') : '',
+    ]
+  })
+  return [head, ...body]
+}
+
+export function PtEligibilityPanel({ memberId }: { memberId: string }) {
+  const [data, setData] = useState<PtEligibility | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    let alive = true
+    setData(null)
+    setError('')
+    api.get<{ data: PtEligibility }>(`/members/${memberId}/pt-eligibility`)
+      .then((r) => { if (alive) setData(r.data.data) })
+      .catch((e) => { if (alive) setError(apiError(e).message) })
+    return () => { alive = false }
+  }, [memberId])
+
+  return (
+    <section className="pt-elig" aria-label="Điều kiện xếp lịch PT">
+      <h3 className="prof-sec">Điều kiện xếp lịch PT</h3>
+      {error && <div className="form-error" role="alert">{error}</div>}
+      {!data && !error && <div className="hint-muted">Đang tải...</div>}
+      {data && (
+        <>
+          <div className={`pt-elig-verdict ${data.eligible ? 'is-ok' : 'is-bad'}`} role="status">{data.eligible ? 'Đủ điều kiện' : 'Chưa đủ điều kiện'}</div>
+          {data.reasons.length > 0 && <ul className="pt-elig-reasons">{data.reasons.map((x) => <li key={x}>{PT_REASON[x] ?? x}</li>)}</ul>}
+          <div className="prof-row">
+            <div>
+              <div>Gói member còn hạn</div>
+              <div className="cell-sub">{data.member_package.contract_code ? `${data.member_package.contract_code}, hết hạn ${fmtDate(data.member_package.end_date)}` : 'Chưa có gói member'}</div>
+            </div>
+            <Chip tone={data.member_package.ok ? 'ok' : 'bad'}>{data.member_package.ok ? 'Đạt' : 'Không đạt'}</Chip>
+          </div>
+          <div className="prof-row">
+            <div>
+              <div>Gói PT còn trong hạn sử dụng</div>
+              <div className="cell-sub">
+                {data.pt_package.contract_code
+                  ? `${data.pt_package.contract_code}, hạn sử dụng ${data.pt_package.usage_deadline ? `đến ${fmtDate(data.pt_package.usage_deadline)}` : 'không giới hạn'}, còn ${data.pt_package.sessions_left ?? 0} buổi`
+                  : 'Chưa có gói PT'}
+              </div>
+            </div>
+            <Chip tone={data.pt_package.ok ? 'ok' : 'bad'}>{data.pt_package.ok ? 'Đạt' : 'Không đạt'}</Chip>
+          </div>
+          <p className="hint-muted">Khách vẫn check-in vào phòng tập theo gói member; điều kiện này chỉ áp dụng khi PT gán khách và hoàn thành buổi.</p>
+        </>
+      )}
+    </section>
+  )
 }
 
 export default function Members() {
@@ -80,38 +189,12 @@ export default function Members() {
   const branchOf = useCallback((m: Member): Branch | undefined => m.branch ?? user?.branches.find((b) => b.id === m.branch_id), [user])
   const filtered = useMemo(() => (status ? rows.filter((m) => statusOf(m).label === status) : rows), [rows, status])
 
+  const showBranch = showBranchColumn(user, branchId)
   const exportCsv = () => {
-    const head = ['Mã', 'Họ tên', 'Số điện thoại', 'Giới tính', 'Trạng thái', 'Ngày đăng ký', 'Chi nhánh', 'Gói hiện tại', 'Mã hợp đồng', 'Hết hạn']
-    const body = filtered.map((m) => [
-      m.code, m.name, m.phone, m.gender ? GENDER_LABEL[m.gender] : '', statusOf(m).label, fmtDate(m.created_at), branchOf(m)?.name ?? '',
-      m.current_contract?.package_name ?? '', m.current_contract?.code ?? '', fmtDate(m.current_contract?.end_date),
-    ])
-    downloadBlob(new Blob(['﻿' + toCSV([head, ...body])], { type: 'text/csv;charset=utf-8' }), 'hoi-vien.csv')
+    downloadBlob(new Blob(['\ufeff' + toCSV(membersCsvRows(filtered, showBranch, branchOf))], { type: 'text/csv;charset=utf-8' }), 'hoi-vien.csv')
   }
 
-  const columns: Column<Member>[] = [
-    { key: 'code', header: 'Mã', sortValue: (m) => m.code, render: (m) => <><div className="cell-main">{m.code}</div>{m.face_id && <div className="cell-sub">{m.face_id}</div>}</> },
-    {
-      key: 'name', header: 'Thông tin khách hàng', sortValue: (m) => m.name,
-      render: (m) => (
-        <div className="cell-person">
-          <MemberAvatar member={m} />
-          <div><div className="cell-main">{m.name}</div><div className="cell-sub">{m.phone}{m.gender ? ` · ${GENDER_LABEL[m.gender]}` : ''}</div></div>
-        </div>
-      ),
-    },
-    { key: 'status', header: 'Trạng thái', sortValue: (m) => statusOf(m).label, render: (m) => { const s = statusOf(m); return <Chip tone={s.tone}>{s.label}</Chip> } },
-    { key: 'created', header: 'Ngày đăng ký', sortValue: (m) => m.created_at, render: (m) => fmtDate(m.created_at) },
-    { key: 'branch', header: 'Chi nhánh', sortValue: (m) => branchOf(m)?.name, render: (m) => <BranchTag branch={branchOf(m)} /> },
-    {
-      key: 'pkg', header: 'Gói hiện tại', sortValue: (m) => m.current_contract?.package_name,
-      render: (m) => (m.current_contract ? <><div className="cell-main">{m.current_contract.package_name}</div><div className="cell-sub">{m.current_contract.code}</div></> : <span className="hint-muted">-</span>),
-    },
-    {
-      key: 'end', header: 'Hết hạn', numeric: true, sortValue: (m) => m.current_contract?.end_date,
-      render: (m) => (m.current_contract?.end_date ? <><div className="cell-main">{fmtDate(m.current_contract.end_date)}</div><div className="cell-sub">{daysLeftText(m.current_contract.end_date)}</div></> : <span className="hint-muted">-</span>),
-    },
-  ]
+  const columns = useMemo(() => memberColumns(showBranch, branchOf), [showBranch, branchOf])
 
   return (
     <>
@@ -157,8 +240,8 @@ export default function Members() {
           canEdit={can('members.update')}
           onEdit={() => { setEditing(profile); setProfile(null) }}
           onUpdated={(m) => {
-            setProfile((p) => (p ? { ...p, ...m, current_contract: m.current_contract ?? p.current_contract, branch: m.branch ?? p.branch } : p))
-            setRows((rs) => rs.map((r) => (r.id === m.id ? { ...r, ...m, current_contract: m.current_contract ?? r.current_contract, branch: m.branch ?? r.branch } : r)))
+            setProfile((p) => (p ? { ...p, ...m, current_contract: m.current_contract ?? p.current_contract, pt_contract: m.pt_contract ?? p.pt_contract, branch: m.branch ?? p.branch } : p))
+            setRows((rs) => rs.map((r) => (r.id === m.id ? { ...r, ...m, current_contract: m.current_contract ?? r.current_contract, pt_contract: m.pt_contract ?? r.pt_contract, branch: m.branch ?? r.branch } : r)))
           }}
           onClose={() => setProfile(null)}
         />
@@ -242,6 +325,7 @@ function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member
       {canEdit && <div style={{ marginBottom: 8 }}><Button onClick={() => setFaceOpen(true)}>Chụp ảnh, đăng ký khuôn mặt</Button></div>}
       {error && <div className="form-error" role="alert">{error}</div>}
       {!data && !error && <div className="hint-muted">Đang tải...</div>}
+      {can('members.read') && <PtEligibilityPanel memberId={member.id} />}
       {data && (
         <>
           <h3 className="prof-sec">Hợp đồng</h3>

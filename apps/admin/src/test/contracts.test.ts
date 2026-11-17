@@ -103,7 +103,7 @@ describe('runCreateContract', () => {
 const mk = (o: Partial<Contract>): Contract => ({
   id: 'c', code: 'HD1', member_id: 'm', package_id: 'p', branch_id: 'b', status: 'active', total_amount: 700000, discount: 0, paid_amount: 700000, debt_amount: 0,
   start_date: '2026-11-01', end_date: '2027-03-01', sessions_total: null, sessions_left: null, signed_at: '2026-11-01T00:00:00Z', activated_at: null, frozen_until: null,
-  renewed_from_id: null, note: null, created_at: '2026-11-01T00:00:00Z', member: { id: 'm', code: 'HV1', name: 'An, "Bình"', phone: '09' }, package: { id: 'p', name: 'Gói 1 tháng', type: 'month' },
+  renewed_from_id: null, note: null, created_at: '2026-11-01T00:00:00Z', member: { id: 'm', code: 'HV1', name: 'An, "Bình"', phone: '09' }, package: { id: 'p', name: 'Gói 1 tháng', type: 'month', category: 'member' },
   last_payment_method: 'cash', branch: { id: 'b', code: 'NB', name: 'Nhà Bè' }, ...o,
 })
 

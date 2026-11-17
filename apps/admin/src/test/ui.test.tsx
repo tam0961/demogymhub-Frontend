@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { daysLeft, daysLeftText, fmtDate, fmtMoney, initials, memberStatus, packageKind } from '../lib/format'
+import { daysLeft, daysLeftText, fmtDate, fmtMoney, initials, memberStatus, categoryLabel, isPtCategory } from '../lib/format'
 import { buildTasks } from '../lib/tasks'
 import { DataTable, pageButtons, paginate, sortRows, type Column } from '../components/DataTable'
 import type { TodayTasks } from '../types'
@@ -37,13 +37,15 @@ describe('format helpers', () => {
     expect(daysLeftText('2026-11-08', T)).toBe('Quá hạn 3 ngày')
     expect(daysLeftText(null, T)).toBe('')
   })
-  it('initials and package kind', () => {
+  it('initials and category label', () => {
     expect(initials('Chủ Thử')).toBe('CT')
     expect(initials('Nguyễn Minh Khoa')).toBe('NK')
-    expect(packageKind('month')).toBe('Gym')
-    expect(packageKind('session')).toBe('PT')
-    expect(packageKind('day')).toBe('Lớp')
-    expect(packageKind('month', 'Combo 3 tháng')).toBe('Combo')
+    expect(categoryLabel('member')).toBe('Gói member')
+    expect(categoryLabel('pt_1on1')).toBe('PT 1:1')
+    expect(categoryLabel('pt_1on2')).toBe('PT 1:2')
+    expect(categoryLabel('pt_group')).toBe('PT nhóm')
+    expect(isPtCategory('pt_group')).toBe(true)
+    expect(isPtCategory('member')).toBe(false)
   })
 })
 

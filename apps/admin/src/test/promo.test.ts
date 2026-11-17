@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { defaultStart, memberBanner, priceHint, promoAllowed, quote, renewedFromId } from '../lib/promo'
 import type { CurrentContract, Pkg } from '../types'
 
-const month: Pkg = { id: 'p', name: 'Member 1 tháng', type: 'month', duration_days: 30, sessions: null, price: 648148, vat_percent: 8, branch_id: null, active: true }
+const month: Pkg = { id: 'p', name: 'Member 1 tháng', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 648148, vat_percent: 8, branch_id: null, active: true }
 const m700: Pkg = { ...month, price: 700000, vat_percent: 0 }
 const pt: Pkg = { ...month, type: 'session', duration_days: null, sessions: 12, price: 3000000, vat_percent: 0 }
 const cc = (o: Partial<CurrentContract>): CurrentContract => ({ id: 'c1', code: 'HD1', status: 'active', package_name: 'x', package_type: 'month', start_date: '2026-10-01', end_date: '2026-11-20', sessions_left: null, ...o })

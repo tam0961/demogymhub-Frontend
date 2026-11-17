@@ -151,3 +151,44 @@ describe('mock MVP journey', () => {
     expect(cl.items.reduce((s: number, p: { amount: number }) => s + p.amount, 0)).toBe(cl.total)
   })
 })
+
+describe('mock package bundle rules', () => {
+  const http = axios.create({ adapter: mockAdapter, headers: { Authorization: 'Bearer t' } })
+  const code = async (p: Promise<unknown>) => {
+    try {
+      await p
+    } catch (e) {
+      return (e as { response: { data: { error: { code: string } } } }).response.data.error.code
+    }
+    return null
+  }
+
+  it('PT sale creates a linked free member contract, cascades, and used packages are locked', async () => {
+    await http.post('/auth/login', { email: 'quanly@gymhub.vn', password: 'quanly123' })
+    const list = (await http.get('/packages', { params: { limit: 200 } })).data.data as { id: string; bundled_member_package: unknown; in_use: boolean; category: string }[]
+    expect(list.filter((p) => p.category.startsWith('pt_') && p.bundled_member_package === null).length).toBeGreaterThan(0)
+    const m = (await http.get('/members/m9')).data.data
+    const pid = ({ 'b-nb': 'p3', 'b-q7': 'p10', 'b-q2': 'p14' } as Record<string, string>)[m.branch_id]
+    const c = (await http.post('/contracts', { member_id: m.id, package_id: pid })).data.data
+    expect(c.bundled_contracts).toHaveLength(1)
+    const b = c.bundled_contracts[0]
+    await http.post(`/contracts/${c.id}/sign`, { signature: 'data:image/png;base64,AAAA' })
+    const bd = (await http.get(`/contracts/${b.id}`)).data.data
+    expect(bd.status).toBe('signed')
+    expect(bd.total_amount).toBe(0)
+    expect(bd.bundle_of_id).toBe(c.id)
+    expect(await code(http.patch(`/packages/${pid}`, { price: 1 }))).toBe('PACKAGE_IN_USE')
+    expect((await http.patch(`/packages/${pid}`, { active: true })).data.data.in_use).toBe(true)
+    await http.post(`/contracts/${c.id}/cancel`, { reason: 'test' })
+    expect((await http.get(`/contracts/${b.id}`)).data.data.status).toBe('cancelled')
+  })
+
+  it('new version replaces and deactivates the old package', async () => {
+    await http.post('/auth/login', { email: 'quanly@gymhub.vn', password: 'quanly123' })
+    const body = { name: 'Gói test v2', type: 'month', category: 'member', duration_days: 30, price: 1, vat_percent: 8, branch_id: 'b-nb', replaces_id: 'p9', deactivate_replaced: true }
+    const n = (await http.post('/packages', body)).data.data
+    expect(n.replaces_id).toBe('p9')
+    expect((await http.get('/packages/p9')).data.data.active).toBe(false)
+    expect(await code(http.post('/packages', { ...body, category: 'pt_1on1', type: 'session', sessions: 5, bundled_member_package_id: 'p9' }))).toBe('INVALID_BUNDLE')
+  })
+})

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { CreateFlowError, STEP_LABEL, runCreateContract, type CreateOutcome } from '../lib/contracts'
-import { METHODS, METHOD_LABEL, fmtDate, fmtMoney, parseMoney, priceWithVat, todayISO } from '../lib/format'
+import { METHODS, METHOD_LABEL, PACKAGE_CATEGORIES, PACKAGE_CATEGORY, isPtCategory, fmtDate, fmtMoney, parseMoney, priceWithVat, todayISO } from '../lib/format'
+import { ptUsageDeadline, ptUsageMonths } from '../lib/pt'
 import { PROMO_OPTIONS, defaultStart, memberBanner, priceHint, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
 import type { ProcessedPhoto } from '../lib/photo'
 import { useAuth } from '../context/AuthContext'
@@ -15,6 +16,17 @@ import { Button, Field, Input, Modal, Segmented, Select, Textarea, useToast } fr
 import type { Gender, ListResp, Member, PayMethod, Pkg } from '../types'
 
 const pkgLabel = (p: Pkg) => `${p.name} - ${fmtMoney(priceWithVat(p.price, p.vat_percent))}`
+
+export function BundleInfo({ pkg, runningEnd }: { pkg: Pkg; runningEnd: string | null }) {
+  const b = pkg.bundled_member_package
+  if (!b) return <div className="full pending-box" role="status">Gói PT này chưa gắn gói member; khách cần có gói member riêng để check-in.</div>
+  return (
+    <div className="full info-ok" role="status">
+      Gói member đi kèm: {b.name} ({b.duration_days ?? 0} ngày). Hệ thống tự gán cho khách khi tạo hợp đồng.
+      {runningEnd && <div>Sẽ nối tiếp sau khi gói member hiện tại hết hạn ngày {fmtDate(runningEnd)}.</div>}
+    </div>
+  )
+}
 
 export default function ContractNew({ memberId, onClose, onCreated }: { memberId?: string | null; onClose: () => void; onCreated: (contractId: string) => void }) {
   const { user } = useAuth()
@@ -76,7 +88,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
 
   useEffect(() => {
     if (!effBranch) return
-    api.get<ListResp<Pkg>>('/packages', { params: { branch_id: effBranch, limit: 100 } })
+    api.get<ListResp<Pkg>>('/packages', { params: { branch_id: effBranch, active: true, limit: 200 } })
       .then((r) => {
         const list = r.data.data.filter((p) => p.active && (!p.branch_id || p.branch_id === effBranch))
         setPkgs(list)
@@ -86,6 +98,8 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   }, [effBranch])
 
   const pkg = pkgs.find((p) => p.id === pkgId)
+  const cur = existing ? member?.current_contract : null
+  const runningEnd = cur && cur.status === 'active' && cur.end_date && cur.end_date >= todayISO() ? cur.end_date : null
   useEffect(() => {
     if (promoType && !promoAllowed(promoType, pkg?.type)) { setPromoType(''); setPromoValue('') }
   }, [pkg, promoType])
@@ -229,13 +243,24 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
               <Field label="Gói tập" htmlFor="cn-pkg" hint={pkgs.length === 0 ? 'Chi nhánh này chưa có gói đang bán' : pkg && pkg.price === 0 ? 'Gói này có giá 0 ₫, hãy kiểm tra lại trước khi tiếp tục' : undefined}>
                 <Select id="cn-pkg" value={pkgId} onChange={(e) => setPkgId(e.target.value)}>
                   <option value="">Chọn gói tập</option>
-                  {pkgs.map((p) => <option key={p.id} value={p.id}>{pkgLabel(p)}</option>)}
+                  {PACKAGE_CATEGORIES.map((c) => {
+                    const list = pkgs.filter((p) => (p.category ?? 'member') === c)
+                    return list.length ? <optgroup key={c} label={PACKAGE_CATEGORY[c]}>{list.map((p) => <option key={p.id} value={p.id}>{pkgLabel(p)}</option>)}</optgroup> : null
+                  })}
                 </Select>
               </Field>
+              {pkg && isPtCategory(pkg.category) && <BundleInfo pkg={pkg} runningEnd={runningEnd} />}
               <Field label="Ngày bắt đầu" htmlFor="cn-start"><Input id="cn-start" type="date" value={start} onChange={(e) => { setStart(e.target.value); setStartTouched(true) }} /></Field>
               <Field label="Ngày hết hạn" htmlFor="cn-end">
                 <Input id="cn-end" readOnly value={pkg ? (qt.endDate ? fmtDate(qt.endDate) : 'Tính khi kích hoạt') : ''} />
               </Field>
+              {pkg && isPtCategory(pkg.category) && (
+                <p className="full hint-muted" id="cn-pt-usage">
+                  {qt.endDate
+                    ? `Hạn sử dụng gói PT: ${fmtDate(ptUsageDeadline(qt.endDate, qt.sessions ?? pkg.sessions))} (hết hạn + ${ptUsageMonths(qt.sessions ?? pkg.sessions)} tháng)`
+                    : 'Hạn sử dụng tính khi kích hoạt'}
+                </p>
+              )}
               <Field label="Khuyến mãi" htmlFor="cn-promo">
                 <Select id="cn-promo" value={promoType} onChange={(e) => { setPromoType(e.target.value as '' | PromoType); setPromoValue('') }}>
                   {PROMO_OPTIONS.map((o) => <option key={o.value} value={o.value} disabled={!promoAllowed(o.value, pkg?.type)}>{o.label}</option>)}

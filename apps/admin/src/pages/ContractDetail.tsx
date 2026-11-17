@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, contractActions, daysLeftText, downloadBlob, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
+import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, isPtCategory, contractActions, daysLeftText, downloadBlob, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
+import { PT_RULE_HINT } from '../lib/pt'
 import { usePermission } from '../context/usePermission'
 import { FormDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
@@ -13,7 +14,36 @@ import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHead
 import { MemberAvatar } from '../components/MemberAvatar'
 import type { Contract, Member, Payment } from '../types'
 
-type Dlg = null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
+export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | 'bundle_of_id'> }) {
+  return (
+    <>
+      {c.bundle_of_id && (
+        <div className="info-ok" role="status" style={{ marginBottom: 16 }}>
+          Hợp đồng này đi kèm gói PT. <Link to={`/contracts/${c.bundle_of_id}`}>Xem hợp đồng gói PT</Link>
+        </div>
+      )}
+      {(c.bundled_contracts ?? []).length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Panel title="Gói member đi kèm">
+            <dl className="kv">
+              {(c.bundled_contracts ?? []).map((b) => {
+                const s = memberStatus({ status: b.status, end_date: b.end_date })
+                return (
+                  <div key={b.id} style={{ display: 'contents' }}>
+                    <dt>{b.package.name}</dt>
+                    <dd><Link to={`/contracts/${b.id}`}>{b.code}</Link> <Chip tone={s.tone}>{s.label}</Chip><div className="cell-sub">{fmtDate(b.start_date)} - {fmtDate(b.end_date)}</div></dd>
+                  </div>
+                )
+              })}
+            </dl>
+          </Panel>
+        </div>
+      )}
+    </>
+  )
+}
+
+type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
 
 export default function ContractDetail() {
   const { id } = useParams()
@@ -125,10 +155,12 @@ export default function ContractDetail() {
         action={<Link className="btn" to="/contracts">Danh sách hợp đồng</Link>}
       />
 
+      <BundleSection c={c} />
       <KpiRow>
-        <Kpi value={fmtMoney(c.total_amount)} label="Giá trị" />
+        <Kpi value={c.bundle_of_id && c.total_amount === 0 ? 'Kèm gói PT' : fmtMoney(c.total_amount)} label="Giá trị" />
         <Kpi value={fmtMoney(c.paid_amount)} label="Đã thu" />
         <Kpi value={<span className={c.debt_amount > 0 ? 'text-bad' : ''}>{fmtMoney(c.debt_amount)}</span>} label="Còn nợ" />
+        {isPtCategory(c.package.category) && <Kpi value={c.usage_deadline ? fmtDate(c.usage_deadline) : '-'} label="Hạn sử dụng gói PT" />}
         <Kpi value={c.sessions_total != null ? `${c.sessions_left ?? 0}/${c.sessions_total}` : daysLeftText(c.end_date) || '-'} label={c.sessions_total != null ? 'Số buổi còn' : 'Thời hạn còn lại'} />
       </KpiRow>
 
@@ -136,9 +168,10 @@ export default function ContractDetail() {
         <Panel title="Thông tin hợp đồng">
           <dl className="kv">
             <dt>Hội viên</dt><dd><span className="cell-person"><MemberAvatar member={{ id: c.member.id, name: c.member.name, has_photo: mem?.has_photo, photo_version: mem?.photo_version }} size={32} /><span>{c.member.name} ({c.member.code}), {c.member.phone}</span></span></dd>
-            <dt>Dịch vụ</dt><dd>{c.package.name}</dd>
+            <dt>Dịch vụ</dt><dd>{c.package.name} <Chip>{categoryLabel(c.package.category)}</Chip></dd>
             <dt>Bắt đầu</dt><dd>{fmtDate(c.start_date)}</dd>
             <dt>Kết thúc</dt><dd>{fmtDate(c.end_date)}</dd>
+            {isPtCategory(c.package.category) && (<><dt>Hạn sử dụng gói PT</dt><dd>{c.usage_deadline ? fmtDate(c.usage_deadline) : '-'}<div className="cell-sub">{PT_RULE_HINT}</div></dd></>)}
             {c.frozen_until && (<><dt>Bảo lưu đến</dt><dd>{fmtDate(c.frozen_until)}</dd></>)}
             <dt>Giảm giá</dt><dd>{fmtMoney(c.discount)}</dd>
             {c.note && (<><dt>Ghi chú</dt><dd>{c.note}</dd></>)}

@@ -1,4 +1,4 @@
-import type { CheckinReason, Contract, ContractStatus, PackageType, PayMethod, PayStatus } from '../types'
+import type { CheckinReason, Contract, ContractStatus, PackageCategory, PayMethod, PayStatus, PtReason } from '../types'
 
 export const fmtMoney = (n: number | null | undefined) => `${new Intl.NumberFormat('vi-VN').format(Math.round(n ?? 0))} ₫`
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -54,7 +54,15 @@ export const initials = (name: string) => {
   return (w.length === 1 ? w[0].slice(0, 2) : w[0][0] + w[w.length - 1][0]).toUpperCase()
 }
 
-export const packageKind = (t: PackageType, name = '') => (/combo/i.test(name) ? 'Combo' : t === 'session' ? 'PT' : t === 'day' ? 'Lớp' : 'Gym')
+export const PACKAGE_CATEGORY: Record<PackageCategory, string> = { member: 'Gói member', pt_1on1: 'PT 1:1', pt_1on2: 'PT 1:2', pt_group: 'PT nhóm' }
+export const PACKAGE_CATEGORIES = Object.keys(PACKAGE_CATEGORY) as PackageCategory[]
+export const categoryLabel = (c: PackageCategory | null | undefined) => PACKAGE_CATEGORY[c ?? 'member'] ?? 'Gói member'
+export const isPtCategory = (c: PackageCategory | string | null | undefined) => typeof c === 'string' && c.startsWith('pt_')
+export const PT_REASON: Record<PtReason, string> = {
+  MEMBER_PACKAGE_EXPIRED: 'Gói member đã hết hạn',
+  NO_PT_PACKAGE: 'Chưa có gói PT',
+  PT_USAGE_EXPIRED: 'Đã quá hạn sử dụng gói PT',
+}
 export const GENDER_LABEL = { male: 'Nam', female: 'Nữ', other: 'Khác' } as const
 export const parseMoney = (s: string) => Number(s.replace(/[^\d]/g, '')) || 0
 

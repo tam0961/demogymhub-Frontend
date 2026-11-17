@@ -52,11 +52,12 @@ interface Props<T> {
   emptyText?: string
   itemLabel?: string
   caption?: string
+  rowClassName?: (row: T) => string
 }
 
 export function DataTable<T>({
   columns, rows, rowKey, onRowClick, selectable, selected = [], onSelectionChange, defaultSort, pageSize = 50,
-  pageSizes = [25, 50, 100], loading, error, emptyText = 'Không có dữ liệu', itemLabel = 'mục', caption,
+  pageSizes = [25, 50, 100], loading, error, emptyText = 'Không có dữ liệu', itemLabel = 'mục', caption, rowClassName,
 }: Props<T>) {
   const [sort, setSort] = useState(defaultSort ?? null)
   const [size, setSize] = useState(pageSize)
@@ -113,7 +114,7 @@ export function DataTable<T>({
               return (
                 <tr
                   key={k}
-                  className={onRowClick ? 'clickable' : ''}
+                  className={`${onRowClick ? 'clickable' : ''} ${rowClassName?.(r) ?? ''}`}
                   onClick={onRowClick ? () => onRowClick(r) : undefined}
                   onKeyDown={onRowClick ? (e) => e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onRowClick(r)) : undefined}
                   tabIndex={onRowClick ? 0 : undefined}
