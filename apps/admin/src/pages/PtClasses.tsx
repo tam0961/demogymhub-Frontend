@@ -32,7 +32,8 @@ const CLASS_STATUS: Record<GroupClass['status'], { label: string; tone: ChipTone
 }
 const REG_STATUS: Record<GroupRegStatus, { label: string; tone: ChipTone }> = {
   booked: { label: 'Đã đăng ký', tone: 'warn' },
-  attended: { label: 'Đã học', tone: 'ok' },
+  attended: { label: 'Có mặt', tone: 'ok' },
+  absent: { label: 'Vắng (mất buổi)', tone: 'bad' },
   cancelled: { label: 'Đã hủy', tone: 'bad' },
 }
 
@@ -76,9 +77,9 @@ export default function PtClasses() {
     api.get<{ data: Trainer[] }>('/pt/trainers', { params: { branch_id: branchId ?? undefined } }).then((r) => setTrainers(r.data.data)).catch(() => setTrainers([]))
   }, [branchId])
 
-  const act = async (url: string, ok: string) => {
+  const act = async (url: string, ok: string, body?: object) => {
     try {
-      await api.post(url)
+      await api.post(url, body)
       toast(ok)
       load()
     } catch (e) {
@@ -114,9 +115,19 @@ export default function PtClasses() {
     {
       key: 'cancel',
       header: '',
-      render: (r) => r.status === 'booked' && can('pt_sessions.cancel')
-        ? <Button small variant="danger" onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
-        : null,
+      render: (r) => (
+        <>
+          {r.status !== 'cancelled' && can('pt_sessions.complete') && (
+            <>
+              <Button small variant={r.status === 'attended' ? 'primary' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận có mặt', { status: 'attended' })}>Có mặt</Button>{' '}
+              <Button small variant={r.status === 'absent' ? 'danger' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận vắng, khách mất buổi', { status: 'absent' })}>Vắng</Button>{' '}
+            </>
+          )}
+          {r.status === 'booked' && can('pt_sessions.cancel') && (
+            <Button small variant="danger" onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
+          )}
+        </>
+      ),
     },
   ]
 
@@ -146,7 +157,7 @@ export default function PtClasses() {
         <Kpi value={stats?.classes.total ?? 0} label="Số lớp" />
         <Kpi value={stats?.classes.completed ?? 0} label="Lớp đã dạy" />
         <Kpi value={stats?.registrations.booked ?? 0} label="Đang chờ học" />
-        <Kpi value={stats?.registrations.attended ?? 0} label="Lượt đã học" />
+        <Kpi value={stats?.registrations.attended ?? 0} label="Lượt có mặt" />
         <Kpi value={`${stats?.fill_rate ?? 0}%`} label="Tỷ lệ lấp đầy" />
       </KpiRow>
 
