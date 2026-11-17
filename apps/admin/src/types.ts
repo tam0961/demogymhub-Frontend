@@ -226,6 +226,7 @@ export interface GroupReg {
   status: GroupRegStatus
   deducted: boolean
   contract_code: string | null
+  sessions_left?: number | null
   created_at: string
   cancel_count?: number
   class: { id: string; title: string; muscle_group?: string | null; start_at: string; end_at: string; status: GroupClass['status']; trainer: { id: string; name: string } | null }

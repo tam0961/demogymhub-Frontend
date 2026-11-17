@@ -40,7 +40,6 @@ const REG_STATUS: Record<GroupRegStatus, { label: string; tone: ChipTone }> = {
 
 export default function PtClasses() {
   const { branchId } = useBranch()
-  const { can } = usePermission()
   const toast = useToast()
   const [week, setWeek] = useState(mondayOf(localISO(new Date())))
   const [trainers, setTrainers] = useState<Trainer[]>([])
@@ -55,6 +54,8 @@ export default function PtClasses() {
   const [templating, setTemplating] = useState(false)
   const [report, setReport] = useState<GroupReportRow[]>([])
   const [registering, setRegistering] = useState<GroupClass | null>(null)
+  const [detailId, setDetailId] = useState<string | null>(null)
+  const [showEmpty, setShowEmpty] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -114,25 +115,16 @@ export default function PtClasses() {
     }
   }
 
-  const classCols: Column<GroupClass>[] = [
-    { key: 'time', header: 'Giờ', sortValue: (c) => c.start_at, render: (c) => <><span className="cell-main">{dayLabel(c.start_at)}</span><div className="cell-sub">{fmtTime(c.start_at)} - {fmtTime(c.end_at)}</div></> },
-    { key: 'title', header: 'Lớp', sortValue: (c) => c.title, render: (c) => <>{c.title}{c.muscle_group && <div className="cell-sub">{c.muscle_group}</div>}</> },
-    { key: 'trainer', header: 'PT phụ trách', sortValue: (c) => c.trainer?.name ?? '', render: (c) => c.trainer?.name ?? <span className="cell-sub">Chưa phân công</span> },
-    { key: 'slots', header: 'Chỗ', numeric: true, sortValue: (c) => c.registered, render: (c) => `${c.registered}/${c.capacity}` },
-    { key: 'status', header: 'Trạng thái', sortValue: (c) => c.status, render: (c) => <Chip tone={CLASS_STATUS[c.status].tone}>{CLASS_STATUS[c.status].label}</Chip> },
-    {
-      key: 'act',
-      header: '',
-      render: (c) => c.status !== 'scheduled' ? null : (
-        <span style={{ display: 'flex', gap: 6 }}>
-          {can('pt_sessions.create') && <Button small onClick={() => setRegistering(c)} disabled={c.registered >= c.capacity}>Đăng ký khách</Button>}
-          {can('pt_sessions.create') && <Button small onClick={() => setEditing(c)}>Sửa</Button>}
-          {can('pt_sessions.complete') && c.trainer && <Button small variant="primary" onClick={() => act(`/pt/classes/${c.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Đã dạy xong</Button>}
-          {can('pt_sessions.cancel') && <Button small variant="danger" onClick={() => act(`/pt/classes/${c.id}/cancel`, 'Đã hủy lớp, đã trả buổi cho khách')}>Hủy lớp</Button>}
-        </span>
-      ),
-    },
-  ]
+  const today = localISO(new Date())
+  const days = Array.from({ length: 7 }, (_, i) => addDays(week, i))
+  const shown = classes.filter((c) => c.status !== 'cancelled' && (showEmpty || c.registered > 0))
+  const slots = [...new Set(shown.map((c) => fmtTime(c.start_at)))].sort()
+  const detail = classes.find((c) => c.id === detailId) ?? null
+  const bookedSlots = classes.filter((c) => c.status !== 'cancelled' && c.registered > 0).length
+  const totalSlots = classes.filter((c) => c.status !== 'cancelled').length
+  const seatsTaken = classes.filter((c) => c.status !== 'cancelled').reduce((n, c) => n + c.registered, 0)
+  const seatsAll = classes.filter((c) => c.status !== 'cancelled').reduce((n, c) => n + c.capacity, 0)
+  const fillTone = (c: GroupClass) => (c.registered >= c.capacity ? 'bad' : c.capacity > 1 && c.registered >= c.capacity - 1 ? 'warn' : 'ok')
 
   const reportCols: Column<GroupReportRow>[] = [
     { key: 'month', header: 'Tháng', sortValue: (r) => r.month, render: (r) => r.month },
@@ -141,43 +133,19 @@ export default function PtClasses() {
     { key: 'attended', header: 'Tổng lượt học viên', numeric: true, sortValue: (r) => r.attended, render: (r) => r.attended },
   ]
 
-  const regCols: Column<GroupReg>[] = [
-    { key: 'name', header: 'Khách hàng', sortValue: (r) => r.name, render: (r) => <><span className="cell-main">{r.name}</span>{(r.cancel_count ?? 0) > 0 && <div className="cell-sub">Đã hủy {r.cancel_count} lần</div>}</> },
-    { key: 'phone', header: 'SĐT', render: (r) => r.phone },
-    { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
-    { key: 'class', header: 'Lớp đăng ký', sortValue: (r) => r.class.start_at, render: (r) => <>{fmtDateTime(r.class.start_at)}<div className="cell-sub">{r.class.title}{r.class.muscle_group ? ` - ${r.class.muscle_group}` : ''}</div></> },
-    { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => <><Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip>{r.status === 'booked' && r.deducted && <div className="cell-sub">Tạm trừ 1 buổi</div>}{r.status === 'waitlist' && <div className="cell-sub">Chưa trừ buổi, tự xếp lớp khi có chỗ</div>}</> },
-    {
-      key: 'cancel',
-      header: '',
-      render: (r) => (
-        <>
-          {r.status !== 'cancelled' && r.status !== 'waitlist' && can('pt_sessions.complete') && (
-            <>
-              <Button small variant={r.status === 'attended' ? 'primary' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận có mặt', { status: 'attended' })}>Có mặt</Button>{' '}
-              <Button small variant={r.status === 'absent' ? 'danger' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận vắng, khách mất buổi', { status: 'absent' })}>Vắng</Button>{' '}
-            </>
-          )}
-          {(r.status === 'booked' || r.status === 'waitlist') && can('pt_sessions.cancel') && (
-            <Button small variant="danger" onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, r.status === 'waitlist' ? 'Đã bỏ khỏi danh sách chờ' : 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
-          )}
-        </>
-      ),
-    },
-  ]
-
   return (
     <>
-      <PageHeader title="Lịch lớp nhóm" sub="Lịch 7 ngày. Đăng ký tạm trừ 1 buổi, PT xác nhận dạy xong thì trừ chính thức, hủy thì trả lại buổi. Lớp đầy thì khách vào danh sách chờ." />
+      <PageHeader title="Lịch lớp nhóm" sub="Lịch 7 ngày. Đăng ký tạm trừ 1 buổi, PT xác nhận dạy xong thì trừ chính thức, hủy thì trả lại buổi." />
       <div className="toolbar">
         <Button small onClick={() => setWeek(addDays(week, -7))} aria-label="Tuần trước">‹</Button>
-        <span className="cell-main">{dayLabel(week)} - {dayLabel(addDays(week, 6))}</span>
+        <span className="cell-main">{dayLabel(week)} - {dayLabel(addDays(week, 6))}{week === mondayOf(today) ? ' (tuần này)' : ''}</span>
         <Button small onClick={() => setWeek(addDays(week, 7))} aria-label="Tuần sau">›</Button>
         <Button small onClick={() => setWeek(mondayOf(localISO(new Date())))}>Tuần này</Button>
         <Select aria-label="Lọc PT" value={trainerFilter} onChange={(e) => setTrainerFilter(e.target.value)}>
           <option value="">Tất cả PT</option>
           {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </Select>
+        <Button small variant={showEmpty ? 'primary' : 'secondary'} onClick={() => setShowEmpty(!showEmpty)}>Hiện lớp trống</Button>
         <div className="grow">
           <RequirePermission permission="pt_sessions.create">
             <Button onClick={copyLink}>Sao chép link đăng ký</Button>
@@ -188,34 +156,130 @@ export default function PtClasses() {
         </div>
       </div>
 
-      <Panel title="Các lớp trong tuần" count={classes.length} flush>
-        <DataTable columns={classCols} rows={classes} rowKey={(c) => c.id} loading={loading} error={error} emptyText="Chưa có lớp nhóm trong tuần" itemLabel="lớp" />
-      </Panel>
+      <div className="card gcal">
+        {error ? <div className="empty">{error}</div> : (
+          <div className="gcal-scroll">
+            <div className="gcal-grid" style={{ gridTemplateColumns: '84px repeat(7, minmax(210px, 1fr))' }}>
+              <div className="gcal-corner" />
+              {days.map((d) => (
+                <div key={d} className={`gcal-head${d === today ? ' today' : ''}`}>
+                  <div className="gcal-dow">{new Date(`${d}T12:00:00`).getDay() === 0 ? 'CN' : `Thứ ${new Date(`${d}T12:00:00`).getDay() + 1}`}</div>
+                  <div className="gcal-date">{pad(+d.slice(8, 10))}/{pad(+d.slice(5, 7))}</div>
+                </div>
+              ))}
+              {slots.map((slot) => (
+                <GridRow key={slot} slot={slot} days={days} today={today} items={shown.filter((c) => fmtTime(c.start_at) === slot)} regs={regs} fillTone={fillTone} onOpen={setDetailId} />
+              ))}
+              {!loading && slots.length === 0 && <div className="empty" style={{ gridColumn: '1 / -1' }}>Chưa có lớp nào có người đăng ký trong tuần</div>}
+            </div>
+          </div>
+        )}
+      </div>
+      <p className="gcal-note">Chỉ hiện các lớp đã có người đăng ký ("Hiện lớp trống" để xem cả lớp chưa ai đặt). Xanh là còn chỗ, vàng gần đầy, đỏ đã đầy. Bấm vào một ca để xem danh sách học viên, điểm danh, hủy đăng ký và các thao tác của lớp.</p>
 
-      <div style={{ height: 16 }} />
       <KpiRow>
-        <Kpi value={stats?.classes.total ?? 0} label="Số lớp" />
-        <Kpi value={stats?.classes.completed ?? 0} label="Lớp đã dạy" />
-        <Kpi value={stats?.registrations.booked ?? 0} label="Đang chờ học" />
-        <Kpi value={stats?.registrations.waitlist ?? 0} label="Danh sách chờ" />
-        <Kpi value={stats?.registrations.attended ?? 0} label="Lượt có mặt" />
-        <Kpi value={`${stats?.fill_rate ?? 0}%`} label="Tỷ lệ lấp đầy" />
+        <Kpi value={`${bookedSlots} / ${totalSlots}`} label="Ca có người đăng ký" />
+        <Kpi value={`${seatsTaken} / ${seatsAll}`} label="Chỗ đã đặt" />
+        <Kpi value={stats?.registrations.attended ?? 0} label="Đã học" />
+        <Kpi value={stats?.registrations.cancelled ?? 0} label="Lượt hủy" />
       </KpiRow>
-
-      <Panel title="Khách đăng ký" count={regs.length} flush>
-        <DataTable columns={regCols} rows={regs} rowKey={(r) => r.id} loading={loading} error={error} emptyText="Chưa có khách đăng ký trong tuần" itemLabel="lượt" />
-      </Panel>
 
       <div style={{ height: 16 }} />
       <Panel title="Báo cáo PT theo tháng" count={`${report.length} dòng`} flush>
         <DataTable columns={reportCols} rows={report} rowKey={(r) => `${r.month}|${r.trainer}`} emptyText="Chưa có lớp đã dạy" itemLabel="dòng" />
       </Panel>
 
+      {detail && (
+        <ClassDetailModal
+          cls={detail}
+          regs={regs.filter((r) => r.class.id === detail.id)}
+          act={act}
+          onClose={() => setDetailId(null)}
+          onRegister={() => setRegistering(detail)}
+          onEdit={() => { setEditing(detail); setDetailId(null) }}
+        />
+      )}
       {editing && <EditClassModal cls={editing} trainers={trainers} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); toast('Đã lưu lớp'); load() }} />}
       {templating && <TemplateModal onClose={() => setTemplating(false)} />}
       {creating && <ClassModal week={week} trainers={trainers} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); toast('Đã tạo lớp'); load() }} />}
       {registering && <RegisterModal cls={registering} onClose={() => setRegistering(null)} onSaved={() => { setRegistering(null); toast('Đã đăng ký, tạm trừ 1 buổi'); load() }} />}
     </>
+  )
+}
+
+function GridRow({ slot, days, today, items, regs, fillTone, onOpen }: { slot: string; days: string[]; today: string; items: GroupClass[]; regs: GroupReg[]; fillTone: (c: GroupClass) => string; onOpen: (id: string) => void }) {
+  return (
+    <>
+      <div className="gcal-time">{slot}</div>
+      {days.map((d) => {
+        const cell = items.filter((c) => localISO(new Date(c.start_at)) === d)
+        return (
+          <div key={d} className={`gcal-cell${d === today ? ' today' : ''}`}>
+            {cell.length === 0 && <span className="gcal-empty">-</span>}
+            {cell.map((c) => {
+              const mine = regs.filter((r) => r.class.id === c.id && r.status !== 'cancelled' && r.status !== 'waitlist')
+              const tone = fillTone(c)
+              return (
+                <button key={c.id} type="button" className={`gcal-card ${tone}${c.status === 'completed' ? ' done' : ''}`} onClick={() => onOpen(c.id)}>
+                  <span className="gcal-title">{c.title}{c.muscle_group ? ` + ${c.muscle_group}` : ''}</span>
+                  <span className="gcal-pt">{c.trainer?.name ?? 'Chưa phân công'}</span>
+                  <span className="gcal-slots">{c.registered} / {c.capacity} chỗ</span>
+                  <span className="gcal-bar"><span style={{ width: `${Math.min(100, (c.registered / Math.max(1, c.capacity)) * 100)}%` }} /></span>
+                  {mine.map((r) => <span key={r.id} className={`gcal-chip${r.status === 'absent' ? ' bad' : ''}`}>{r.name}</span>)}
+                </button>
+              )
+            })}
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
+function ClassDetailModal({ cls, regs, act, onClose, onRegister, onEdit }: { cls: GroupClass; regs: GroupReg[]; act: (url: string, ok: string, body?: object) => void; onClose: () => void; onRegister: () => void; onEdit: () => void }) {
+  const { can } = usePermission()
+  const cols: Column<GroupReg>[] = [
+    { key: 'name', header: 'Khách hàng', sortValue: (r) => r.name, render: (r) => <><span className="cell-main">{r.name}</span><div className="cell-sub">{r.phone}</div></> },
+    { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => <Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip> },
+    { key: 'left', header: 'Còn lại / hủy', numeric: true, sortValue: (r) => r.sessions_left ?? 0, render: (r) => `${r.sessions_left ?? '-'} / ${r.cancel_count ?? 0}` },
+    {
+      key: 'act',
+      header: '',
+      render: (r) => (
+        <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+          {r.status !== 'cancelled' && r.status !== 'waitlist' && can('pt_sessions.complete') && (
+            <>
+              <Button small variant={r.status === 'attended' ? 'primary' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận có mặt', { status: 'attended' })}>Có mặt</Button>
+              <Button small variant={r.status === 'absent' ? 'danger' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận vắng, khách mất buổi', { status: 'absent' })}>Vắng</Button>
+            </>
+          )}
+          {(r.status === 'booked' || r.status === 'waitlist') && can('pt_sessions.cancel') && (
+            <Button small variant="danger" onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, r.status === 'waitlist' ? 'Đã bỏ khỏi danh sách chờ' : 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
+          )}
+        </span>
+      ),
+    },
+  ]
+  const open = cls.status === 'scheduled'
+  return (
+    <Modal
+      title={`${cls.title}${cls.muscle_group ? ` - ${cls.muscle_group}` : ''}`}
+      size="large"
+      onClose={onClose}
+      footer={open ? (
+        <>
+          {can('pt_sessions.cancel') && <Button variant="danger" onClick={() => { act(`/pt/classes/${cls.id}/cancel`, 'Đã hủy lớp, đã trả buổi cho khách'); onClose() }}>Hủy lớp</Button>}
+          {can('pt_sessions.create') && <Button onClick={onEdit}>Sửa</Button>}
+          {can('pt_sessions.create') && <Button onClick={onRegister} disabled={cls.registered >= cls.capacity}>Đăng ký khách</Button>}
+          {can('pt_sessions.complete') && cls.trainer && <Button variant="primary" onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Đã dạy xong</Button>}
+        </>
+      ) : undefined}
+    >
+      <p className="cell-sub" style={{ marginBottom: 12 }}>
+        {fmtDateTime(cls.start_at)} - {fmtTime(cls.end_at)} · PT: {cls.trainer?.name ?? 'Chưa phân công'} · {cls.registered}/{cls.capacity} chỗ · <Chip tone={CLASS_STATUS[cls.status].tone}>{CLASS_STATUS[cls.status].label}</Chip>
+      </p>
+      <DataTable columns={cols} rows={regs} rowKey={(r) => r.id} emptyText="Chưa có khách đăng ký" itemLabel="lượt" />
+    </Modal>
   )
 }
 
@@ -311,7 +375,7 @@ function RegisterModal({ cls, onClose, onSaved }: { cls: GroupClass; onClose: ()
       <form id="reg-form" className="form-grid" onSubmit={submit}>
         {error && <div className="form-error full" role="alert">{error}</div>}
         <Field label="Tìm hội viên (tên, SĐT, mã)" htmlFor="r-q" full><Input id="r-q" value={q} onChange={(e) => { setQ(e.target.value); setMemberId('') }} /></Field>
-        <Field label="Hội viên" htmlFor="r-member" full hint="Đăng ký sẽ tạm trừ 1 buổi gói PT nhóm. PT xác nhận dạy xong thì trừ chính thức; hủy thì trả lại buổi. Lớp đầy thì khách vào danh sách chờ.">
+        <Field label="Hội viên" htmlFor="r-member" full hint="Đăng ký sẽ tạm trừ 1 buổi gói PT nhóm. PT xác nhận dạy xong thì trừ chính thức; hủy thì trả lại buổi.">
           <Select id="r-member" required value={memberId} onChange={(e) => setMemberId(e.target.value)}>
             <option value="" disabled>{members.length ? 'Chọn hội viên' : 'Nhập để tìm'}</option>
             {members.map((m) => <option key={m.id} value={m.id}>{m.name} - {m.phone}</option>)}
