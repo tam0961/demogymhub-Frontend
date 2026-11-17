@@ -269,3 +269,11 @@ table.table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .gcal-chip { align-self: flex-start; max-width: 100%; padding: 2px 8px; border-radius: 6px; background: var(--surface-2); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gcal-chip.bad { color: var(--bad); background: var(--bad-soft); }
 .gcal-note { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+
+.gcal-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.gcal-nav { margin-left: auto; }
+.gcal-grid { min-width: 900px; }
+.gcal-card { font-size: 13px; padding: 8px; gap: 2px; }
+.gcal-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+.gcal-chip { font-size: 12px; padding: 1px 6px; }
+.kpi2-note { color: var(--muted); font-size: 13px; margin-top: 2px; }

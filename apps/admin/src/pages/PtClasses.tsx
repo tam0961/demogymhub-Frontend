@@ -6,8 +6,8 @@ import { useBranch } from '../context/BranchContext'
 import { useAuth } from '../context/AuthContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
-import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
-import type { GroupClass, GroupReg, GroupRegStatus, GroupReportRow, GroupStats, GroupTemplate, ListResp, Member } from '../types'
+import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Select, useToast, type ChipTone, type Column } from '../components/ui'
+import type { GroupClass, GroupReg, GroupRegStatus, GroupStats, GroupTemplate, ListResp, Member } from '../types'
 
 interface Trainer { id: string; name: string }
 
@@ -38,6 +38,30 @@ const REG_STATUS: Record<GroupRegStatus, { label: string; tone: ChipTone }> = {
   waitlist: { label: 'Danh sách chờ', tone: 'neutral' },
 }
 
+interface PtReportRow { pt: string; taught: number; booked: number; attended: number; people: number; upcoming: number }
+
+function buildReport(classes: GroupClass[], regs: GroupReg[]): PtReportRow[] {
+  const now = Date.now()
+  const live = (r: GroupReg) => r.status === 'booked' || r.status === 'attended' || r.status === 'absent'
+  const by = new Map<string, { row: PtReportRow; phones: Set<string> }>()
+  const get = (name: string) => {
+    if (!by.has(name)) by.set(name, { row: { pt: name, taught: 0, booked: 0, attended: 0, people: 0, upcoming: 0 }, phones: new Set() })
+    return by.get(name)!
+  }
+  for (const c of classes) {
+    if (c.status === 'cancelled') continue
+    const mine = regs.filter((r) => r.class.id === c.id && live(r))
+    if (!mine.length) continue
+    const g = get(c.trainer?.name ?? 'Chưa phân công')
+    if (new Date(c.end_at).getTime() <= now) g.row.taught += 1
+    else g.row.upcoming += 1
+    g.row.booked += mine.length
+    g.row.attended += mine.filter((r) => r.status === 'attended').length
+    mine.forEach((r) => g.phones.add(r.phone))
+  }
+  return [...by.values()].map((g) => ({ ...g.row, people: g.phones.size })).sort((a, b) => a.pt.localeCompare(b.pt))
+}
+
 export default function PtClasses() {
   const { branchId } = useBranch()
   const toast = useToast()
@@ -52,7 +76,8 @@ export default function PtClasses() {
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<GroupClass | null>(null)
   const [templating, setTemplating] = useState(false)
-  const [report, setReport] = useState<GroupReportRow[]>([])
+  const [reportScope, setReportScope] = useState<'week' | 'month'>('week')
+  const [monthData, setMonthData] = useState<{ classes: GroupClass[]; regs: GroupReg[] }>({ classes: [], regs: [] })
   const [registering, setRegistering] = useState<GroupClass | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [showEmpty, setShowEmpty] = useState(false)
@@ -68,7 +93,6 @@ export default function PtClasses() {
         api.get<{ data: GroupStats }>('/pt/classes/stats', { params }),
       ])
       setClasses(c.data.data)
-      api.get<{ data: GroupReportRow[] }>('/pt/classes/report', { params: { months: 6, branch_id: branchId ?? undefined } }).then((r) => setReport(r.data.data)).catch(() => setReport([]))
       setRegs(r.data.data)
       setStats(s.data.data)
     } catch (e) {
@@ -79,6 +103,16 @@ export default function PtClasses() {
   }, [week, branchId, trainerFilter])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (reportScope !== 'month') return
+    const first = `${week.slice(0, 7)}-01`
+    const last = localISO(new Date(+week.slice(0, 4), +week.slice(5, 7), 0))
+    const params = { from: first, to: last, branch_id: branchId ?? undefined, trainer_id: trainerFilter || undefined }
+    Promise.all([
+      api.get<{ data: GroupClass[] }>('/pt/classes', { params }),
+      api.get<{ data: GroupReg[] }>('/pt/classes/registrations', { params }),
+    ]).then(([c, r]) => setMonthData({ classes: c.data.data, regs: r.data.data })).catch(() => setMonthData({ classes: [], regs: [] }))
+  }, [reportScope, week, branchId, trainerFilter])
   useEffect(() => {
     api.get<{ data: Trainer[] }>('/pt/trainers', { params: { branch_id: branchId ?? undefined } }).then((r) => setTrainers(r.data.data)).catch(() => setTrainers([]))
   }, [branchId])
@@ -116,8 +150,8 @@ export default function PtClasses() {
   }
 
   const today = localISO(new Date())
-  const days = Array.from({ length: 7 }, (_, i) => addDays(week, i))
   const shown = classes.filter((c) => c.status !== 'cancelled' && (showEmpty || c.registered > 0))
+  const days = Array.from({ length: 7 }, (_, i) => addDays(week, i)).filter((d, i) => i < 6 || shown.some((c) => localISO(new Date(c.start_at)) === d))
   const slots = [...new Set(shown.map((c) => fmtTime(c.start_at)))].sort()
   const detail = classes.find((c) => c.id === detailId) ?? null
   const bookedSlots = classes.filter((c) => c.status !== 'cancelled' && c.registered > 0).length
@@ -126,40 +160,46 @@ export default function PtClasses() {
   const seatsAll = classes.filter((c) => c.status !== 'cancelled').reduce((n, c) => n + c.capacity, 0)
   const fillTone = (c: GroupClass) => (c.registered >= c.capacity ? 'bad' : c.capacity > 1 && c.registered >= c.capacity - 1 ? 'warn' : 'ok')
 
-  const reportCols: Column<GroupReportRow>[] = [
-    { key: 'month', header: 'Tháng', sortValue: (r) => r.month, render: (r) => r.month },
-    { key: 'trainer', header: 'PT', sortValue: (r) => r.trainer, render: (r) => r.trainer },
-    { key: 'classes', header: 'Tổng số lớp', numeric: true, sortValue: (r) => r.classes, render: (r) => r.classes },
-    { key: 'attended', header: 'Tổng lượt học viên', numeric: true, sortValue: (r) => r.attended, render: (r) => r.attended },
+  const repSrc = reportScope === 'week' ? { classes, regs } : monthData
+  const reportRows = buildReport(repSrc.classes, repSrc.regs)
+  const reportCols: Column<PtReportRow>[] = [
+    { key: 'pt', header: 'PT', sortValue: (r) => r.pt, render: (r) => <span className="cell-main">{r.pt}</span> },
+    { key: 'taught', header: 'Ca đã dạy', numeric: true, sortValue: (r) => r.taught, render: (r) => r.taught },
+    { key: 'booked', header: 'Lượt học viên đã đặt', numeric: true, sortValue: (r) => r.booked, render: (r) => r.booked },
+    { key: 'attended', header: 'Lượt "Đã học"', numeric: true, sortValue: (r) => r.attended, render: (r) => r.attended },
+    { key: 'people', header: 'Học viên (người)', numeric: true, sortValue: (r) => r.people, render: (r) => r.people },
+    { key: 'upcoming', header: 'Ca sắp dạy', numeric: true, sortValue: (r) => r.upcoming, render: (r) => r.upcoming },
   ]
 
   return (
     <>
-      <PageHeader title="Lịch lớp nhóm" sub="Lịch 7 ngày. Đăng ký tạm trừ 1 buổi, PT xác nhận dạy xong thì trừ chính thức, hủy thì trả lại buổi." />
-      <div className="toolbar">
-        <Button small onClick={() => setWeek(addDays(week, -7))} aria-label="Tuần trước">‹</Button>
-        <span className="cell-main">{dayLabel(week)} - {dayLabel(addDays(week, 6))}{week === mondayOf(today) ? ' (tuần này)' : ''}</span>
-        <Button small onClick={() => setWeek(addDays(week, 7))} aria-label="Tuần sau">›</Button>
-        <Button small onClick={() => setWeek(mondayOf(localISO(new Date())))}>Tuần này</Button>
-        <Select aria-label="Lọc PT" value={trainerFilter} onChange={(e) => setTrainerFilter(e.target.value)}>
-          <option value="">Tất cả PT</option>
-          {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </Select>
-        <Button small variant={showEmpty ? 'primary' : 'secondary'} onClick={() => setShowEmpty(!showEmpty)}>Hiện lớp trống</Button>
-        <div className="grow">
-          <RequirePermission permission="pt_sessions.create">
-            <Button onClick={copyLink}>Sao chép link đăng ký</Button>
-            <Button onClick={() => setTemplating(true)}>Khung ca cố định</Button>
-            <Button onClick={generateWeek}>Tạo lịch tuần</Button>
-            <Button variant="primary" onClick={() => setCreating(true)}>Tạo lớp nhóm</Button>
-          </RequirePermission>
+      <div className="gcal-top">
+        <PageHeader title="Lịch lớp nhóm" sub="Lịch 7 ngày. Đăng ký tạm trừ 1 buổi, PT xác nhận dạy xong thì trừ chính thức, hủy thì trả lại buổi. Lớp đầy thì khách vào danh sách chờ." />
+        <div className="toolbar gcal-nav">
+          <Button small onClick={() => setWeek(addDays(week, -7))} aria-label="Tuần trước">‹</Button>
+          <span className="cell-main">{dayLabel(week)} - {dayLabel(addDays(week, 6))}{week === mondayOf(today) ? ' (tuần này)' : ''}</span>
+          <Button small onClick={() => setWeek(addDays(week, 7))} aria-label="Tuần sau">›</Button>
+          <Button small onClick={() => setWeek(mondayOf(localISO(new Date())))}>Tuần này</Button>
+          <Select aria-label="Lọc PT" value={trainerFilter} onChange={(e) => setTrainerFilter(e.target.value)}>
+            <option value="">Tất cả PT</option>
+            {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </Select>
+          <Button small variant={showEmpty ? 'primary' : 'secondary'} onClick={() => setShowEmpty(!showEmpty)}>Hiện lớp trống</Button>
         </div>
       </div>
+      <RequirePermission permission="pt_sessions.create">
+        <div className="toolbar">
+          <Button onClick={copyLink}>Sao chép link đăng ký</Button>
+          <Button onClick={() => setTemplating(true)}>Khung ca cố định</Button>
+          <Button onClick={generateWeek}>Tạo lịch tuần</Button>
+          <Button variant="primary" onClick={() => setCreating(true)}>Tạo lớp nhóm</Button>
+        </div>
+      </RequirePermission>
 
       <div className="card gcal">
         {error ? <div className="empty">{error}</div> : (
           <div className="gcal-scroll">
-            <div className="gcal-grid" style={{ gridTemplateColumns: '84px repeat(7, minmax(210px, 1fr))' }}>
+            <div className="gcal-grid" style={{ gridTemplateColumns: `72px repeat(${days.length}, minmax(0, 1fr))` }}>
               <div className="gcal-corner" />
               {days.map((d) => (
                 <div key={d} className={`gcal-head${d === today ? ' today' : ''}`}>
@@ -179,15 +219,23 @@ export default function PtClasses() {
 
       <KpiRow>
         <Kpi value={`${bookedSlots} / ${totalSlots}`} label="Ca có người đăng ký" />
-        <Kpi value={`${seatsTaken} / ${seatsAll}`} label="Chỗ đã đặt" />
-        <Kpi value={stats?.registrations.attended ?? 0} label="Đã học" />
-        <Kpi value={stats?.registrations.cancelled ?? 0} label="Lượt hủy" />
+        <Kpi value={`${seatsTaken} / ${seatsAll}`} label="Chỗ đã đặt" note={`Mức lấp đầy ${seatsAll ? Math.round((seatsTaken / seatsAll) * 100) : 0}%`} />
+        <Kpi value={stats?.registrations.attended ?? 0} label="Đã học" note='Lượt được đánh dấu "Đã học" trong tuần' />
+        <Kpi value={stats?.registrations.cancelled ?? 0} label="Lượt hủy" note="Trong tuần đang xem" />
       </KpiRow>
 
       <div style={{ height: 16 }} />
-      <Panel title="Báo cáo PT theo tháng" count={`${report.length} dòng`} flush>
-        <DataTable columns={reportCols} rows={report} rowKey={(r) => `${r.month}|${r.trainer}`} emptyText="Chưa có lớp đã dạy" itemLabel="dòng" />
-      </Panel>
+      <section className="panel">
+        <div className="panel-head">
+          <h2>Báo cáo ca dạy theo PT, {reportScope === 'week' ? `Tuần ${dayLabel(week).split(' ').pop()} - ${dayLabel(addDays(week, 6)).split(' ').pop()}` : `Tháng ${week.slice(5, 7)}/${week.slice(0, 4)}`}</h2>
+          <div className="tabs" role="tablist">
+            <button type="button" role="tab" className="tab" aria-selected={reportScope === 'week'} onClick={() => setReportScope('week')}>Tuần đang xem</button>
+            <button type="button" role="tab" className="tab" aria-selected={reportScope === 'month'} onClick={() => setReportScope('month')}>Cả tháng</button>
+          </div>
+        </div>
+        <DataTable columns={reportCols} rows={reportRows} rowKey={(r) => r.pt} emptyText="Chưa có ca dạy" itemLabel="PT" />
+        <p className="gcal-note" style={{ padding: '0 16px 12px' }}>Ca đã dạy là ca đã kết thúc và có ít nhất một học viên đăng ký, không tính lượt hủy. Học viên (người) đếm theo số điện thoại, không đếm trùng.</p>
+      </section>
 
       {detail && (
         <ClassDetailModal
@@ -225,7 +273,7 @@ function GridRow({ slot, days, today, items, regs, fillTone, onOpen }: { slot: s
                   <span className="gcal-pt">{c.trainer?.name ?? 'Chưa phân công'}</span>
                   <span className="gcal-slots">{c.registered} / {c.capacity} chỗ</span>
                   <span className="gcal-bar"><span style={{ width: `${Math.min(100, (c.registered / Math.max(1, c.capacity)) * 100)}%` }} /></span>
-                  {mine.map((r) => <span key={r.id} className={`gcal-chip${r.status === 'absent' ? ' bad' : ''}`}>{r.name}</span>)}
+                  <span className="gcal-chips">{mine.map((r) => <span key={r.id} className={`gcal-chip${r.status === 'absent' ? ' bad' : ''}`}>{r.name}</span>)}</span>
                 </button>
               )
             })}

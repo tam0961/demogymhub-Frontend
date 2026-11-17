@@ -190,11 +190,12 @@ export function Panel({ title, count, note, flush, className = '', children }: P
   )
 }
 
-export function Kpi({ value, label }: { value: ReactNode; label: string }) {
+export function Kpi({ value, label, note }: { value: ReactNode; label: string; note?: string }) {
   return (
     <div className="kpi2">
       <div className="kpi2-value">{value}</div>
       <div className="kpi2-label">{label}</div>
+      {note && <div className="kpi2-note">{note}</div>}
     </div>
   )
 }
