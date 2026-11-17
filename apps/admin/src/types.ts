@@ -238,3 +238,30 @@ export interface GroupStats {
 }
 export interface GroupTemplate { id: string; branch_id: string; weekday: number; start_time: string; end_time: string; capacity: number; muscle_group: string | null }
 export interface GroupReportRow { month: string; trainer: string; classes: number; attended: number }
+
+export type LeadStatus = 'new' | 'contacted' | 'trial_booked' | 'converted' | 'lost'
+export interface Lead {
+  id: string
+  name: string
+  phone: string
+  email: string | null
+  source: string | null
+  status: LeadStatus
+  note: string | null
+  branch_id: string
+  assigned_to: string | null
+  trial_at: string | null
+  member_id: string | null
+  created_at: string
+  updated_at: string
+}
+export interface ExpiringRow {
+  member_id: string
+  member_code: string
+  name: string
+  phone: string
+  package_name: string
+  end_date: string
+  days_left: number
+  branch: Branch
+}

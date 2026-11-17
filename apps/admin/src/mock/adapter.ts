@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
 import { ptUsageDeadline } from '../lib/pt'
-import type { PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
+import type { Lead, PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
 
 const branches = [
   { id: 'b-q2', code: 'Q2', name: 'Chi nhánh Quận 2' },
@@ -16,6 +16,7 @@ const P = {
   shifts: ['shifts.open', 'shifts.close'],
   checkins: ['checkins.create', 'checkins.read'],
   pt: ['pt_sessions.read', 'pt_sessions.create', 'pt_sessions.complete', 'pt_sessions.cancel'],
+  leads: ['leads.read', 'leads.create', 'leads.update'],
 }
 const MANAGER_EXTRA = ['contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
 const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log']
@@ -107,6 +108,10 @@ const DAY = 86400000
 const iso = (offsetDays = 0) => new Date(Date.now() + offsetDays * DAY).toISOString()
 const day = (offsetDays = 0) => iso(offsetDays).slice(0, 10)
 let seq = 100
+const leads: Lead[] = [
+  { id: 'ld1', name: 'Phạm Quốc Bảo', phone: '0911000111', email: null, source: 'Facebook', status: 'new', note: null, branch_id: 'b-nb', assigned_to: null, trial_at: null, member_id: null, created_at: iso(-2), updated_at: iso(-2) },
+  { id: 'ld2', name: 'Võ Thị Mai', phone: '0911000222', email: null, source: 'Giới thiệu', status: 'trial_booked', note: 'Hẹn thứ 7', branch_id: 'b-q7', assigned_to: null, trial_at: null, member_id: null, created_at: iso(-5), updated_at: iso(-5) },
+]
 const nid = (p: string) => `${p}${++seq}`
 
 const contracts: Contract[] = []
@@ -488,6 +493,53 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return ok(memberOut(m as Member))
   }
 
+  if (url === '/leads' && method === 'get') {
+    need('leads.read')
+    const q = String(params.q ?? '').toLowerCase()
+    let rows = leads.filter((l) => me.branches.some((b) => b.id === l.branch_id) && (!branchFilter || l.branch_id === branchFilter))
+    if (params.status) rows = rows.filter((l) => l.status === params.status)
+    if (q) rows = rows.filter((l) => l.name.toLowerCase().includes(q) || l.phone.includes(q))
+    return paged(rows)
+  }
+  if (url === '/leads' && method === 'post') {
+    need('leads.create')
+    const now = new Date().toISOString()
+    const l: Lead = { id: nid('ld'), email: null, source: null, note: null, assigned_to: null, trial_at: null, member_id: null, ...body, status: 'new', created_at: now, updated_at: now }
+    leads.unshift(l)
+    return ok(l)
+  }
+  const lm = url.match(/^\/leads\/([^/]+)(?:\/(status|convert))?$/)
+  if (lm) {
+    const l = leads.find((x) => x.id === lm[1])
+    if (!l) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
+    need('leads.update')
+    const cur = l as Lead
+    if (lm[2] === 'convert') {
+      if (cur.status === 'converted') fail(config, 409, 'ALREADY_CONVERTED', 'Khách đã được chuyển')
+      if (members.some((m) => m.phone === cur.phone)) fail(config, 409, 'DUPLICATE_PHONE', 'Số điện thoại đã tồn tại')
+      const m: Member = { id: `m${++seq}`, code: `HV${String(seq).padStart(4, '0')}`, name: cur.name, phone: cur.phone, email: cur.email, gender: null, dob: null, status: 'active', branch_id: cur.branch_id, avatar_url: null, face_id: null, created_at: new Date().toISOString() }
+      members.unshift(m)
+      Object.assign(cur, { status: 'converted', member_id: m.id })
+      return ok({ lead: cur, member: m })
+    }
+    if (lm[2] === 'status') {
+      if (cur.status === 'converted') fail(config, 409, 'ALREADY_CONVERTED', 'Khách đã được chuyển')
+      cur.status = body.status
+    } else Object.assign(cur, body)
+    return ok(cur)
+  }
+  if (url === '/reports/expiring' && method === 'get') {
+    need('reports.view')
+    const days = Number(params.days ?? 7)
+    const rows = members
+      .filter((m) => me.branches.some((b) => b.id === m.branch_id) && (!branchFilter || m.branch_id === branchFilter))
+      .map((m) => ({ m, c: m.current_contract }))
+      .filter((x) => x.c && x.c.status === 'active' && x.c.end_date)
+      .map((x) => ({ member_id: x.m.id, member_code: x.m.code, name: x.m.name, phone: x.m.phone, package_name: x.c!.package_name, end_date: x.c!.end_date as string, days_left: Math.round((Date.parse(x.c!.end_date as string) - Date.parse(day())) / DAY), branch: branches.find((b) => b.id === x.m.branch_id)! }))
+      .filter((r) => r.days_left >= 0 && r.days_left <= days)
+      .sort((a, b) => a.days_left - b.days_left)
+    return ok(rows)
+  }
   if (url === '/pt/trainers' && method === 'get') return ok(ptTrainers)
   if (url === '/pt/sessions' && method === 'get') {
     const f = String(params.from ?? ''), t = String(params.to ?? '')
