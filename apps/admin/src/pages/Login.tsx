@@ -44,8 +44,8 @@ export default function Login() {
         <h1 className="display">Đăng nhập</h1>
         <p className="login-sub">Nhập tài khoản để vào hệ thống quản lý.</p>
         {error && <div className="form-error" role="alert">{error}</div>}
-        <Field label="Email" htmlFor="email">
-          <Input id="email" type="email" autoComplete="username" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field label="Tên đăng nhập" htmlFor="email">
+          <Input id="email" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="username" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Mật khẩu" htmlFor="password">
           <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />

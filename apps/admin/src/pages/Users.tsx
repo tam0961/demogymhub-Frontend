@@ -48,7 +48,7 @@ export default function Users() {
     <>
       <PageHeader title="Tài khoản đăng nhập" sub="Người dùng và vai trò được gán" />
       <div className="toolbar">
-        <input className="input" type="search" placeholder="Tìm tên hoặc email" aria-label="Tìm tài khoản" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="input" type="search" placeholder="Tìm tên hoặc tên đăng nhập" aria-label="Tìm tài khoản" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="grow"><span className="hint-muted">{filtered.length} tài khoản</span></div>
       </div>
       <div className="card">

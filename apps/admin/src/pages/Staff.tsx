@@ -39,7 +39,7 @@ export default function Staff() {
   const branchName = useMemo(() => new Map((user?.branches ?? []).map((b) => [b.id, b.name])), [user])
   const columns: Column<AdminUser>[] = [
     { key: 'name', header: 'Nhân viên', sortValue: (u) => u.name, render: (u) => <span className="cell-main">{u.name}</span> },
-    { key: 'email', header: 'Email đăng nhập', sortValue: (u) => u.email, render: (u) => u.email },
+    { key: 'email', header: 'Tên đăng nhập', sortValue: (u) => u.email, render: (u) => u.email },
     {
       key: 'roles',
       header: 'Vai trò',
@@ -102,7 +102,7 @@ function AddModal({ onClose, onSaved }: { onClose: () => void; onSaved: (msg: st
     return (
       <Modal title="Đã tạo tài khoản" onClose={() => onSaved('Đã thêm nhân viên')} footer={<Button variant="primary" onClick={() => onSaved('Đã thêm nhân viên')}>Xong</Button>}>
         <p>Gửi thông tin này cho nhân viên. Mật khẩu chỉ hiện một lần.</p>
-        <dl className="kv"><dt>Email</dt><dd>{done.email}</dd><dt>Mật khẩu tạm</dt><dd><b>{done.password}</b></dd></dl>
+        <dl className="kv"><dt>Tên đăng nhập</dt><dd>{done.email}</dd><dt>Mật khẩu tạm</dt><dd><b>{done.password}</b></dd></dl>
       </Modal>
     )
   }
@@ -112,7 +112,7 @@ function AddModal({ onClose, onSaved }: { onClose: () => void; onSaved: (msg: st
       <form id="staff-form" className="form-grid" onSubmit={submit}>
         {error && <div className="form-error full" role="alert">{error}</div>}
         <Field label="Họ tên" htmlFor="s-name" full><Input id="s-name" required value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label="Email đăng nhập" htmlFor="s-email" full><Input id="s-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+        <Field label="Tên đăng nhập" htmlFor="s-email" full><Input id="s-email" type="text" autoCapitalize="none" required value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
         <Field label="Vai trò" htmlFor="s-role">
           <Select id="s-role" value={role} onChange={(e) => setRole(e.target.value)}>
             {CREATABLE.map((r) => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
