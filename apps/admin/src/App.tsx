@@ -15,6 +15,7 @@ import NotFound from './pages/NotFound'
 import Packages from './pages/Packages'
 import Payments from './pages/Payments'
 import PtClasses from './pages/PtClasses'
+import PublicBooking from './pages/PublicBooking'
 import PtOne from './pages/PtOne'
 import Reports from './pages/Reports'
 import ResetPassword from './pages/ResetPassword'
@@ -39,6 +40,7 @@ export default function App() {
   return (
     <Suspense fallback={<div className="loading">Đang tải...</div>}>
     <Routes>
+      <Route path="/dang-ky-lop" element={<PublicBooking />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />

@@ -91,6 +91,18 @@ export default function PtClasses() {
     }
   }
 
+  const { user } = useAuth()
+  const copyLink = async () => {
+    const code = user?.branches.find((b) => b.id === branchId)?.code ?? user?.branches[0]?.code ?? 'q7'
+    const url = `${window.location.origin}/dang-ky-lop?branch=${code.toLowerCase()}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast(`Đã sao chép link đăng ký: ${url}`)
+    } catch {
+      toast(url)
+    }
+  }
+
   const generateWeek = async () => {
     try {
       const r = await api.post<{ data: { created: number } }>('/pt/classes/generate', { week_start: week, branch_id: branchId ?? undefined })
@@ -167,6 +179,7 @@ export default function PtClasses() {
         </Select>
         <div className="grow">
           <RequirePermission permission="pt_sessions.create">
+            <Button onClick={copyLink}>Sao chép link đăng ký</Button>
             <Button onClick={() => setTemplating(true)}>Khung ca cố định</Button>
             <Button onClick={generateWeek}>Tạo lịch tuần</Button>
             <Button variant="primary" onClick={() => setCreating(true)}>Tạo lớp nhóm</Button>

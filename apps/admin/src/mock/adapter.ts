@@ -391,6 +391,15 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return ok({ reset: true })
   }
 
+  if (url === '/public/classes' && method === 'get') {
+    const mon = new Date(); mon.setDate(mon.getDate() - ((mon.getDay() + 6) % 7))
+    const iso = (d: Date) => d.toISOString().slice(0, 10)
+    const day = (n: number) => { const d = new Date(mon); d.setDate(d.getDate() + n); return iso(d) }
+    const mk = (n: number, st: string, en: string, g: string, left: number) => ({ id: `c${n}${st}`, date: day(n), start: st, end: en, muscle_group: g, capacity: 3, left })
+    return ok({ branch: { code: 'q7', name: 'Chi nhánh Quận 7' }, sessions: [mk(1, '06:30', '07:45', 'Core + Cardio', 3), mk(1, '20:00', '21:15', 'Mông + Đùi + Tổng hợp', 1), mk(2, '06:30', '07:45', 'Lưng + Vai + Tay sau', 0), mk(2, '20:00', '21:15', 'Core + Cardio', 2), mk(3, '20:00', '21:15', 'Mông + Đùi + Tổng hợp', 3), mk(5, '06:30', '07:45', 'Lưng + Vai + Tay sau', 3)], max_pick: 5, week: { from: day(0), to: day(6) }, now: new Date().toISOString() })
+  }
+  if (url === '/public/member' && method === 'get') return ok(String(params.phone).replace(/\D/g, '').endsWith('906682737') ? { found: true, name: 'Nguyễn Thị Hải Linh', email: 'ha***@gmail.com' } : { found: false })
+  if (url === '/public/book' && method === 'post') return ok({ name: 'Nguyễn Thị Hải Linh', booked: (body.class_ids as string[]).map((id) => ({ class_id: id, date: '2026-11-18', start: '20:00', end: '21:15', muscle_group: 'Core + Cardio' })) })
   const rt = getRt()
   const auth = config.headers?.get?.('Authorization')
   if (!rt || !auth) fail(config, 401, 'TOKEN_INVALID', 'Chưa đăng nhập')
