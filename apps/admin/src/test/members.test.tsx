@@ -70,12 +70,12 @@ describe('PtCell', () => {
     const { container } = render(<PtCell m={member()} />)
     expect(container.textContent).toBe('-')
   })
-  it('shows only name, sessions and end date (no HSD)', () => {
+  it('shows name and sessions, never a second "Hết hạn" label (no HSD)', () => {
     const { container } = render(<PtCell m={member({ pt_contract: pt() })} />)
     const t = container.textContent ?? ''
     expect(t).toContain('Gói 12 buổi PT')
     expect(t).toContain('5/12 buổi')
-    expect(t).toContain('Hết hạn 01/11/2026')
+    expect(t).not.toContain('Hết hạn')
     expect(t).not.toMatch(/HSD|Hạn sử dụng/)
   })
   it('escapes user text', () => {

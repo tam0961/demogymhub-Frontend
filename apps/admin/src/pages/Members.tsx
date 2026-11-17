@@ -44,7 +44,7 @@ export function PtCell({ m }: { m: Member }) {
     <div className="pt-cell">
       <div className="cell-main">{pt.package_name}</div>
       <div className="cell-sub">{pt.sessions_left ?? 0}/{pt.sessions_total ?? 0} buổi</div>
-      <div className="cell-sub">Hết hạn {fmtDate(pt.end_date)}</div>
+      {!hasHsd(pt.package_category) && pt.end_date && pt.end_date !== m.current_contract?.end_date && <div className="cell-sub">Dùng đến {fmtDate(pt.end_date)}</div>}
     </div>
   )
 }
