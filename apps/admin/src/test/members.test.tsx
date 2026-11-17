@@ -45,12 +45,12 @@ describe('Members columns', () => {
   const branchOf = (m: Member) => m.branch ?? undefined
   it('all branches: Chi nhánh column is shown and order is correct', () => {
     table(memberColumns(true, branchOf), [member()])
-    expect(headers()).toEqual(['Mã', 'Thông tin khách hàng', 'Trạng thái', 'Chi nhánh', 'Gói hiện tại', 'Ngày đăng ký', 'Hết hạn', 'Gói PT', 'HSD'])
+    expect(headers()).toEqual(['Mã', 'Thông tin khách hàng', 'Trạng thái', 'Chi nhánh', 'Gói hiện tại', 'Ngày đăng ký', 'Hết hạn', 'Gói PT'])
   })
   it('single branch: Chi nhánh column is hidden, Ngày đăng ký sits next to Hết hạn', () => {
     table(memberColumns(false, branchOf), [member()])
     const h = headers()
-    expect(h).toEqual(['Mã', 'Thông tin khách hàng', 'Trạng thái', 'Gói hiện tại', 'Ngày đăng ký', 'Hết hạn', 'Gói PT', 'HSD'])
+    expect(h).toEqual(['Mã', 'Thông tin khách hàng', 'Trạng thái', 'Gói hiện tại', 'Ngày đăng ký', 'Hết hạn', 'Gói PT'])
     expect(h.indexOf('Hết hạn') - h.indexOf('Ngày đăng ký')).toBe(1)
   })
   it('CSV follows the visible columns', () => {
@@ -93,7 +93,7 @@ describe('HsdCell', () => {
   it('pt_1on1 past: red chip; null deadline: Không giới hạn', () => {
     const { container } = render(<HsdCell m={member({ pt_contract: pt({ usage_valid: false, usage_deadline: null }) })} />)
     expect(screen.getByText('Quá HSD').className).toContain('pill-bad')
-    expect(container.textContent).toContain('Không giới hạn')
+    expect(container.textContent).toContain('không giới hạn')
   })
   it('pt_1on2, pt_group and no PT show a dash', () => {
     expect(render(<HsdCell m={member({ pt_contract: pt({ package_category: 'pt_1on2' }) })} />).container.textContent).toBe('-')

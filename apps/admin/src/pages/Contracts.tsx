@@ -57,9 +57,8 @@ export default function Contracts() {
     { key: 'signed', header: 'Ngày ký', sortValue: (c) => c.signed_at ?? c.created_at, render: (c) => fmtDate(c.signed_at ?? c.created_at) },
     {
       key: 'end', header: 'Hết hạn', sortValue: (c) => c.end_date,
-      render: (c) => fmtDate(c.end_date),
+      render: (c) => <>{fmtDate(c.end_date)}{hasHsd(c.package.category) && c.usage_deadline && <div className="cell-sub">HSD {fmtDate(c.usage_deadline)}</div>}</>,
     },
-    { key: 'hsd', header: 'HSD', sortValue: (c) => (hasHsd(c.package.category) ? c.usage_deadline : null), render: (c) => (hasHsd(c.package.category) && c.usage_deadline ? fmtDate(c.usage_deadline) : <span className="hint-muted">-</span>) },
     {
       key: 'total', header: 'Giá trị', numeric: true, sortValue: (c) => c.total_amount,
       render: (c) => <><div className="cell-main">{c.bundle_of_id && c.total_amount === 0 ? <span className="hint-muted">Kèm gói PT</span> : fmtMoney(c.total_amount)}</div><div className="cell-sub">{c.last_payment_method ? METHOD_LABEL[c.last_payment_method] : ''}</div></>,

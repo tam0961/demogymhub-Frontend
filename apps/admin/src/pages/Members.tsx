@@ -53,9 +53,8 @@ export function HsdCell({ m }: { m: Member }) {
   const pt = m.pt_contract
   if (!pt || !hasHsd(pt.package_category)) return <span className="hint-muted">-</span>
   return (
-    <div>
-      <div>{pt.usage_deadline ? fmtDate(pt.usage_deadline) : 'Không giới hạn'}</div>
-      {pt.usage_valid ? <Chip tone="ok">Còn HSD</Chip> : <Chip tone="bad">Quá HSD</Chip>}
+    <div className="cell-sub">
+      HSD {pt.usage_deadline ? fmtDate(pt.usage_deadline) : 'không giới hạn'} {pt.usage_valid ? <Chip tone="ok">Còn HSD</Chip> : <Chip tone="bad">Quá HSD</Chip>}
     </div>
   )
 }
@@ -83,10 +82,18 @@ export function memberColumns(showBranch: boolean, branchOf: (m: Member) => Bran
     { key: 'created', header: 'Ngày đăng ký', sortValue: (m) => m.created_at, render: (m) => fmtDate(m.created_at) },
     {
       key: 'end', header: 'Hết hạn', numeric: true, sortValue: (m) => m.current_contract?.end_date,
-      render: (m) => (m.current_contract?.end_date ? <><div className="cell-main">{fmtDate(m.current_contract.end_date)}</div><div className="cell-sub">{daysLeftText(m.current_contract.end_date)}</div></> : <span className="hint-muted">-</span>),
+      render: (m) => {
+        const hasHsdRow = hasHsd(m.pt_contract?.package_category)
+        if (!m.current_contract?.end_date && !hasHsdRow) return <span className="hint-muted">-</span>
+        return (
+          <>
+            {m.current_contract?.end_date && <><div className="cell-main">{fmtDate(m.current_contract.end_date)}</div><div className="cell-sub">{daysLeftText(m.current_contract.end_date)}</div></>}
+            {hasHsdRow && <HsdCell m={m} />}
+          </>
+        )
+      },
     },
     { key: 'pt', header: 'Gói PT', sortValue: (m) => m.pt_contract?.package_name, render: (m) => <PtCell m={m} /> },
-    { key: 'hsd', header: 'HSD', sortValue: (m) => (hasHsd(m.pt_contract?.package_category) ? m.pt_contract?.usage_deadline : null), render: (m) => <HsdCell m={m} /> },
   )
   return cols
 }
