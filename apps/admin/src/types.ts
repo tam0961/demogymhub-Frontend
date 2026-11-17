@@ -74,6 +74,9 @@ export interface Pkg {
   branch_id: string | null
   active: boolean
   bundled_member_package?: BundledPkg | null
+  bundle_only?: boolean
+  gift?: string | null
+  checkin_before?: string | null
   replaces_id?: string | null
   contracts_count?: number
   in_use?: boolean
@@ -135,7 +138,7 @@ export interface Contract {
 }
 export interface Shift { id: string; user_id: string; branch_id: string; opened_at: string; closed_at: string | null; opening_cash: number }
 export interface ShiftClose { expected_cash: number; counted_cash: number; difference: number; totals_by_method: Partial<Record<PayMethod, number>> }
-export type CheckinReason = 'NO_ACTIVE_CONTRACT' | 'EXPIRED' | 'FROZEN' | 'NO_SESSIONS' | 'WRONG_BRANCH' | 'NOT_CHECKED_IN' | null
+export type CheckinReason = 'NO_ACTIVE_CONTRACT' | 'EXPIRED' | 'FROZEN' | 'NO_SESSIONS' | 'WRONG_BRANCH' | 'OUTSIDE_HOURS' | 'NOT_CHECKED_IN' | null
 export interface CheckinItem {
   id: string
   member: { id: string; code: string; name: string }

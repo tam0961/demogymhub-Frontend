@@ -30,7 +30,7 @@ export function PackageBoxes({ rows, showInactive, q, canEdit, canCreate, action
     const cols: Column<Pkg>[] = [
       {
         key: 'name', header: 'Tên gói', sortValue: (p) => p.name,
-        render: (p) => <><span className="cell-main">{p.name}</span>{p.replaces_id && <> <Chip>Phiên bản mới</Chip></>}<div className="cell-sub">{CALC_LABEL[p.type]}</div></>,
+        render: (p) => <><span className="cell-main">{p.name}</span>{p.replaces_id && <> <Chip>Phiên bản mới</Chip></>}{p.bundle_only && <> <Chip tone="warn">Tặng kèm</Chip></>}{p.checkin_before && <> <Chip>Check-in trước {p.checkin_before}</Chip></>}<div className="cell-sub">{CALC_LABEL[p.type]}</div></>,
       },
       { key: 'price', header: 'Giá', numeric: true, sortValue: (p) => p.price, render: (p) => <>{fmtMoney(p.price)}<div className="cell-sub">đã gồm VAT {p.vat_percent}%</div></> },
       {
@@ -38,6 +38,7 @@ export function PackageBoxes({ rows, showInactive, q, canEdit, canCreate, action
         render: (p) => termText(p),
       },
     ]
+    cols.push({ key: 'gift', header: 'Quà tặng', render: (p) => p.gift || '-' })
     if (hasHsd(cat)) cols.push({ key: 'hsd', header: 'HSD', sortValue: (p) => p.sessions, render: (p) => hsdRuleText(p.sessions) })
     if (pt) cols.push({ key: 'bundle', header: 'Gói member đi kèm', render: (p) => (p.bundled_member_package ? bundleText(p.bundled_member_package) : <Chip tone="warn">Chưa gắn</Chip>) })
     if ((user?.branches.length ?? 0) > 1) cols.push({ key: 'branch', header: 'Chi nhánh', render: (p) => <BranchTag branch={user?.branches.find((b) => b.id === p.branch_id)} /> })
@@ -168,7 +169,7 @@ export default function Packages() {
   )
 }
 
-interface FormState { name: string; category: PackageCategory; type: PackageType; duration_days: string; sessions: string; price: string; vat_percent: string; branch_id: string; bundle: string; deactivateOld: 'replace' | 'copy' }
+interface FormState { name: string; category: PackageCategory; type: PackageType; duration_days: string; sessions: string; price: string; vat_percent: string; branch_id: string; bundle: string; bundleOnly: boolean; gift: string; checkinBefore: string; deactivateOld: 'replace' | 'copy' }
 
 export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: FormTarget; allPkgs: Pkg[]; onClose: () => void; onSaved: () => void }) {
   const { user } = useAuth()
@@ -184,6 +185,9 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
     vat_percent: String(pkg?.vat_percent ?? 8),
     branch_id: pkg?.branch_id ?? branchId ?? (user?.branches.length === 1 ? user.branches[0].id : ''),
     bundle: pkg?.bundled_member_package?.id ?? '',
+    bundleOnly: pkg?.bundle_only ?? false,
+    gift: pkg?.gift ?? '',
+    checkinBefore: pkg?.checkin_before ?? '',
     deactivateOld: 'replace',
   })
   const [error, setError] = useState('')
@@ -201,15 +205,17 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
       duration_days: f.type === 'session' ? (pt && f.duration_days ? Number(f.duration_days) : null) : Number(f.duration_days),
       sessions: f.type === 'session' ? Number(f.sessions) : null,
       price: Number(f.price), vat_percent: Number(f.vat_percent), bundled_member_package_id: f.bundle,
+      bundle_only: f.bundleOnly, gift: f.gift.trim(), checkin_before: f.checkinBefore,
     }
     try {
       if (target.mode === 'edit') {
         await api.patch(`/packages/${target.pkg.id}`, changedFields(target.pkg, next))
       } else {
-        const { bundled_member_package_id, ...rest } = next
+        const { bundled_member_package_id, bundle_only, gift, checkin_before, ...rest } = next
         await api.post('/packages', {
-          ...rest, branch_id: f.branch_id, active: true,
+          ...rest, gift: gift || null, branch_id: f.branch_id, active: true,
           ...(pt && bundled_member_package_id ? { bundled_member_package_id } : {}),
+          ...(f.category === 'member' ? { bundle_only: !!bundle_only, checkin_before: checkin_before || null } : {}),
           ...(target.mode === 'version' && f.deactivateOld === 'replace' ? { replaces_id: target.pkg.id, deactivate_replaced: true } : {}),
         })
       }
@@ -279,6 +285,17 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
             {user?.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </Select>
         </Field>
+        <Field label="Quà tặng" htmlFor="p-gift" full hint="Ví dụ: Túi TH Gym, Ô gấp. Chỉ để ghi nhớ khi bán gói.">
+          <Input id="p-gift" maxLength={200} value={f.gift} onChange={(e) => set('gift', e.target.value)} />
+        </Field>
+        {f.category === 'member' && (
+          <>
+            <Field label="Check-in trước giờ" htmlFor="p-before" hint="Để trống nếu không giới hạn. Gói Eco: 14:00">
+              <Input id="p-before" type="time" value={f.checkinBefore} onChange={(e) => set('checkinBefore', e.target.value)} />
+            </Field>
+            <label className="check full"><input type="checkbox" checked={f.bundleOnly} onChange={(e) => set('bundleOnly', e.target.checked)} />Chỉ tặng kèm gói PT (không bán riêng cho khách)</label>
+          </>
+        )}
         {pt && (
           <Field label="Gói member đi kèm" htmlFor="p-bundle" full hint="Khi bán gói PT, hệ thống tự gán gói member này cho khách (giá 0 đ, đã nằm trong giá gói PT)">
             <Select id="p-bundle" value={f.bundle} onChange={(e) => set('bundle', e.target.value)}>

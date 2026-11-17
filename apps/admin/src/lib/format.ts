@@ -97,6 +97,7 @@ export const CHECKIN_REASON: Record<string, string> = {
   FROZEN: 'Hợp đồng đang bảo lưu',
   NO_SESSIONS: 'Đã hết số buổi',
   WRONG_BRANCH: 'Sai chi nhánh',
+  OUTSIDE_HOURS: 'Ngoài giờ được phép check-in của gói',
   NOT_CHECKED_IN: 'Hội viên chưa check-in',
 }
 export const reasonText = (r: CheckinReason | string | null | undefined) => (r ? CHECKIN_REASON[r] ?? 'Không đủ điều kiện vào' : '')

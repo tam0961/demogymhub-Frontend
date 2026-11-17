@@ -34,6 +34,9 @@ export interface PkgForm {
   price: number
   vat_percent: number
   bundled_member_package_id: string
+  bundle_only?: boolean
+  gift?: string
+  checkin_before?: string
 }
 
 export function changedFields(old: Pkg, f: PkgForm): Record<string, unknown> {
@@ -45,6 +48,11 @@ export function changedFields(old: Pkg, f: PkgForm): Record<string, unknown> {
   if (f.sessions !== old.sessions) out.sessions = f.sessions
   if (f.price !== old.price) out.price = f.price
   if (f.vat_percent !== old.vat_percent) out.vat_percent = f.vat_percent
+  if (f.category === 'member') {
+    if ((f.bundle_only ?? false) !== (old.bundle_only ?? false)) out.bundle_only = f.bundle_only ?? false
+    if ((f.checkin_before ?? '') !== (old.checkin_before ?? '')) out.checkin_before = f.checkin_before || null
+  }
+  if ((f.gift ?? '') !== (old.gift ?? '')) out.gift = f.gift || null
   if (f.category.startsWith('pt_') && f.bundled_member_package_id !== (old.bundled_member_package?.id ?? '')) out.bundled_member_package_id = f.bundled_member_package_id || null
   return out
 }
@@ -53,6 +61,7 @@ const PKG_ERR: Record<string, string> = {
   PACKAGE_IN_USE: 'Gói đã có hợp đồng nên không sửa được. Hãy tạo phiên bản mới.',
   INVALID_BUNDLE: 'Gói member đi kèm không hợp lệ: phải là gói member đang bán của cùng chi nhánh.',
   BUNDLED_PACKAGE_INACTIVE: 'Gói member đi kèm đã bị vô hiệu hóa. Hãy gắn gói member khác cho gói PT này.',
+  BUNDLE_ONLY: 'Gói này chỉ được tặng kèm gói PT, không bán riêng.',
   PACKAGE_INACTIVE: 'Gói đã bị vô hiệu hóa nên không bán được.',
 }
 export function packageError(e: unknown): string {

@@ -90,7 +90,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     if (!effBranch) return
     api.get<ListResp<Pkg>>('/packages', { params: { branch_id: effBranch, active: true, limit: 200 } })
       .then((r) => {
-        const list = r.data.data.filter((p) => p.active && (!p.branch_id || p.branch_id === effBranch))
+        const list = r.data.data.filter((p) => p.active && !p.bundle_only && (!p.branch_id || p.branch_id === effBranch))
         setPkgs(list)
         setPkgId((cur) => (list.some((p) => p.id === cur) ? cur : ''))
       })
