@@ -56,6 +56,9 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/shift', label: 'Chốt ca', icon: 'shift', perm: ['shifts.open', 'shifts.close'], cashier: true },
     { to: '/reports/closing', label: 'Đối soát', icon: 'closing', perm: ['reports.view'] },
   ] },
+  { title: 'Nhân sự', items: [
+    { to: '/staff', label: 'Nhân viên', icon: 'users', perm: ['roles.read'] },
+  ] },
   { title: 'Thống kê', items: [
     { to: '/reports', label: 'Hiệu suất kinh doanh', icon: 'reports', perm: ['reports.view'] },
   ] },

@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
 import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
-import type { GroupClass, GroupReg, GroupRegStatus, GroupStats, ListResp, Member } from '../types'
+import type { GroupClass, GroupReg, GroupRegStatus, GroupReportRow, GroupStats, GroupTemplate, ListResp, Member } from '../types'
 
 interface Trainer { id: string; name: string }
 
@@ -50,6 +50,9 @@ export default function PtClasses() {
   const [error, setError] = useState('')
   const [trainerFilter, setTrainerFilter] = useState('')
   const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<GroupClass | null>(null)
+  const [templating, setTemplating] = useState(false)
+  const [report, setReport] = useState<GroupReportRow[]>([])
   const [registering, setRegistering] = useState<GroupClass | null>(null)
 
   const load = useCallback(async () => {
@@ -63,6 +66,7 @@ export default function PtClasses() {
         api.get<{ data: GroupStats }>('/pt/classes/stats', { params }),
       ])
       setClasses(c.data.data)
+      api.get<{ data: GroupReportRow[] }>('/pt/classes/report', { params: { months: 6, branch_id: branchId ?? undefined } }).then((r) => setReport(r.data.data)).catch(() => setReport([]))
       setRegs(r.data.data)
       setStats(s.data.data)
     } catch (e) {
@@ -87,9 +91,19 @@ export default function PtClasses() {
     }
   }
 
+  const generateWeek = async () => {
+    try {
+      const r = await api.post<{ data: { created: number } }>('/pt/classes/generate', { week_start: week, branch_id: branchId ?? undefined })
+      toast(r.data.data.created ? `Đã tạo ${r.data.data.created} lớp từ khung ca` : 'Tuần này đã đủ lớp theo khung ca')
+      load()
+    } catch (e) {
+      toast(apiError(e).message)
+    }
+  }
+
   const classCols: Column<GroupClass>[] = [
     { key: 'time', header: 'Giờ', sortValue: (c) => c.start_at, render: (c) => <><span className="cell-main">{dayLabel(c.start_at)}</span><div className="cell-sub">{fmtTime(c.start_at)} - {fmtTime(c.end_at)}</div></> },
-    { key: 'title', header: 'Lớp', sortValue: (c) => c.title, render: (c) => c.title },
+    { key: 'title', header: 'Lớp', sortValue: (c) => c.title, render: (c) => <>{c.title}{c.muscle_group && <div className="cell-sub">{c.muscle_group}</div>}</> },
     { key: 'trainer', header: 'PT phụ trách', sortValue: (c) => c.trainer?.name ?? '', render: (c) => c.trainer?.name ?? <span className="cell-sub">Chưa phân công</span> },
     { key: 'slots', header: 'Chỗ', numeric: true, sortValue: (c) => c.registered, render: (c) => `${c.registered}/${c.capacity}` },
     { key: 'status', header: 'Trạng thái', sortValue: (c) => c.status, render: (c) => <Chip tone={CLASS_STATUS[c.status].tone}>{CLASS_STATUS[c.status].label}</Chip> },
@@ -99,6 +113,7 @@ export default function PtClasses() {
       render: (c) => c.status !== 'scheduled' ? null : (
         <span style={{ display: 'flex', gap: 6 }}>
           {can('pt_sessions.create') && <Button small onClick={() => setRegistering(c)} disabled={c.registered >= c.capacity}>Đăng ký khách</Button>}
+          {can('pt_sessions.create') && <Button small onClick={() => setEditing(c)}>Sửa</Button>}
           {can('pt_sessions.complete') && c.trainer && <Button small variant="primary" onClick={() => act(`/pt/classes/${c.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Đã dạy xong</Button>}
           {can('pt_sessions.cancel') && <Button small variant="danger" onClick={() => act(`/pt/classes/${c.id}/cancel`, 'Đã hủy lớp, đã trả buổi cho khách')}>Hủy lớp</Button>}
         </span>
@@ -106,11 +121,18 @@ export default function PtClasses() {
     },
   ]
 
+  const reportCols: Column<GroupReportRow>[] = [
+    { key: 'month', header: 'Tháng', sortValue: (r) => r.month, render: (r) => r.month },
+    { key: 'trainer', header: 'PT', sortValue: (r) => r.trainer, render: (r) => r.trainer },
+    { key: 'classes', header: 'Tổng số lớp', numeric: true, sortValue: (r) => r.classes, render: (r) => r.classes },
+    { key: 'attended', header: 'Tổng lượt học viên', numeric: true, sortValue: (r) => r.attended, render: (r) => r.attended },
+  ]
+
   const regCols: Column<GroupReg>[] = [
-    { key: 'name', header: 'Khách hàng', sortValue: (r) => r.name, render: (r) => <span className="cell-main">{r.name}</span> },
+    { key: 'name', header: 'Khách hàng', sortValue: (r) => r.name, render: (r) => <><span className="cell-main">{r.name}</span>{(r.cancel_count ?? 0) > 0 && <div className="cell-sub">Đã hủy {r.cancel_count} lần</div>}</> },
     { key: 'phone', header: 'SĐT', render: (r) => r.phone },
     { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
-    { key: 'class', header: 'Lớp đăng ký', sortValue: (r) => r.class.start_at, render: (r) => <>{fmtDateTime(r.class.start_at)}<div className="cell-sub">{r.class.title}</div></> },
+    { key: 'class', header: 'Lớp đăng ký', sortValue: (r) => r.class.start_at, render: (r) => <>{fmtDateTime(r.class.start_at)}<div className="cell-sub">{r.class.title}{r.class.muscle_group ? ` - ${r.class.muscle_group}` : ''}</div></> },
     { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => <><Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip>{r.status === 'booked' && r.deducted && <div className="cell-sub">Tạm trừ 1 buổi</div>}</> },
     {
       key: 'cancel',
@@ -144,7 +166,11 @@ export default function PtClasses() {
           {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </Select>
         <div className="grow">
-          <RequirePermission permission="pt_sessions.create"><Button variant="primary" onClick={() => setCreating(true)}>Tạo lớp nhóm</Button></RequirePermission>
+          <RequirePermission permission="pt_sessions.create">
+            <Button onClick={() => setTemplating(true)}>Khung ca cố định</Button>
+            <Button onClick={generateWeek}>Tạo lịch tuần</Button>
+            <Button variant="primary" onClick={() => setCreating(true)}>Tạo lớp nhóm</Button>
+          </RequirePermission>
         </div>
       </div>
 
@@ -165,6 +191,13 @@ export default function PtClasses() {
         <DataTable columns={regCols} rows={regs} rowKey={(r) => r.id} loading={loading} error={error} emptyText="Chưa có khách đăng ký trong tuần" itemLabel="lượt" />
       </Panel>
 
+      <div style={{ height: 16 }} />
+      <Panel title="Báo cáo PT theo tháng" count={`${report.length} dòng`} flush>
+        <DataTable columns={reportCols} rows={report} rowKey={(r) => `${r.month}|${r.trainer}`} emptyText="Chưa có lớp đã dạy" itemLabel="dòng" />
+      </Panel>
+
+      {editing && <EditClassModal cls={editing} trainers={trainers} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); toast('Đã lưu lớp'); load() }} />}
+      {templating && <TemplateModal onClose={() => setTemplating(false)} />}
       {creating && <ClassModal week={week} trainers={trainers} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); toast('Đã tạo lớp'); load() }} />}
       {registering && <RegisterModal cls={registering} onClose={() => setRegistering(null)} onSaved={() => { setRegistering(null); toast('Đã đăng ký, tạm trừ 1 buổi'); load() }} />}
     </>
@@ -175,6 +208,7 @@ function ClassModal({ week, trainers, onClose, onSaved }: { week: string; traine
   const { branchId } = useBranch()
   const { user } = useAuth()
   const [title, setTitle] = useState('PT nhóm')
+  const [muscle, setMuscle] = useState('')
   const [trainerId, setTrainerId] = useState('')
   const [date, setDate] = useState(week)
   const [time, setTime] = useState('18:00')
@@ -191,6 +225,7 @@ function ClassModal({ week, trainers, onClose, onSaved }: { week: string; traine
     try {
       await api.post('/pt/classes', {
         title,
+        muscle_group: muscle.trim() || null,
         trainer_id: trainerId || null,
         start_at: `${date}T${time}:00+07:00`,
         duration_min: Number(duration),
@@ -210,6 +245,7 @@ function ClassModal({ week, trainers, onClose, onSaved }: { week: string; traine
       <form id="class-form" className="form-grid" onSubmit={submit}>
         {error && <div className="form-error full" role="alert">{error}</div>}
         <Field label="Tên lớp" htmlFor="c-title" full><Input id="c-title" required value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field label="Nhóm cơ" htmlFor="c-muscle" full><Input id="c-muscle" placeholder="Ví dụ: Core + Cardio" value={muscle} onChange={(e) => setMuscle(e.target.value)} /></Field>
         <Field label="PT phụ trách" htmlFor="c-trainer" full>
           <Select id="c-trainer" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
             <option value="">Chưa phân công</option>
@@ -266,6 +302,109 @@ function RegisterModal({ cls, onClose, onSaved }: { cls: GroupClass; onClose: ()
             {members.map((m) => <option key={m.id} value={m.id}>{m.name} - {m.phone}</option>)}
           </Select>
         </Field>
+      </form>
+    </Modal>
+  )
+}
+
+function EditClassModal({ cls, trainers, onClose, onSaved }: { cls: GroupClass; trainers: Trainer[]; onClose: () => void; onSaved: () => void }) {
+  const [muscle, setMuscle] = useState(cls.muscle_group ?? '')
+  const [trainerId, setTrainerId] = useState(cls.trainer?.id ?? '')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError('')
+    try {
+      await api.patch(`/pt/classes/${cls.id}`, { muscle_group: muscle.trim() || null })
+      if ((cls.trainer?.id ?? '') !== trainerId) await api.post(`/pt/classes/${cls.id}/trainer`, { trainer_id: trainerId || null })
+      onSaved()
+    } catch (err) {
+      setError(apiError(err).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={`Sửa lớp ${fmtDateTime(cls.start_at)}`} onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="edit-class-form" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu'}</Button></>}>
+      <form id="edit-class-form" className="form-grid" onSubmit={submit}>
+        {error && <div className="form-error full" role="alert">{error}</div>}
+        <Field label="Nhóm cơ" htmlFor="e-muscle" full><Input id="e-muscle" value={muscle} onChange={(e) => setMuscle(e.target.value)} /></Field>
+        <Field label="PT phụ trách" htmlFor="e-trainer" full>
+          <Select id="e-trainer" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
+            <option value="">Chưa phân công</option>
+            {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </Select>
+        </Field>
+      </form>
+    </Modal>
+  )
+}
+
+const WEEKDAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật']
+
+function TemplateModal({ onClose }: { onClose: () => void }) {
+  const { branchId } = useBranch()
+  const { user } = useAuth()
+  const toast = useToast()
+  const [rows, setRows] = useState<GroupTemplate[]>([])
+  const [weekday, setWeekday] = useState('1')
+  const [start, setStart] = useState('06:30')
+  const [end, setEnd] = useState('07:45')
+  const [capacity, setCapacity] = useState('3')
+  const [muscle, setMuscle] = useState('')
+  const [error, setError] = useState('')
+  const branch = branchId ?? (user?.branches.length === 1 ? user.branches[0].id : '')
+
+  const load = useCallback(() => {
+    api.get<{ data: GroupTemplate[] }>('/pt/classes/templates', { params: { branch_id: branch || undefined } }).then((r) => setRows(r.data.data)).catch((e) => setError(apiError(e).message))
+  }, [branch])
+  useEffect(() => { load() }, [load])
+
+  const add = async (e: FormEvent) => {
+    e.preventDefault()
+    setError('')
+    try {
+      await api.post('/pt/classes/templates', { weekday: Number(weekday), start_time: start, end_time: end, capacity: Number(capacity), muscle_group: muscle.trim() || null, branch_id: branch || undefined })
+      toast('Đã lưu khung ca')
+      load()
+    } catch (err) {
+      setError(apiError(err).message)
+    }
+  }
+  const remove = async (id: string) => {
+    try {
+      await api.delete(`/pt/classes/templates/${id}`)
+      load()
+    } catch (err) {
+      setError(apiError(err).message)
+    }
+  }
+
+  return (
+    <Modal title="Khung ca cố định mỗi tuần" onClose={onClose} footer={<Button onClick={onClose}>Đóng</Button>}>
+      {error && <div className="form-error" role="alert">{error}</div>}
+      <ul className="stack" style={{ listStyle: 'none', padding: 0, margin: '0 0 12px' }}>
+        {rows.length === 0 && <li className="cell-sub">Chưa có khung ca. Thêm khung rồi bấm "Tạo lịch tuần" để sinh lớp.</li>}
+        {rows.map((t) => (
+          <li key={t.id} style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+            <span><b>{WEEKDAYS[t.weekday - 1]}</b> {t.start_time}-{t.end_time}, {t.capacity} chỗ{t.muscle_group ? `, ${t.muscle_group}` : ''}</span>
+            <Button small variant="danger" onClick={() => remove(t.id)}>Xóa</Button>
+          </li>
+        ))}
+      </ul>
+      <form className="form-grid" onSubmit={add}>
+        <Field label="Thứ" htmlFor="t-day">
+          <Select id="t-day" value={weekday} onChange={(e) => setWeekday(e.target.value)}>{WEEKDAYS.map((d, i) => <option key={d} value={i + 1}>{d}</option>)}</Select>
+        </Field>
+        <Field label="Số chỗ" htmlFor="t-cap"><Input id="t-cap" type="number" min={1} max={50} required value={capacity} onChange={(e) => setCapacity(e.target.value)} /></Field>
+        <Field label="Bắt đầu" htmlFor="t-start"><Input id="t-start" type="time" required value={start} onChange={(e) => setStart(e.target.value)} /></Field>
+        <Field label="Kết thúc" htmlFor="t-end"><Input id="t-end" type="time" required value={end} onChange={(e) => setEnd(e.target.value)} /></Field>
+        <Field label="Nhóm cơ mặc định" htmlFor="t-muscle" full><Input id="t-muscle" value={muscle} onChange={(e) => setMuscle(e.target.value)} /></Field>
+        <div className="full"><Button type="submit" variant="primary">Thêm khung ca</Button></div>
       </form>
     </Modal>
   )

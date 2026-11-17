@@ -206,6 +206,7 @@ export interface GroupClass {
   id: string
   branch_id: string
   title: string
+  muscle_group: string | null
   trainer: { id: string; name: string } | null
   start_at: string
   end_at: string
@@ -225,7 +226,8 @@ export interface GroupReg {
   deducted: boolean
   contract_code: string | null
   created_at: string
-  class: { id: string; title: string; start_at: string; end_at: string; status: GroupClass['status']; trainer: { id: string; name: string } | null }
+  cancel_count?: number
+  class: { id: string; title: string; muscle_group?: string | null; start_at: string; end_at: string; status: GroupClass['status']; trainer: { id: string; name: string } | null }
 }
 export interface GroupStats {
   classes: { total: number; scheduled: number; completed: number; cancelled: number }
@@ -233,3 +235,5 @@ export interface GroupStats {
   fill_rate: number
   trainers: { id: string; name: string; classes: number; attended: number }[]
 }
+export interface GroupTemplate { id: string; branch_id: string; weekday: number; start_time: string; end_time: string; capacity: number; muscle_group: string | null }
+export interface GroupReportRow { month: string; trainer: string; classes: number; attended: number }

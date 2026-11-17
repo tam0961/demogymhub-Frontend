@@ -21,6 +21,7 @@ import ResetPassword from './pages/ResetPassword'
 import Roles from './pages/Roles'
 import ShiftPage from './pages/ShiftPage'
 import Today from './pages/Today'
+import Staff from './pages/Staff'
 import Users from './pages/Users'
 import { usePermission } from './context/usePermission'
 
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="shift" element={<AnyPerm any={['shifts.open', 'shifts.close']}><ShiftPage /></AnyPerm>} />
         <Route path="reports" element={<PermRoute permission="reports.view"><Reports /></PermRoute>} />
         <Route path="reports/closing" element={<PermRoute permission="reports.view"><Closing /></PermRoute>} />
+        <Route path="staff" element={<PermRoute permission="roles.read"><Staff /></PermRoute>} />
         <Route path="users" element={<PermRoute permission="roles.read"><Users /></PermRoute>} />
         <Route path="roles" element={<PermRoute permission="roles.read"><Roles /></PermRoute>} />
         <Route path="audit" element={<PermRoute permission="system.view_audit_log"><Audit /></PermRoute>} />
