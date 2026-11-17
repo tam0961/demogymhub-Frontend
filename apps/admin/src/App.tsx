@@ -1,5 +1,5 @@
 import { Suspense, lazy, type ComponentType, type ReactNode } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { RequireAuth } from './components/Layout'
 import { PermRoute } from './components/PermRoute'
 import Audit from './pages/Audit'
@@ -14,7 +14,8 @@ import Members from './pages/Members'
 import NotFound from './pages/NotFound'
 import Packages from './pages/Packages'
 import Payments from './pages/Payments'
-import PtSchedule from './pages/PtSchedule'
+import PtClasses from './pages/PtClasses'
+import PtOne from './pages/PtOne'
 import Reports from './pages/Reports'
 import ResetPassword from './pages/ResetPassword'
 import Roles from './pages/Roles'
@@ -43,7 +44,9 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route index element={<Today />} />
         <Route path="access" element={<PermRoute permission="checkins.read"><Access /></PermRoute>} />
-        <Route path="pt" element={<PermRoute permission="pt_sessions.read"><PtSchedule /></PermRoute>} />
+        <Route path="pt" element={<Navigate to="/pt/one" replace />} />
+        <Route path="pt/one" element={<PermRoute permission="pt_sessions.read"><PtOne /></PermRoute>} />
+        <Route path="pt/classes" element={<PermRoute permission="pt_sessions.read"><PtClasses /></PermRoute>} />
         <Route path="debt" element={<PermRoute permission="contracts.read"><Debt /></PermRoute>} />
         <Route path="members" element={<PermRoute permission="members.read"><Members /></PermRoute>} />
         <Route path="packages" element={<PermRoute permission="packages.read"><Packages /></PermRoute>} />

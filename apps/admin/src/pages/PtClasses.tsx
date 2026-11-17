@@ -6,7 +6,7 @@ import { useBranch } from '../context/BranchContext'
 import { useAuth } from '../context/AuthContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
-import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
+import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
 import type { GroupClass, GroupReg, GroupRegStatus, GroupStats, ListResp, Member } from '../types'
 
 interface Trainer { id: string; name: string }
@@ -36,7 +36,7 @@ const REG_STATUS: Record<GroupRegStatus, { label: string; tone: ChipTone }> = {
   cancelled: { label: 'Đã hủy', tone: 'bad' },
 }
 
-export default function PtGroup() {
+export default function PtClasses() {
   const { branchId } = useBranch()
   const { can } = usePermission()
   const toast = useToast()
@@ -47,13 +47,14 @@ export default function PtGroup() {
   const [stats, setStats] = useState<GroupStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [trainerFilter, setTrainerFilter] = useState('')
   const [creating, setCreating] = useState(false)
   const [registering, setRegistering] = useState<GroupClass | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
-    const params = { from: week, to: addDays(week, 6), branch_id: branchId ?? undefined }
+    const params = { from: week, to: addDays(week, 6), branch_id: branchId ?? undefined, trainer_id: trainerFilter || undefined }
     try {
       const [c, r, s] = await Promise.all([
         api.get<{ data: GroupClass[] }>('/pt/classes', { params }),
@@ -68,7 +69,7 @@ export default function PtGroup() {
     } finally {
       setLoading(false)
     }
-  }, [week, branchId])
+  }, [week, branchId, trainerFilter])
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
@@ -121,20 +122,26 @@ export default function PtGroup() {
 
   return (
     <>
+      <PageHeader title="Lịch lớp nhóm" sub="Lịch 7 ngày. Đăng ký tạm trừ 1 buổi, PT xác nhận dạy xong thì trừ chính thức, hủy thì trả lại buổi." />
       <div className="toolbar">
         <Button small onClick={() => setWeek(addDays(week, -7))} aria-label="Tuần trước">‹</Button>
         <span className="cell-main">{dayLabel(week)} - {dayLabel(addDays(week, 6))}</span>
         <Button small onClick={() => setWeek(addDays(week, 7))} aria-label="Tuần sau">›</Button>
         <Button small onClick={() => setWeek(mondayOf(localISO(new Date())))}>Tuần này</Button>
+        <Select aria-label="Lọc PT" value={trainerFilter} onChange={(e) => setTrainerFilter(e.target.value)}>
+          <option value="">Tất cả PT</option>
+          {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+        </Select>
         <div className="grow">
           <RequirePermission permission="pt_sessions.create"><Button variant="primary" onClick={() => setCreating(true)}>Tạo lớp nhóm</Button></RequirePermission>
         </div>
       </div>
 
-      <Panel title="Lịch lớp nhóm" count={classes.length} flush>
+      <Panel title="Các lớp trong tuần" count={classes.length} flush>
         <DataTable columns={classCols} rows={classes} rowKey={(c) => c.id} loading={loading} error={error} emptyText="Chưa có lớp nhóm trong tuần" itemLabel="lớp" />
       </Panel>
 
+      <div style={{ height: 16 }} />
       <KpiRow>
         <Kpi value={stats?.classes.total ?? 0} label="Số lớp" />
         <Kpi value={stats?.classes.completed ?? 0} label="Lớp đã dạy" />

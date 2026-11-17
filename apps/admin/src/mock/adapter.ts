@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
 import { ptUsageDeadline } from '../lib/pt'
-import type { AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
+import type { PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
 
 const branches = [
   { id: 'b-q2', code: 'Q2', name: 'Chi nhánh Quận 2' },
@@ -15,9 +15,15 @@ const P = {
   payments: ['payments.create', 'payments.read', 'payments.refund_request'],
   shifts: ['shifts.open', 'shifts.close'],
   checkins: ['checkins.create', 'checkins.read'],
+  pt: ['pt_sessions.read', 'pt_sessions.create', 'pt_sessions.complete', 'pt_sessions.cancel'],
 }
 const MANAGER_EXTRA = ['contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
 const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log']
+
+const ptTrainers = [{ id: 'pt1', name: 'PT Đạt' }, { id: 'pt2', name: 'PT Tuấn' }, { id: 'pt3', name: 'PT Ánh' }]
+const ptDay = (h: number, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString() }
+const ptRow = (id: string, t: number, h: number, name: string | null, status: PtSession['status']): PtSession => ({ id, branch_id: 'b-nb', trainer: ptTrainers[t], member: name ? { id: 'm-' + id, code: 'M' + id, name, phone: '0900000000' } : null, contract_id: null, contract_code: null, sessions_left: null, start_at: ptDay(h), end_at: ptDay(h + 1), status, source: name ? 'manual' : 'zalo', note: null, completed_at: null })
+const ptSessions: PtSession[] = [ptRow('a', 0, 9, 'Nguyễn Minh Khoa', 'completed'), ptRow('b', 1, 10, null, 'scheduled'), ptRow('c', 1, 17, 'Tô Ngọc Diệp', 'scheduled'), ptRow('d', 0, 18, 'Trần Thị Thu Hà', 'cancelled'), ptRow('e', 2, 19, 'Lê Văn An', 'no_show')]
 
 const users: Record<string, { pw: string; me: Me }> = {
   'admin@gymhub.vn': { pw: 'admin123', me: { id: 'u1', email: 'admin@gymhub.vn', name: 'Chủ phòng', roles: ['super_admin'], permissions: ALL, branches, can_checkin: false, checkin_branch: null } },
@@ -473,6 +479,29 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return ok(memberOut(m as Member))
   }
 
+  if (url === '/pt/trainers' && method === 'get') return ok(ptTrainers)
+  if (url === '/pt/sessions' && method === 'get') {
+    const f = String(params.from ?? ''), t = String(params.to ?? '')
+    return ok(ptSessions.filter((x) => (!f || x.start_at.slice(0, 10) >= f) && (!t || x.start_at.slice(0, 10) <= t)))
+  }
+  if (url === '/pt/sessions' && method === 'post') {
+    need('pt_sessions.create')
+    const tr = ptTrainers.find((x) => x.id === body.trainer_id) ?? ptTrainers[0]
+    const mem = members.find((x) => x.id === body.member_id)
+    const start = new Date(body.start_at)
+    const row: PtSession = { id: 'ps' + Date.now(), branch_id: 'b-nb', trainer: tr, member: mem ? { id: mem.id, code: mem.code, name: mem.name, phone: mem.phone } : null, contract_id: null, contract_code: null, sessions_left: null, start_at: start.toISOString(), end_at: new Date(start.getTime() + (body.duration_min ?? 60) * 60000).toISOString(), status: 'scheduled', source: 'manual', note: body.note ?? null, completed_at: null }
+    ptSessions.push(row)
+    return ok(row)
+  }
+  const ptm = url.match(/^\/pt\/sessions\/(.+)\/(complete|cancel|assign)$/)
+  if (ptm && method === 'post') {
+    const row = ptSessions.find((x) => x.id === ptm[1])
+    if (!row) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
+    else if (ptm[2] === 'assign') { const mem = members.find((x) => x.id === body.member_id); if (mem) row.member = { id: mem.id, code: mem.code, name: mem.name, phone: mem.phone } }
+    else row.status = ptm[2] === 'complete' ? 'completed' : 'cancelled'
+    return ok(row)
+  }
+  if (url.startsWith('/pt/classes')) return url.endsWith('/stats') ? ok({ classes: { total: 0, scheduled: 0, completed: 0, cancelled: 0 }, registrations: { booked: 0, attended: 0, cancelled: 0 }, fill_rate: 0, trainers: [] }) : ok([])
   if (url === '/packages' && method === 'get') {
     let rows = packages
     if (branchFilter) rows = rows.filter((p) => !p.branch_id || p.branch_id === branchFilter)
