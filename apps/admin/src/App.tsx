@@ -11,6 +11,8 @@ import Forbidden from './pages/Forbidden'
 import Login from './pages/Login'
 import Me from './pages/Me'
 import Members from './pages/Members'
+import Leads from './pages/Leads'
+import Expiring from './pages/Expiring'
 import NotFound from './pages/NotFound'
 import Packages from './pages/Packages'
 import Payments from './pages/Payments'
@@ -52,7 +54,9 @@ export default function App() {
         <Route path="pt/classes" element={<PermRoute permission="pt_sessions.read"><PtClasses /></PermRoute>} />
         <Route path="debt" element={<PermRoute permission="contracts.read"><Debt /></PermRoute>} />
         <Route path="members" element={<PermRoute permission="members.read"><Members /></PermRoute>} />
-        <Route path="packages" element={<PermRoute permission="packages.read"><Packages /></PermRoute>} />
+        <Route path="leads" element={<PermRoute permission="leads.read"><Leads /></PermRoute>} />
+        <Route path="expiring" element={<PermRoute permission="reports.view"><Expiring /></PermRoute>} />
+        <Route path="packages"element={<PermRoute permission="packages.read"><Packages /></PermRoute>} />
         <Route path="contracts" element={<PermRoute permission="contracts.read"><Contracts /></PermRoute>} />
         <Route path="contracts/new" element={<PermRoute permission="contracts.read"><Contracts /></PermRoute>} />
         <Route path="contracts/:id" element={<PermRoute permission="contracts.read"><ContractDetail /></PermRoute>} />
