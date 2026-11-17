@@ -190,7 +190,7 @@ export interface PtSession {
   id: string
   branch_id: string
   trainer: { id: string; name: string }
-  member: { id: string; code: string; name: string; phone: string }
+  member: { id: string; code: string; name: string; phone: string } | null
   contract_id: string | null
   contract_code: string | null
   sessions_left: number | null
@@ -200,4 +200,36 @@ export interface PtSession {
   source: string
   note: string | null
   completed_at: string | null
+}
+
+export interface GroupClass {
+  id: string
+  branch_id: string
+  title: string
+  trainer: { id: string; name: string } | null
+  start_at: string
+  end_at: string
+  capacity: number
+  registered: number
+  status: 'scheduled' | 'completed' | 'cancelled'
+  completed_at: string | null
+}
+export type GroupRegStatus = 'booked' | 'attended' | 'cancelled'
+export interface GroupReg {
+  id: string
+  member_id: string
+  name: string
+  phone: string
+  email: string | null
+  status: GroupRegStatus
+  deducted: boolean
+  contract_code: string | null
+  created_at: string
+  class: { id: string; title: string; start_at: string; end_at: string; status: GroupClass['status']; trainer: { id: string; name: string } | null }
+}
+export interface GroupStats {
+  classes: { total: number; scheduled: number; completed: number; cancelled: number }
+  registrations: { booked: number; attended: number; cancelled: number }
+  fill_rate: number
+  trainers: { id: string; name: string; classes: number; attended: number }[]
 }

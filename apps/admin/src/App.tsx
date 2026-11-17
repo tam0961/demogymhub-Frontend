@@ -14,6 +14,7 @@ import Members from './pages/Members'
 import NotFound from './pages/NotFound'
 import Packages from './pages/Packages'
 import Payments from './pages/Payments'
+import PtSchedule from './pages/PtSchedule'
 import Reports from './pages/Reports'
 import ResetPassword from './pages/ResetPassword'
 import Roles from './pages/Roles'
@@ -42,6 +43,7 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route index element={<Today />} />
         <Route path="access" element={<PermRoute permission="checkins.read"><Access /></PermRoute>} />
+        <Route path="pt" element={<PermRoute permission="pt_sessions.read"><PtSchedule /></PermRoute>} />
         <Route path="debt" element={<PermRoute permission="contracts.read"><Debt /></PermRoute>} />
         <Route path="members" element={<PermRoute permission="members.read"><Members /></PermRoute>} />
         <Route path="packages" element={<PermRoute permission="packages.read"><Packages /></PermRoute>} />

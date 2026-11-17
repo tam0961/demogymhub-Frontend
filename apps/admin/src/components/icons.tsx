@@ -3,6 +3,7 @@ const ICONS = {
   access: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4',
   members: 'M16 11a4 4 0 10-8 0 4 4 0 008 0zM4 21a8 8 0 0116 0',
   packages: 'M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8',
+  calendar: 'M5 5h14v15H5zM5 10h14M9 3v4M15 3v4',
   menu: 'M4 6h16M4 12h16M4 18h16',
   contracts: 'M7 3h8l4 4v14H7zM15 3v4h4M10 12h6M10 16h6',
   payments: 'M3 6h18v12H3zM3 10h18M7 15h3',

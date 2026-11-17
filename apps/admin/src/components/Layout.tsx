@@ -40,6 +40,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { title: 'Vận hành', items: [
     { to: '/', label: 'Hôm nay', icon: 'today', perm: null },
     { to: '/access', label: 'Kiểm soát ra vào', icon: 'access', perm: ['checkins.read'] },
+    { to: '/pt', label: 'Lịch PT', icon: 'calendar', perm: ['pt_sessions.read'] },
   ] },
   { title: 'Khách hàng', items: [
     { to: '/members', label: 'Hội viên', icon: 'members', perm: ['members.read'] },
