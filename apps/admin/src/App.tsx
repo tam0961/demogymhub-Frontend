@@ -19,6 +19,9 @@ import Payments from './pages/Payments'
 import PtClasses from './pages/PtClasses'
 import PublicBooking from './pages/PublicBooking'
 import PtOne from './pages/PtOne'
+import ZnsSettings from './pages/ZnsSettings'
+import BankSettings from './pages/BankSettings'
+import IpadPage from './pages/IpadPage'
 import Reports from './pages/Reports'
 import ResetPassword from './pages/ResetPassword'
 import Roles from './pages/Roles'
@@ -43,6 +46,7 @@ export default function App() {
     <Suspense fallback={<div className="loading">Đang tải...</div>}>
     <Routes>
       <Route path="/dang-ky-lop" element={<PublicBooking />} />
+      <Route path="/ipad/:token" element={<IpadPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
@@ -50,6 +54,8 @@ export default function App() {
         <Route index element={<Today />} />
         <Route path="access" element={<PermRoute permission="checkins.read"><Access /></PermRoute>} />
         <Route path="pt" element={<Navigate to="/pt/one" replace />} />
+        <Route path="settings/bank" element={<PermRoute permission="roles.read"><BankSettings /></PermRoute>} />
+        <Route path="settings/zns" element={<PermRoute permission="roles.read"><ZnsSettings /></PermRoute>} />
         <Route path="pt/one" element={<PermRoute permission="pt_sessions.read"><PtOne /></PermRoute>} />
         <Route path="pt/classes" element={<PermRoute permission="pt_sessions.read"><PtClasses /></PermRoute>} />
         <Route path="debt" element={<PermRoute permission="contracts.read"><Debt /></PermRoute>} />

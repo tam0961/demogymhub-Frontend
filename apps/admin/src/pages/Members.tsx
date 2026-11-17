@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { GENDER_LABEL, METHOD_LABEL, downloadBlob, fmtDate, fmtDateTime, fmtMoney, daysLeftText, memberStatus, toCSV, CONTRACT_STATUS, PT_REASON } from '../lib/format'
@@ -8,10 +8,11 @@ import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
+import { PayModal } from '../components/PayModal'
 import { QRImage } from '../components/QRImage'
 import { FaceModal, type FaceResult } from '../components/FaceModal'
 import { MemberAvatar } from '../components/MemberAvatar'
-import { BranchTag, Button, Chip, DataTable, Field, Icon, Input, PageHeader, Select, useToast, type Column } from '../components/ui'
+import { BranchTag, Button, Chip, DataTable, Field, Icon, Input, Segmented, Select, useToast, type Column } from '../components/ui'
 import type { Branch, CheckinItem, Contract, Gender, ListResp, Me, Member, MemberStatus, Payment, PtEligibility } from '../types'
 
 const PAGE = 100
@@ -161,6 +162,82 @@ export function PtEligibilityPanel({ memberId }: { memberId: string }) {
   )
 }
 
+interface MemberFilters {
+  pkg: string; kind: string; regFrom: string; regTo: string; endFrom: string; endTo: string
+  gender: string; debt: string; face: string; photo: string
+}
+const NO_FILTERS: MemberFilters = { pkg: '', kind: '', regFrom: '', regTo: '', endFrom: '', endTo: '', gender: '', debt: '', face: '', photo: '' }
+
+function applyMemberFilters(rows: Member[], f: MemberFilters): Member[] {
+  return rows.filter((m) => {
+    const reg = m.created_at.slice(0, 10)
+    const end = m.current_contract?.end_date?.slice(0, 10) ?? ''
+    if (f.pkg && m.current_contract?.package_name !== f.pkg) return false
+    if (f.kind === 'member' && !(m.current_contract && !m.pt_contract)) return false
+    if (f.kind && f.kind !== 'member' && m.pt_contract?.package_category !== f.kind) return false
+    if (f.regFrom && reg < f.regFrom) return false
+    if (f.regTo && reg > f.regTo) return false
+    if (f.endFrom && (!end || end < f.endFrom)) return false
+    if (f.endTo && (!end || end > f.endTo)) return false
+    if (f.gender && m.gender !== f.gender) return false
+    if (f.debt === 'yes' && !((m.debt_amount ?? 0) > 0)) return false
+    if (f.debt === 'no' && (m.debt_amount ?? 0) > 0) return false
+    if (f.face === 'yes' && !m.face_id) return false
+    if (f.face === 'no' && m.face_id) return false
+    if (f.photo === 'yes' && !m.has_photo) return false
+    if (f.photo === 'no' && m.has_photo) return false
+    return true
+  })
+}
+
+function MemberFilterModal({ value, packages, onApply, onClose }: { value: MemberFilters; packages: string[]; onApply: (f: MemberFilters) => void; onClose: () => void }) {
+  const [f, setF] = useState<MemberFilters>(value)
+  const set = (k: keyof MemberFilters) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }))
+  const yn = (id: string, k: keyof MemberFilters, yes: string, no: string) => (
+    <Select id={id} value={f[k]} onChange={set(k)}>
+      <option value="">Tất cả</option>
+      <option value="yes">{yes}</option>
+      <option value="no">{no}</option>
+    </Select>
+  )
+  return (
+    <Modal
+      title="Bộ lọc hội viên"
+      onClose={onClose}
+      footer={<><Button onClick={() => { setF(NO_FILTERS); onApply(NO_FILTERS) }}>Xóa bộ lọc</Button><Button variant="primary" onClick={() => onApply(f)}>Áp dụng</Button></>}
+    >
+      <p className="hint-muted" style={{ marginBottom: 12 }}>Chọn điều kiện rồi bấm Áp dụng. Bộ lọc dùng chung với ô tìm kiếm và ô trạng thái.</p>
+      <div className="form-grid">
+        <Field label="Gói hiện tại" htmlFor="mf-pkg">
+          <Select id="mf-pkg" value={f.pkg} onChange={set('pkg')}>
+            <option value="">Tất cả gói</option>
+            {packages.map((p) => <option key={p} value={p}>{p}</option>)}
+          </Select>
+        </Field>
+        <Field label="Loại gói" htmlFor="mf-kind">
+          <Select id="mf-kind" value={f.kind} onChange={set('kind')}>
+            <option value="">Tất cả</option>
+            <option value="member">Chỉ gói member</option>
+            <option value="pt_1on1">Có gói PT 1-1</option>
+            <option value="pt_1on2">Có gói PT 1-2</option>
+            <option value="pt_group">Có gói PT nhóm</option>
+          </Select>
+        </Field>
+        <Field label="Đăng ký từ ngày" htmlFor="mf-rf"><Input id="mf-rf" type="date" value={f.regFrom} onChange={set('regFrom')} /></Field>
+        <Field label="Đăng ký đến ngày" htmlFor="mf-rt"><Input id="mf-rt" type="date" value={f.regTo} onChange={set('regTo')} /></Field>
+        <Field label="Hết hạn từ ngày" htmlFor="mf-ef"><Input id="mf-ef" type="date" value={f.endFrom} onChange={set('endFrom')} /></Field>
+        <Field label="Hết hạn đến ngày" htmlFor="mf-et"><Input id="mf-et" type="date" value={f.endTo} onChange={set('endTo')} /></Field>
+        <Field label="Giới tính" htmlFor="mf-gender">
+          <Segmented<string> fill ariaLabel="Giới tính" value={f.gender} options={[{ value: '', label: 'Tất cả' }, { value: 'male', label: 'Nam' }, { value: 'female', label: 'Nữ' }]} onChange={(v) => setF((x) => ({ ...x, gender: v }))} />
+        </Field>
+        <Field label="Công nợ" htmlFor="mf-debt">{yn('mf-debt', 'debt', 'Có công nợ', 'Không nợ')}</Field>
+        <Field label="Face ID" htmlFor="mf-face">{yn('mf-face', 'face', 'Đã đăng ký', 'Chưa đăng ký')}</Field>
+        <Field label="Ảnh hội viên" htmlFor="mf-photo">{yn('mf-photo', 'photo', 'Có ảnh', 'Chưa có ảnh')}</Field>
+      </div>
+    </Modal>
+  )
+}
+
 export default function Members() {
   const { user } = useAuth()
   const { branchId } = useBranch()
@@ -171,6 +248,8 @@ export default function Members() {
   const urlQ = params.get('q') ?? ''
   const [q, setQ] = useState(urlQ)
   const [status, setStatus] = useState('')
+  const [filters, setFilters] = useState<MemberFilters>(NO_FILTERS)
+  const [filterOpen, setFilterOpen] = useState(false)
   const [rows, setRows] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -205,7 +284,9 @@ export default function Members() {
   }, [load])
 
   const branchOf = useCallback((m: Member): Branch | undefined => m.branch ?? user?.branches.find((b) => b.id === m.branch_id), [user])
-  const filtered = useMemo(() => (status ? rows.filter((m) => statusOf(m).label === status) : rows), [rows, status])
+  const filtered = useMemo(() => applyMemberFilters(status ? rows.filter((m) => statusOf(m).label === status) : rows, filters), [rows, status, filters])
+  const packageNames = useMemo(() => [...new Set(rows.flatMap((m) => (m.current_contract ? [m.current_contract.package_name] : [])))].sort(), [rows])
+  const activeFilters = Object.values(filters).filter(Boolean).length
 
   const showBranch = showBranchColumn(user, branchId)
   const exportCsv = () => {
@@ -216,24 +297,21 @@ export default function Members() {
 
   return (
     <>
-      <PageHeader
-        title="Hội viên"
-        action={
-          <>
-            <RequirePermission permission="members.create"><Button onClick={() => setEditing('new')}>Thêm hội viên</Button></RequirePermission>
-            <RequirePermission permission="contracts.create"><Button variant="primary" onClick={() => nav('/contracts/new')}>Tạo hợp đồng mới</Button></RequirePermission>
-          </>
-        }
-      />
-      <div className="toolbar">
-        <input className="input" type="search" placeholder="Tìm tên, SĐT, mã hội viên" aria-label="Tìm hội viên" value={q} onChange={(e) => setQ(e.target.value)} />
-        <Select aria-label="Lọc trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">Mọi trạng thái</option>
-          {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
-        <div className="grow">
+      <div className="page-head members-head">
+        <h1>Hội viên</h1>
+        <div className="members-filters">
+          <input className="input" type="search" placeholder="Tìm tên, SĐT, mã hội viên" aria-label="Tìm hội viên" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Select aria-label="Lọc trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">Mọi trạng thái</option>
+            {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+          <Button onClick={() => setFilterOpen(true)}>Bộ lọc{activeFilters ? ` (${activeFilters})` : ''}</Button>
+        </div>
+        <div className="page-action">
           <span className="hint-muted">{filtered.length} hội viên</span>
           <Button onClick={exportCsv} disabled={filtered.length === 0}><Icon name="download" size={16} />Xuất CSV</Button>
+          <RequirePermission permission="members.create"><Button onClick={() => setEditing('new')}>Thêm hội viên</Button></RequirePermission>
+          <RequirePermission permission="contracts.create"><Button variant="primary" onClick={() => nav('/contracts/new')}>Tạo hợp đồng mới</Button></RequirePermission>
         </div>
       </div>
       <div className="card">
@@ -252,6 +330,7 @@ export default function Members() {
           itemLabel="hội viên"
         />
       </div>
+      {filterOpen && <MemberFilterModal value={filters} packages={packageNames} onClose={() => setFilterOpen(false)} onApply={(f) => { setFilters(f); setFilterOpen(false) }} />}
       {profile && (
         <MemberProfile
           member={profile}
@@ -281,12 +360,15 @@ export default function Members() {
 
 interface ProfileData { contracts: Contract[]; payments: Payment[]; checkins: CheckinItem[] }
 
-function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member: Member; canEdit: boolean; onEdit: () => void; onUpdated: (m: Member) => void; onClose: () => void }) {
+export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member: Member; canEdit: boolean; onEdit: () => void; onUpdated: (m: Member) => void; onClose: () => void }) {
   const { user } = useAuth()
   const { can } = usePermission()
+  const nav = useNavigate()
   const [data, setData] = useState<ProfileData | null>(null)
   const [error, setError] = useState('')
   const [faceOpen, setFaceOpen] = useState(false)
+  const [payFor, setPayFor] = useState<Contract | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
   const branch = member.branch ?? user?.branches.find((b) => b.id === member.branch_id)
 
   useEffect(() => {
@@ -306,7 +388,7 @@ function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member
     return () => {
       alive = false
     }
-  }, [member.id, member.name, can])
+  }, [member.id, member.name, can, reloadKey])
 
   const saveFace = async (r: FaceResult) => {
     let m = member
@@ -323,27 +405,32 @@ function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member
     <>
     <Modal
       title={member.name}
-      size="large"
       onClose={onClose}
-      footer={<>{canEdit && <Button onClick={onEdit}>Sửa thông tin</Button>}<Button onClick={onClose}>Đóng</Button></>}
+      footer={
+        <div className="profile-foot">
+          <div className="profile-foot-row">
+            {canEdit && <Button onClick={() => setFaceOpen(true)}>Đăng ký khuôn mặt lên máy</Button>}
+            {canEdit && <Button onClick={onEdit}>Sửa thông tin</Button>}
+          </div>
+          {can('contracts.create') && <Button variant="primary" onClick={() => nav(`/contracts/new?member_id=${member.id}`)}>Tạo HĐ mới</Button>}
+        </div>
+      }
     >
       <div className="profile-head">
-        <div className="profile-photo"><MemberAvatar member={member} size={120} /></div>
+        <div className={`profile-photo${canEdit ? ' is-click' : ''}`} onClick={canEdit ? () => setFaceOpen(true) : undefined}>
+          {member.has_photo || member.avatar_url ? <MemberAvatar member={member} size={136} /> : <span className="photo-empty"><Icon name="me" size={44} /><span>Thêm ảnh</span></span>}
+        </div>
         <dl className="kv">
           <dt>Mã hội viên</dt><dd>{member.code}</dd>
           <dt>Điện thoại</dt><dd>{member.phone}</dd>
           <dt>Giới tính</dt><dd>{member.gender ? GENDER_LABEL[member.gender] : '-'}</dd>
           <dt>Chi nhánh</dt><dd><BranchTag branch={branch} /></dd>
           <dt>Ngày tham gia</dt><dd>{fmtDate(member.created_at)}</dd>
-          <dt>Face ID</dt><dd>{member.face_id ?? 'Chưa đăng ký'}</dd>
           {member.email && <><dt>Email</dt><dd>{member.email}</dd></>}
         </dl>
-        <div className="qr-box"><QRImage text={member.code} size={110} /></div>
       </div>
-      {canEdit && <div style={{ marginBottom: 8 }}><Button onClick={() => setFaceOpen(true)}>Chụp ảnh, đăng ký khuôn mặt</Button></div>}
       {error && <div className="form-error" role="alert">{error}</div>}
       {!data && !error && <div className="hint-muted">Đang tải...</div>}
-      {can('members.read') && <PtEligibilityPanel memberId={member.id} />}
       {data && (
         <>
           <h3 className="prof-sec">Hợp đồng</h3>
@@ -353,7 +440,7 @@ function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member
             return (
               <div key={c.id} className="prof-row">
                 <div>
-                  <Link to={`/contracts/${c.id}`}>{pkgOf(c)}</Link>
+                  <div>{pkgOf(c)}</div>
                   <div className="cell-sub">{fmtDate(c.start_date)} đến {fmtDate(c.end_date)}</div>
                 </div>
                 <Chip tone={st.tone}>{c.status === 'active' ? st.label : CONTRACT_STATUS[c.status].label}</Chip>
@@ -363,15 +450,21 @@ function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member
           {data.contracts.length > 0 && (
             <>
               <h3 className="prof-sec">Công nợ theo hợp đồng</h3>
-              {data.contracts.map((c) => (
-                <div key={c.id} className="prof-row">
-                  <div>
-                    <div>{pkgOf(c)}</div>
-                    {c.last_payment_method && <div className="cell-sub">{METHOD_LABEL[c.last_payment_method]}</div>}
-                  </div>
-                  <div className="num">{fmtMoney(c.paid_amount)} / {fmtMoney(c.total_amount)}{c.debt_amount > 0 && <div className="cell-sub text-bad">Còn nợ {fmtMoney(c.debt_amount)}</div>}</div>
-                </div>
-              ))}
+              {data.contracts.map((c) => {
+                const owes = c.debt_amount > 0 && can('payments.create')
+                const body = (
+                  <>
+                    <div>
+                      <div>{pkgOf(c)}</div>
+                      {c.last_payment_method && <div className="cell-sub">{METHOD_LABEL[c.last_payment_method]}</div>}
+                    </div>
+                    <div className="num">{fmtMoney(c.paid_amount)} / {fmtMoney(c.total_amount)}{c.debt_amount > 0 && <div className="cell-sub text-bad">Còn nợ {fmtMoney(c.debt_amount)}{owes ? ' · Bấm để thu nợ' : ''}</div>}</div>
+                  </>
+                )
+                return owes
+                  ? <button key={c.id} type="button" className="prof-row prof-row-click" onClick={() => setPayFor(c)}>{body}</button>
+                  : <div key={c.id} className="prof-row">{body}</div>
+              })}
             </>
           )}
           {can('payments.read') && (
@@ -381,8 +474,8 @@ function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member
               {data.payments.map((p) => (
                 <div key={p.id} className="prof-row">
                   <div>
-                    <div>{fmtDate(p.created_at)}, {p.contract?.code}</div>
-                    <div className="cell-sub">{METHOD_LABEL[p.method]}</div>
+                    <div>{fmtDate(p.created_at)}, {data.contracts.find((c) => c.id === p.contract_id)?.package.name ?? ''} ({p.contract?.code})</div>
+                    <div className="cell-sub">{METHOD_LABEL[p.method]}{p.ref ? `, phiếu ${p.ref}` : ''}{p.created_by_name ? `, thu bởi ${p.created_by_name}` : ''}</div>
                   </div>
                   <div className="num">{fmtMoney(p.amount)}</div>
                 </div>
@@ -404,6 +497,7 @@ function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member
         </>
       )}
     </Modal>
+    {payFor && <PayModal contract={payFor} onClose={() => { setPayFor(null); setReloadKey((k) => k + 1) }} onChanged={() => setReloadKey((k) => k + 1)} />}
     {faceOpen && <FaceModal member={member} initialFaceId={member.face_id ?? ''} onSave={saveFace} onClose={() => setFaceOpen(false)} />}
     </>
   )
@@ -473,12 +567,7 @@ export function MemberModal({ member, onClose, onSaved }: { member: Member | nul
           <Input id="m-email" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
         </Field>
         <Field label="Giới tính" htmlFor="m-gender">
-          <Select id="m-gender" value={f.gender} onChange={(e) => set('gender', e.target.value as Gender | '')}>
-            <option value="">Chưa chọn</option>
-            <option value="male">Nam</option>
-            <option value="female">Nữ</option>
-            <option value="other">Khác</option>
-          </Select>
+          <Segmented<string> fill ariaLabel="Giới tính" value={f.gender} options={[{ value: 'male', label: 'Nam' }, { value: 'female', label: 'Nữ' }]} onChange={(v) => set('gender', (v === f.gender ? '' : v) as Gender | '')} />
         </Field>
         <Field label="Ngày sinh" htmlFor="m-dob">
           <Input id="m-dob" type="date" value={f.dob} onChange={(e) => set('dob', e.target.value)} />

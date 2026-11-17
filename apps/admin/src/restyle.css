@@ -334,14 +334,14 @@
 .ptg-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; color: var(--muted); font-size: 13.5px; margin-bottom: 6px; }
 .ptg-legend span { display: inline-flex; gap: 6px; align-items: center; }
 .ptg-sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1.5px solid var(--line-strong); }
-.ptg-scroll { max-height: calc(100vh - 170px); min-height: 380px; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); margin-bottom: 16px; }
+.ptg-scroll { min-height: 456px; overflow-x: auto; overflow-y: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); margin-bottom: 16px; }
 .ptg { display: grid; position: relative; width: max-content; min-width: 100%; }
 .ptg-corner, .ptg-head { position: sticky; top: 0; z-index: 3; background: var(--surface); }
 .ptg-corner { left: 0; z-index: 4; border-bottom: 1px solid var(--line); }
 .ptg-head { border-top: 4px solid var(--line-strong); border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
 .ptg-head small { color: var(--muted); }
 .ptg-axis { position: sticky; left: 0; z-index: 2; background: var(--surface); }
-.ptg-axis div { height: 22px; padding: 0 8px 0 10px; font-variant-numeric: tabular-nums; font-size: 13px; line-height: 22px; border-top: 1px solid var(--line); }
+.ptg-axis div { height: 26px; padding: 0 8px 0 10px; font-variant-numeric: tabular-nums; font-size: 13px; line-height: 26px; border-top: 1px solid var(--line); }
 .ptg-axis .ptg-hr { font-weight: 700; }
 .ptg-axis .ptg-half { font-size: 11px; color: var(--muted); border-top: 1px dashed var(--line); }
 .ptg-col { position: relative; border-left: 1px solid var(--line); }
@@ -365,3 +365,9 @@
 .ptg-sw.ptg-blank { background: #fff; }
 .ptg-note { color: var(--muted); font-size: 13.5px; margin-bottom: 12px; }
 @media (max-width: 720px) { .ptg-controls { width: 100%; } .ptg-controls .btn-primary { width: 100%; } }
+
+.ptg-col.ptg-off { background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--surface) 6px 12px); }
+.ptg-col.ptg-off .ptg-cell { pointer-events: none; }
+.ptg-head.off b { text-decoration: line-through; color: var(--muted); }
+.ptg-head.off small { font-weight: 700; color: var(--muted); }
+.ptg-off-btn { margin-top: 4px; align-self: center; font-size: 11px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); cursor: pointer; }

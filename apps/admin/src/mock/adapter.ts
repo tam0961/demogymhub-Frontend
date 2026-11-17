@@ -21,7 +21,8 @@ const P = {
 const MANAGER_EXTRA = ['contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
 const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log']
 
-const ptTrainers = [{ id: 'pt1', name: 'PT Đạt' }, { id: 'pt2', name: 'PT Tuấn' }, { id: 'pt3', name: 'PT Ánh' }]
+const ptTrainers = [{ id: 'pt1', name: 'PT Đạt', branches: [{ id: 'b-nb', name: 'Chi nhánh Nhà Bè' }] }, { id: 'pt2', name: 'PT Tuấn', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }, { id: 'pt3', name: 'PT Ánh', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }]
+const mockOffs: { trainer_id: string; date: string }[] = []
 const ptDay = (h: number, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString() }
 const ptRow = (id: string, t: number, h: number, name: string | null, status: PtSession['status']): PtSession => ({ id, branch_id: 'b-nb', trainer: ptTrainers[t], member: name ? { id: 'm-' + id, code: 'M' + id, name, phone: '0900000000' } : null, contract_id: null, contract_code: null, sessions_left: null, start_at: ptDay(h), end_at: ptDay(h + 1), status, source: name ? 'manual' : 'zalo', note: null, completed_at: null })
 const ptSessions: PtSession[] = [ptRow('a', 0, 9, 'Nguyễn Minh Khoa', 'completed'), ptRow('b', 1, 10, null, 'scheduled'), ptRow('c', 1, 17, 'Tô Ngọc Diệp', 'scheduled'), ptRow('d', 0, 18, 'Trần Thị Thu Hà', 'cancelled'), ptRow('e', 2, 19, 'Lê Văn An', 'no_show')]
@@ -368,6 +369,56 @@ function fail(config: InternalAxiosRequestConfig, status: number, code: string, 
 const pdfBlob = (c: Contract) =>
   new Blob([`%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 100]>>endobj\ntrailer<</Root 1 0 R>>\n% ${c.code}`], { type: 'application/pdf' })
 
+const MOCK_NAMES: [string, string][] = [
+  ['Cao Trần Nguyên Tiên', '0901000001'], ['Đỗ Ngọc Anh Thư', '0901000002'], ['Lê Thị Mỹ Tiên', '0901000003'], ['Trần Thị Thuỳ Anh', '0901000004'],
+  ['Nguyễn Ngọc Ánh', '0901000005'], ['Nguyễn Uyển Hạ Vy', '0901000006'], ['Nguyễn Khánh Phương', '0901000007'], ['Nguyễn Thị Diệu Thanh', '0901000008'], ['Phan Ngọc Trâm', '0901000009'],
+]
+const MOCK_TITLES = ['Core + Cardio', 'Mông + Đùi + Tổng hợp', 'Lưng + Vai + Tay sau']
+
+function mockPtGroupContract(k: number, category = 'pt_group') {
+  const [name, phone] = MOCK_NAMES[k]
+  return {
+    id: category === 'pt_group' ? `pg-${k}` : `po-${category}-${k}`, code: `HD26${phone.slice(-3)}`, member_id: `m-${phone}`, branch_id: 'b1', status: k === 7 ? 'expired' : 'active', sessions_total: 12, sessions_left: 4 + k, start_date: '2026-09-01', end_date: k === 7 ? '2026-11-10' : '2027-02-28',
+    total_amount: 3600000, discount: 0, paid_amount: k % 3 === 0 ? 2000000 : 3600000, debt_amount: k % 3 === 0 ? 1600000 : 0, usage_deadline: null,
+    member: { id: `m-${phone}`, code: `HV0${300 + k}`, name, phone, email: k % 3 === 2 ? null : `hv${300 + k}@gmail.com` },
+    package: { id: 'pk-g', name: category === 'pt_group' ? 'PT NHÓM 12 BUỔI' : 'PT 1 KÈM 1 - 10 BUỔI', type: 'sessions', category },
+    payments: [{ id: `pay-${k}`, created_at: '2026-09-01T09:00:00.000Z', method: 'cash', status: 'confirmed', amount: k % 3 === 0 ? 2000000 : 3600000 }],
+  }
+}
+
+function mockGroupWeek(from: string, to: string) {
+  const pad2 = (n: number) => String(n).padStart(2, '0')
+  const classes: { id: string; title: string; start_at: string; end_at: string; capacity: number; registered: number; status: string; [k: string]: unknown }[] = []
+  const regs: Record<string, unknown>[] = []
+  if (!from || !to) return { classes, regs }
+  const now = Date.now()
+  const trainer = { id: 'tr-1', name: 'Nguyễn Phú Thịnh' }
+  let i = 0
+  for (let d = new Date(`${from}T12:00:00`); d <= new Date(`${to}T12:00:00`); d.setDate(d.getDate() + 1)) {
+    const wd = d.getDay()
+    if (wd === 0) continue
+    const date = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+    for (const [slot, startH] of [['06:30', 6.5], ['20:00', 20]] as [string, number][]) {
+      i += 1
+      if ((wd + startH) % 4 === 0) continue
+      const start = new Date(`${date}T${slot}:00`)
+      const end = new Date(start.getTime() + 75 * 60000)
+      const n = (i * 7 + wd) % 4
+      const members = Array.from({ length: n }, (_, k) => MOCK_NAMES[(i + k * 2) % MOCK_NAMES.length])
+      const id = `gc-${date}-${slot}`
+      const done = end.getTime() < now
+      const cls = { id, branch_id: 'b1', title: MOCK_TITLES[(i + wd) % 3], muscle_group: null, trainer, start_at: start.toISOString(), end_at: end.toISOString(), capacity: 3, registered: n, status: done ? 'completed' : 'scheduled', completed_at: null }
+      classes.push(cls)
+      members.forEach(([name, phone], k) => regs.push({
+        id: `${id}-${k}`, member_id: `m-${phone}`, name, phone, email: null, status: done ? (k === 0 && i % 5 === 0 ? 'absent' : 'attended') : 'booked',
+        deducted: true, contract_code: `HD26${phone.slice(-3)}`, sessions_left: 4 + ((i + k) % 8), created_at: start.toISOString(), cancel_count: (i + k) % 6 === 0 ? 1 : 0,
+        class: { id, title: cls.title, muscle_group: null, start_at: cls.start_at, end_at: cls.end_at, status: cls.status, trainer },
+      }))
+    }
+  }
+  return { classes, regs }
+}
+
 export const mockAdapter: AxiosAdapter = async (config) => {
   await new Promise((r) => setTimeout(r, 150))
   const url = (config.url ?? '').split('?')[0]
@@ -551,6 +602,9 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const mem = members.find((x) => x.id === body.member_id)
     const start = new Date(body.start_at)
     const row: PtSession = { id: 'ps' + Date.now(), branch_id: 'b-nb', trainer: tr, member: mem ? { id: mem.id, code: mem.code, name: mem.name, phone: mem.phone } : null, contract_id: null, contract_code: null, sessions_left: null, start_at: start.toISOString(), end_at: new Date(start.getTime() + (body.duration_min ?? 60) * 60000).toISOString(), status: 'scheduled', source: 'manual', note: body.note ?? null, completed_at: null }
+    const mc = /^po-(.+)-(\d+)$/.exec(String(body.contract_id ?? ''))
+    if (!mem && mc) { const c = mockPtGroupContract(Number(mc[2]), mc[1]); row.member = c.member; row.contract_id = c.id; row.contract_code = c.code; row.sessions_left = c.sessions_left }
+    row.id = `ps${Date.now()}-${ptSessions.length}`
     ptSessions.push(row)
     return ok(row)
   }
@@ -558,7 +612,12 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (ptm && method === 'post') {
     const row = ptSessions.find((x) => x.id === ptm[1])
     if (!row) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
-    else if (ptm[2] === 'assign') { const mem = members.find((x) => x.id === body.member_id); if (mem) row.member = { id: mem.id, code: mem.code, name: mem.name, phone: mem.phone } }
+    else if (ptm[2] === 'assign') {
+      const mem = members.find((x) => x.id === body.member_id)
+      const mc = /^po-(.+)-(\d+)$/.exec(String(body.contract_id ?? ''))
+      if (mem) row.member = { id: mem.id, code: mem.code, name: mem.name, phone: mem.phone }
+      else if (mc) { const c = mockPtGroupContract(Number(mc[2]), mc[1]); row.member = c.member; row.contract_id = c.id; row.contract_code = c.code; row.sessions_left = c.sessions_left }
+    }
     else row.status = ptm[2] === 'complete' ? 'completed' : ptm[2] === 'no-show' ? 'no_show' : 'cancelled'
     return ok(row)
   }
@@ -569,7 +628,18 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     else if (body.start_at) { const d = new Date(row.end_at).getTime() - new Date(row.start_at).getTime(); row.start_at = new Date(body.start_at).toISOString(); row.end_at = new Date(new Date(body.start_at).getTime() + (body.duration_min ? body.duration_min * 60000 : d)).toISOString() }
     return ok(row)
   }
-  if (url.startsWith('/pt/classes')) return url.endsWith('/stats') ? ok({ classes: { total: 0, scheduled: 0, completed: 0, cancelled: 0 }, registrations: { booked: 0, attended: 0, absent: 0, cancelled: 0, waitlist: 0 }, fill_rate: 0, trainers: [] }) : ok([])
+  if (url.startsWith('/pt/classes') && method === 'get') {
+    const { classes: gc, regs: gr } = mockGroupWeek(String(params.from ?? ''), String(params.to ?? ''))
+    if (url.endsWith('/registrations')) return ok(gr)
+    if (url.endsWith('/stats')) {
+      const live = gc.filter((c) => c.status !== 'cancelled')
+      const seats = live.reduce((n, c) => n + c.capacity, 0)
+      const cnt = (st: string) => gr.filter((r) => r.status === st).length
+      return ok({ classes: { total: live.length, scheduled: live.filter((c) => c.status === 'scheduled').length, completed: live.filter((c) => c.status === 'completed').length, cancelled: 0 }, registrations: { booked: cnt('booked'), attended: cnt('attended'), absent: cnt('absent'), cancelled: cnt('cancelled'), waitlist: 0 }, fill_rate: seats ? Math.round((live.reduce((n, c) => n + c.registered, 0) / seats) * 100) : 0, trainers: [] })
+    }
+    return ok(gc)
+  }
+  if (url.startsWith('/pt/classes')) return ok({})
   if (url === '/packages' && method === 'get') {
     let rows = packages
     if (branchFilter) rows = rows.filter((p) => !p.branch_id || p.branch_id === branchFilter)
@@ -616,8 +686,40 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   }
 
   /* contracts */
+  const ipadStore = (): Record<string, { stage: string; payload: unknown; signature: string | null }> => { try { return JSON.parse(localStorage.getItem('gymhub.mock.ipad') ?? '{}') } catch { return {} } }
+  const ipadSave = (o: ReturnType<typeof ipadStore>) => { try { localStorage.setItem('gymhub.mock.ipad', JSON.stringify(o)) } catch { /* ignore */ } }
+  if (url === '/ipad/sessions' && method === 'post') {
+    const token = `mock${Math.random().toString(36).slice(2)}${Date.now().toString(36)}abcdefghij`
+    const o = ipadStore(); o[token] = { stage: 'idle', payload: null, signature: null }; ipadSave(o)
+    return ok({ token })
+  }
+  const ipm = /^\/(ipad\/sessions|public\/ipad)\/([^/]+)(\/sign)?$/.exec(url)
+  if (ipm) {
+    const o = ipadStore(); const sess = o[ipm[2]]
+    if (!sess) { fail(config, 404, 'NOT_FOUND', 'Không tìm thấy phiên'); return ok(null) }
+    if (ipm[1] === 'ipad/sessions' && method === 'put') { o[ipm[2]] = { stage: body.stage, payload: body.payload ?? null, signature: null }; ipadSave(o); return ok({ stage: body.stage }) }
+    if (ipm[1] === 'ipad/sessions' && method === 'get') return ok({ stage: sess.stage, signature: sess.signature })
+    if (ipm[1] === 'public/ipad' && !ipm[3] && method === 'get') return ok({ stage: sess.stage, payload: sess.payload })
+    if (ipm[1] === 'public/ipad' && ipm[3] && method === 'post') { o[ipm[2]] = { ...sess, stage: 'signed', signature: String(body.signature) }; ipadSave(o); return ok({ stage: 'signed' }) }
+  }
+  if (url === '/pt/off' && method === 'get') return ok(mockOffs.filter((o) => o.date >= String(params.from) && o.date <= String(params.to)))
+  if (url === '/pt/off' && method === 'put') {
+    const i = mockOffs.findIndex((o) => o.trainer_id === body.trainer_id && o.date === body.date)
+    if (body.off && i < 0) mockOffs.push({ trainer_id: body.trainer_id, date: body.date })
+    if (!body.off && i >= 0) mockOffs.splice(i, 1)
+    return ok({ ...body })
+  }
+  const mmem = /^\/members\/m-(\d+)$/.exec(url)
+  if (mmem && method === 'get') {
+    const k = MOCK_NAMES.findIndex(([, ph]) => ph === mmem[1])
+    if (k >= 0) { const c = mockPtGroupContract(k); return ok({ ...c.member, gender: 'female', dob: null, status: 'active', branch_id: 'b-q7', avatar_url: null, created_at: '2026-09-01T00:00:00.000Z', branch: branches[0], current_contract: null, pt_contract: null }) }
+  }
+  const mcd = /^\/contracts\/(?:pg-(\d+)|po-(.+)-(\d+))$/.exec(url)
+  if (mcd && method === 'get') return ok(mcd[1] !== undefined ? mockPtGroupContract(Number(mcd[1])) : mockPtGroupContract(Number(mcd[3]), mcd[2]))
   if (url === '/contracts' && method === 'get') {
     need('contracts.read')
+    if (params.category === 'pt_1on1' || params.category === 'pt_1on2') return paged(MOCK_NAMES.slice(0, 6).map((_, k) => mockPtGroupContract(k, String(params.category))) as never)
+    if (params.category === 'pt_group') return paged(MOCK_NAMES.map((_, k) => mockPtGroupContract(k)) as never)
     const q = String(params.q ?? '').toLowerCase()
     let rows = contracts.filter((c) => myBranch(c.branch_id))
     if (params.member_id) rows = rows.filter((c) => c.member_id === params.member_id)

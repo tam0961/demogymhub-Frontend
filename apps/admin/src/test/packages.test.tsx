@@ -130,7 +130,7 @@ describe('copy mode', () => {
     h.post.mockClear()
     const onSaved = vi.fn()
     render(<ToastProvider><PackageModal target={{ mode: 'version', pkg: M }} allPkgs={LIST} onClose={() => {}} onSaved={onSaved} /></ToastProvider>)
-    fireEvent.click(screen.getByLabelText('Chỉ sao chép (giữ cả hai gói đang bán)'))
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉ sao chép' }))
     fireEvent.click(screen.getByRole('button', { name: 'Tạo phiên bản' }))
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     const body = h.post.mock.calls[0][1]

@@ -25,6 +25,7 @@ export interface Member {
   face_id?: string | null
   has_photo?: boolean
   photo_version?: number | null
+  debt_amount?: number
   created_at: string
   branch?: Branch | null
   current_contract?: CurrentContract | null
@@ -101,6 +102,7 @@ export interface Payment {
   shift_id: string | null
   note: string | null
   created_by: string | null
+  created_by_name?: string | null
   created_at: string
   confirmed_at: string | null
   refund_requested?: boolean
@@ -127,7 +129,7 @@ export interface Contract {
   renewed_from_id: string | null
   note: string | null
   created_at: string
-  member: { id: string; code: string; name: string; phone: string }
+  member: { id: string; code: string; name: string; phone: string; email?: string | null }
   package: { id: string; name: string; type: PackageType; category: PackageCategory }
   usage_deadline?: string | null
   bundle_of_id?: string | null

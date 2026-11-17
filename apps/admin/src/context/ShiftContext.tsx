@@ -4,7 +4,7 @@ import { apiError } from '../lib/errors'
 import { fmtMoney, fmtTime, parseMoney } from '../lib/format'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { Button, Field, Input } from '../components/ui'
+import { Button, Field, MoneyInput } from '../components/ui'
 import type { Shift } from '../types'
 
 interface ShiftValue {
@@ -78,7 +78,7 @@ function OpenShiftModal({ onClose, onOpened }: { onClose: () => void; onOpened: 
       <form id="open-shift" className="stack" onSubmit={submit}>
         {err && <div className="form-error" role="alert">{err}</div>}
         <Field label="Tiền mặt đầu ca (đ)" htmlFor="os-cash">
-          <Input id="os-cash" inputMode="numeric" required value={cash} onChange={(e) => setCash(e.target.value)} autoFocus />
+          <MoneyInput id="os-cash" required value={cash} onValueChange={setCash} autoFocus />
         </Field>
         <span className="hint-muted">Đang nhập: {fmtMoney(parseMoney(cash))}</span>
       </form>

@@ -6,7 +6,8 @@ import { useShift } from '../context/ShiftContext'
 import { usePermission } from '../context/usePermission'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
-import { Button, Field, Input, PayBadge, Select } from './ui'
+import { Button, Field, Input, MoneyInput, PayBadge, Select } from './ui'
+import { paymentCode } from '../lib/contracts'
 import type { Contract, PayMethod, Payment } from '../types'
 
 interface QR { transfer_content: string; bank: string; amount: number; qr_url: string }
@@ -49,6 +50,7 @@ export function PendingPanel({ payment, onConfirmed }: { payment: Payment; onCon
           <span>Đã thu {fmtMoney(payment.amount)}.</span>
         )}
       </div>
+      <div className="cell-sub">Phiếu thu: <b>{paymentCode(payment)}</b></div>
       {err && <div className="form-error" role="alert">{err}</div>}
       {qr && status === 'pending' && (
         <div className="qr-box">
@@ -132,7 +134,7 @@ export function PayModal({ contract, onClose, onChanged }: { contract: Contract;
           </Select>
         </Field>
         <Field label="Số tiền (đ)" htmlFor="pm-amount">
-          <Input id="pm-amount" inputMode="numeric" required value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <MoneyInput id="pm-amount" required value={amount} onValueChange={setAmount} />
         </Field>
         <span className="hint-muted">Sẽ ghi: {fmtMoney(parseMoney(amount))}</span>
         {method !== 'cash' && method !== 'vietqr' && (

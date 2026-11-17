@@ -67,6 +67,8 @@ export const NAV_GROUPS: NavGroup[] = [
   { title: 'Cài đặt', items: [
     { to: '/users', label: 'Tài khoản và phân quyền', icon: 'users', perm: ['roles.read'] },
     { to: '/roles', label: 'Vai trò', icon: 'roles', perm: ['roles.read'] },
+    { to: '/settings/bank', label: 'Tài khoản ngân hàng', icon: 'payments', perm: ['roles.read'] },
+    { to: '/settings/zns', label: 'Zalo ZNS', icon: 'roles', perm: ['roles.read'] },
     { to: '/audit', label: 'Nhật ký thao tác', icon: 'audit', perm: ['system.view_audit_log'] },
   ] },
 ]

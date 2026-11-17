@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtDateTime, fmtTime } from '../lib/format'
+import { CONTRACT_STATUS, fmtDate, fmtDateTime, fmtTime } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { useAuth } from '../context/AuthContext'
-import { RequirePermission, usePermission } from '../context/usePermission'
+import { usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
-import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Select, useToast, type ChipTone, type Column } from '../components/ui'
-import type { GroupClass, GroupReg, GroupRegStatus, GroupStats, GroupTemplate, ListResp, Member } from '../types'
+import { MemberProfile } from './Members'
+import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
+import type { GroupClass, Contract, GroupReg, GroupRegStatus, GroupStats, GroupTemplate, ListResp, Member } from '../types'
 
 interface Trainer { id: string; name: string }
 
@@ -25,11 +26,6 @@ const addDays = (iso: string, n: number) => {
 }
 const dayLabel = (iso: string) => new Date(iso).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })
 
-const CLASS_STATUS: Record<GroupClass['status'], { label: string; tone: ChipTone }> = {
-  scheduled: { label: 'Sắp tới', tone: 'warn' },
-  completed: { label: 'Đã dạy', tone: 'ok' },
-  cancelled: { label: 'Đã hủy', tone: 'bad' },
-}
 const REG_STATUS: Record<GroupRegStatus, { label: string; tone: ChipTone }> = {
   booked: { label: 'Đã đăng ký', tone: 'warn' },
   attended: { label: 'Có mặt', tone: 'ok' },
@@ -37,6 +33,21 @@ const REG_STATUS: Record<GroupRegStatus, { label: string; tone: ChipTone }> = {
   cancelled: { label: 'Đã hủy', tone: 'bad' },
   waitlist: { label: 'Danh sách chờ', tone: 'neutral' },
 }
+
+const cancelLockAt = (startIso: string) => {
+  const day = new Date(startIso).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
+  return new Date(`${day}T00:00:00+07:00`).getTime() - 86400000 + 21 * 3600000
+}
+const LOCK_OVERRIDE_ROLES = ['super_admin', 'owner', 'branch_manager']
+
+const hm = (iso: string | undefined, fallback = '') => {
+  if (!iso) return fallback
+  const d = new Date(iso)
+  const m = d.getMinutes()
+  return `${d.getHours()}h${m ? String(m).padStart(2, '0') : ''}`
+}
+
+const ptName = (t: { name: string } | null) => `PT ${t?.name.trim().split(/\s+/).pop() ?? 'Thịnh'}`
 
 interface PtReportRow { pt: string; taught: number; booked: number; attended: number; people: number; upcoming: number }
 
@@ -69,6 +80,8 @@ export default function PtClasses() {
   const [trainers, setTrainers] = useState<Trainer[]>([])
   const [classes, setClasses] = useState<GroupClass[]>([])
   const [regs, setRegs] = useState<GroupReg[]>([])
+  const [memberPopupId, setMemberPopupId] = useState<string | null>(null)
+  const [groupMembers, setGroupMembers] = useState<Contract[]>([])
   const [stats, setStats] = useState<GroupStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -95,6 +108,7 @@ export default function PtClasses() {
       setClasses(c.data.data)
       setRegs(r.data.data)
       setStats(s.data.data)
+      api.get<{ data: Contract[] }>('/contracts', { params: { category: 'pt_group', limit: 100, branch_id: branchId ?? undefined } }).then((g) => setGroupMembers(g.data.data.filter((c) => ['active', 'expired', 'frozen'].includes(c.status)))).catch(() => setGroupMembers([]))
     } catch (e) {
       setError(apiError(e).message)
     } finally {
@@ -127,28 +141,6 @@ export default function PtClasses() {
     }
   }
 
-  const { user } = useAuth()
-  const copyLink = async () => {
-    const code = user?.branches.find((b) => b.id === branchId)?.code ?? user?.branches[0]?.code ?? 'q7'
-    const url = `${window.location.origin}/dang-ky-lop?branch=${code.toLowerCase()}`
-    try {
-      await navigator.clipboard.writeText(url)
-      toast(`Đã sao chép link đăng ký: ${url}`)
-    } catch {
-      toast(url)
-    }
-  }
-
-  const generateWeek = async () => {
-    try {
-      const r = await api.post<{ data: { created: number } }>('/pt/classes/generate', { week_start: week, branch_id: branchId ?? undefined })
-      toast(r.data.data.created ? `Đã tạo ${r.data.data.created} lớp từ khung ca` : 'Tuần này đã đủ lớp theo khung ca')
-      load()
-    } catch (e) {
-      toast(apiError(e).message)
-    }
-  }
-
   const today = localISO(new Date())
   const shown = classes.filter((c) => c.status !== 'cancelled' && (showEmpty || c.registered > 0))
   const days = Array.from({ length: 7 }, (_, i) => addDays(week, i)).filter((d, i) => i < 6 || shown.some((c) => localISO(new Date(c.start_at)) === d))
@@ -160,6 +152,15 @@ export default function PtClasses() {
   const seatsAll = classes.filter((c) => c.status !== 'cancelled').reduce((n, c) => n + c.capacity, 0)
   const fillTone = (c: GroupClass) => (c.registered >= c.capacity ? 'bad' : c.capacity > 1 && c.registered >= c.capacity - 1 ? 'warn' : 'ok')
 
+  const memberCols: Column<Contract>[] = [
+    { key: 'name', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><button type="button" className="cell-main member-link" onClick={() => setMemberPopupId(c.member_id)}>{c.member.name}</button><div className="cell-sub">{c.member.code}</div></> },
+    { key: 'phone', header: 'SĐT', render: (c) => c.member.phone },
+    { key: 'email', header: 'Email', render: (c) => c.member.email ?? '-' },
+    { key: 'pkg', header: 'Gói PT nhóm', sortValue: (c) => c.package.name, render: (c) => c.package.name },
+    { key: 'left', header: 'Còn lại', numeric: true, sortValue: (c) => c.sessions_left ?? 0, render: (c) => c.sessions_total != null ? `${c.sessions_left ?? 0} / ${c.sessions_total} buổi` : '-' },
+    { key: 'end', header: 'Hết hạn', numeric: true, sortValue: (c) => c.usage_deadline ?? c.end_date ?? '', render: (c) => fmtDate(c.usage_deadline ?? c.end_date) },
+    { key: 'status', header: 'Trạng thái', sortValue: (c) => c.status, render: (c) => <Chip tone={CONTRACT_STATUS[c.status].tone}>{CONTRACT_STATUS[c.status].label}</Chip> },
+  ]
   const repSrc = reportScope === 'week' ? { classes, regs } : monthData
   const reportRows = buildReport(repSrc.classes, repSrc.regs)
   const reportCols: Column<PtReportRow>[] = [
@@ -174,7 +175,7 @@ export default function PtClasses() {
   return (
     <>
       <div className="gcal-top">
-        <PageHeader title="Lịch lớp nhóm" sub="Lịch 7 ngày. Đăng ký tạm trừ 1 buổi, PT xác nhận dạy xong thì trừ chính thức, hủy thì trả lại buổi. Lớp đầy thì khách vào danh sách chờ." />
+        <PageHeader title="Lịch lớp nhóm" />
         <div className="toolbar gcal-nav">
           <Button small onClick={() => setWeek(addDays(week, -7))} aria-label="Tuần trước">‹</Button>
           <span className="cell-main">{dayLabel(week)} - {dayLabel(addDays(week, 6))}{week === mondayOf(today) ? ' (tuần này)' : ''}</span>
@@ -187,19 +188,10 @@ export default function PtClasses() {
           <Button small variant={showEmpty ? 'primary' : 'secondary'} onClick={() => setShowEmpty(!showEmpty)}>Hiện lớp trống</Button>
         </div>
       </div>
-      <RequirePermission permission="pt_sessions.create">
-        <div className="toolbar">
-          <Button onClick={copyLink}>Sao chép link đăng ký</Button>
-          <Button onClick={() => setTemplating(true)}>Khung ca cố định</Button>
-          <Button onClick={generateWeek}>Tạo lịch tuần</Button>
-          <Button variant="primary" onClick={() => setCreating(true)}>Tạo lớp nhóm</Button>
-        </div>
-      </RequirePermission>
-
       <div className="card gcal">
         {error ? <div className="empty">{error}</div> : (
           <div className="gcal-scroll">
-            <div className="gcal-grid" style={{ gridTemplateColumns: `72px repeat(${days.length}, minmax(0, 1fr))` }}>
+            <div className="gcal-grid" style={{ gridTemplateColumns: `88px repeat(${days.length}, minmax(0, 1fr))` }}>
               <div className="gcal-corner" />
               {days.map((d) => (
                 <div key={d} className={`gcal-head${d === today ? ' today' : ''}`}>
@@ -217,6 +209,13 @@ export default function PtClasses() {
       </div>
       <p className="gcal-note">Chỉ hiện các lớp đã có người đăng ký ("Hiện lớp trống" để xem cả lớp chưa ai đặt). Xanh là còn chỗ, vàng gần đầy, đỏ đã đầy. Bấm vào một ca để xem danh sách học viên, điểm danh, hủy đăng ký và các thao tác của lớp.</p>
 
+      <div className="even-cols">
+      <Panel title="Hội viên PT nhóm" count={`${groupMembers.length} hội viên`} flush>
+        <DataTable columns={memberCols} rows={groupMembers} rowKey={(c) => c.id} loading={loading} error={error} emptyText="Chưa có hội viên PT nhóm" itemLabel="hội viên" />
+      </Panel>
+      </div>
+
+      <div style={{ height: 16 }} />
       <KpiRow>
         <Kpi value={`${bookedSlots} / ${totalSlots}`} label="Ca có người đăng ký" />
         <Kpi value={`${seatsTaken} / ${seatsAll}`} label="Chỗ đã đặt" note={`Mức lấp đầy ${seatsAll ? Math.round((seatsTaken / seatsAll) * 100) : 0}%`} />
@@ -237,14 +236,13 @@ export default function PtClasses() {
         <p className="gcal-note" style={{ padding: '0 16px 12px' }}>Ca đã dạy là ca đã kết thúc và có ít nhất một học viên đăng ký, không tính lượt hủy. Học viên (người) đếm theo số điện thoại, không đếm trùng.</p>
       </section>
 
+      {memberPopupId && <MemberProfilePopup id={memberPopupId} onClose={() => setMemberPopupId(null)} />}
       {detail && (
         <ClassDetailModal
           cls={detail}
           regs={regs.filter((r) => r.class.id === detail.id)}
           act={act}
           onClose={() => setDetailId(null)}
-          onRegister={() => setRegistering(detail)}
-          onEdit={() => { setEditing(detail); setDetailId(null) }}
         />
       )}
       {editing && <EditClassModal cls={editing} trainers={trainers} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); toast('Đã lưu lớp'); load() }} />}
@@ -258,7 +256,7 @@ export default function PtClasses() {
 function GridRow({ slot, days, today, items, regs, fillTone, onOpen }: { slot: string; days: string[]; today: string; items: GroupClass[]; regs: GroupReg[]; fillTone: (c: GroupClass) => string; onOpen: (id: string) => void }) {
   return (
     <>
-      <div className="gcal-time">{slot}</div>
+      <div className="gcal-time"><span>{hm(items[0]?.start_at, slot)}</span><span>- {hm(items[0]?.end_at)}</span></div>
       {days.map((d) => {
         const cell = items.filter((c) => localISO(new Date(c.start_at)) === d)
         return (
@@ -270,9 +268,8 @@ function GridRow({ slot, days, today, items, regs, fillTone, onOpen }: { slot: s
               return (
                 <button key={c.id} type="button" className={`gcal-card ${tone}${c.status === 'completed' ? ' done' : ''}`} onClick={() => onOpen(c.id)}>
                   <span className="gcal-title">{c.title}{c.muscle_group ? ` + ${c.muscle_group}` : ''}</span>
-                  <span className="gcal-pt">{c.trainer?.name ?? 'Chưa phân công'}</span>
-                  <span className="gcal-slots">{c.registered} / {c.capacity} chỗ</span>
-                  <span className="gcal-bar"><span style={{ width: `${Math.min(100, (c.registered / Math.max(1, c.capacity)) * 100)}%` }} /></span>
+                  <span className="gcal-pt">{ptName(c.trainer)}</span>
+                  <span className="gcal-bar">{Array.from({ length: Math.max(1, c.capacity) }, (_, k) => <span key={k} className={k < c.registered ? 'on' : ''} />)}</span>
                   <span className="gcal-chips">{mine.map((r) => <span key={r.id} className={`gcal-chip${r.status === 'absent' ? ' bad' : ''}`}>{r.name}</span>)}</span>
                 </button>
               )
@@ -284,8 +281,21 @@ function GridRow({ slot, days, today, items, regs, fillTone, onOpen }: { slot: s
   )
 }
 
-function ClassDetailModal({ cls, regs, act, onClose, onRegister, onEdit }: { cls: GroupClass; regs: GroupReg[]; act: (url: string, ok: string, body?: object) => void; onClose: () => void; onRegister: () => void; onEdit: () => void }) {
+function MemberProfilePopup({ id, onClose }: { id: string; onClose: () => void }) {
+  const [m, setM] = useState<Member | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    api.get<{ data: Member }>(`/members/${id}`).then((r) => setM(r.data.data)).catch((e) => setError(apiError(e).message))
+  }, [id])
+  if (error) return <Modal title="Hội viên" onClose={onClose} footer={<Button onClick={onClose}>Đóng</Button>}><div className="form-error" role="alert">{error}</div></Modal>
+  if (!m) return null
+  return <MemberProfile member={m} canEdit={false} onEdit={() => {}} onUpdated={(u) => setM((p) => (p ? { ...p, ...u } : p))} onClose={onClose} />
+}
+
+function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: GroupReg[]; act: (url: string, ok: string, body?: object) => void; onClose: () => void }) {
   const { can } = usePermission()
+  const { user } = useAuth()
+  const locked = Date.now() >= cancelLockAt(cls.start_at) && !user?.roles.some((r) => LOCK_OVERRIDE_ROLES.includes(r))
   const cols: Column<GroupReg>[] = [
     { key: 'name', header: 'Khách hàng', sortValue: (r) => r.name, render: (r) => <><span className="cell-main">{r.name}</span><div className="cell-sub">{r.phone}</div></> },
     { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => <Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip> },
@@ -302,7 +312,7 @@ function ClassDetailModal({ cls, regs, act, onClose, onRegister, onEdit }: { cls
             </>
           )}
           {(r.status === 'booked' || r.status === 'waitlist') && can('pt_sessions.cancel') && (
-            <Button small variant="danger" onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, r.status === 'waitlist' ? 'Đã bỏ khỏi danh sách chờ' : 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
+            <Button small variant="danger" disabled={locked} title={locked ? 'Chỉ hủy được trước 21:00 ngày hôm trước' : undefined} onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, r.status === 'waitlist' ? 'Đã bỏ khỏi danh sách chờ' : 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
           )}
         </span>
       ),
@@ -311,22 +321,26 @@ function ClassDetailModal({ cls, regs, act, onClose, onRegister, onEdit }: { cls
   const open = cls.status === 'scheduled'
   return (
     <Modal
-      title={`${cls.title}${cls.muscle_group ? ` - ${cls.muscle_group}` : ''}`}
+      title={`${cls.title}${cls.muscle_group ? ` - ${cls.muscle_group}` : ''} | ${ptName(cls.trainer)}`}
       size="large"
       onClose={onClose}
       footer={open ? (
         <>
           {can('pt_sessions.cancel') && <Button variant="danger" onClick={() => { act(`/pt/classes/${cls.id}/cancel`, 'Đã hủy lớp, đã trả buổi cho khách'); onClose() }}>Hủy lớp</Button>}
-          {can('pt_sessions.create') && <Button onClick={onEdit}>Sửa</Button>}
-          {can('pt_sessions.create') && <Button onClick={onRegister} disabled={cls.registered >= cls.capacity}>Đăng ký khách</Button>}
-          {can('pt_sessions.complete') && cls.trainer && <Button variant="primary" onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Đã dạy xong</Button>}
+          {can('pt_sessions.complete') && cls.trainer && <Button variant="primary" onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Hoàn thành</Button>}
         </>
       ) : undefined}
     >
-      <p className="cell-sub" style={{ marginBottom: 12 }}>
-        {fmtDateTime(cls.start_at)} - {fmtTime(cls.end_at)} · PT: {cls.trainer?.name ?? 'Chưa phân công'} · {cls.registered}/{cls.capacity} chỗ · <Chip tone={CLASS_STATUS[cls.status].tone}>{CLASS_STATUS[cls.status].label}</Chip>
-      </p>
-      <DataTable columns={cols} rows={regs} rowKey={(r) => r.id} emptyText="Chưa có khách đăng ký" itemLabel="lượt" />
+      <div className="table-wrap">
+        <table className="table">
+          <thead><tr>{cols.map((c) => <th key={c.key} className={c.numeric ? 'num' : ''}>{c.header}</th>)}</tr></thead>
+          <tbody>
+            {regs.length === 0
+              ? <tr><td colSpan={cols.length}><div className="empty">Chưa có khách đăng ký</div></td></tr>
+              : regs.map((r) => <tr key={r.id}>{cols.map((c) => <td key={c.key} className={c.numeric ? 'num' : ''}>{c.render(r)}</td>)}</tr>)}
+          </tbody>
+        </table>
+      </div>
     </Modal>
   )
 }

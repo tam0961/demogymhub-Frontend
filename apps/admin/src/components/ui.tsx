@@ -11,7 +11,7 @@
  * Format:   fmtMoney (700.000 d)  fmtDate (13/09/2026)  daysLeftText (Con n ngay)  fmtDateTime  fmtTime
  * Rules:    yellow only for primary action / active tab / active nav; all strings Vietnamese; React escapes user text.
  */
-import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { forwardRef, useLayoutEffect, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import type { Branch, ContractStatus, MemberStatus, PayStatus } from '../types'
 import { CONTRACT_STATUS, PAY_STATUS, initials, type ChipTone } from '../lib/format'
 
@@ -53,6 +53,32 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
   return <input ref={ref} className="input" aria-invalid={invalid || undefined} {...rest} />
 })
 
+const moneyFmt = new Intl.NumberFormat('vi-VN')
+
+export function MoneyInput({ value, onValueChange, ...rest }: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> & { value: string | number; onValueChange: (digits: string) => void; invalid?: boolean }) {
+  const ref = useRef<HTMLInputElement>(null)
+  const digits = String(value ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '')
+  const shown = digits ? `${moneyFmt.format(Number(digits))} ₫` : ''
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (el && document.activeElement === el && shown) el.setSelectionRange(shown.length - 2, shown.length - 2)
+  }, [shown])
+  return (
+    <Input
+      ref={ref}
+      {...rest}
+      inputMode="numeric"
+      value={shown}
+      onChange={(e) => {
+        const raw = e.target.value
+        let d = raw.replace(/\D/g, '')
+        if (d === digits && raw.length < shown.length) d = digits.slice(0, -1)
+        onValueChange(d)
+      }}
+    />
+  )
+}
+
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className="select" {...props} />
 }
@@ -83,12 +109,14 @@ interface SegmentedProps<T extends string> {
   value: T
   onChange: (v: T) => void
   ariaLabel: string
+  fill?: boolean
+  disabled?: boolean
 }
-export function Segmented<T extends string>({ options, value, onChange, ariaLabel }: SegmentedProps<T>) {
+export function Segmented<T extends string>({ options, value, onChange, ariaLabel, fill, disabled }: SegmentedProps<T>) {
   return (
-    <div className="segmented" role="group" aria-label={ariaLabel}>
+    <div className={`segmented${fill ? ' segmented-field' : ''}`} role="group" aria-label={ariaLabel}>
       {options.map((o) => (
-        <button key={o.value} type="button" className={`seg ${o.dot === 'all' ? 'seg-all' : ''}`} aria-pressed={o.value === value} onClick={() => onChange(o.value)}>
+        <button key={o.value} type="button" className={`seg ${o.dot === 'all' ? 'seg-all' : ''}`} aria-pressed={o.value === value} disabled={disabled} onClick={() => onChange(o.value)}>
           {o.dot && o.dot !== 'all' && <span className={`dot dot-${o.dot}`} aria-hidden="true" />}
           {o.label}
         </button>

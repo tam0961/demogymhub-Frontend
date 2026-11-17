@@ -8,7 +8,7 @@ import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { ConfirmDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
-import { BranchTag, Button, Chip, DataTable, Field, Input, PageHeader, Panel, Select, useToast, type Column } from '../components/ui'
+import { BranchTag, Button, Chip, DataTable, Field, Input, MoneyInput, PageHeader, Panel, Segmented, Select, useToast, type Column } from '../components/ui'
 import type { ListResp, PackageCategory, PackageType, Pkg } from '../types'
 
 const CALC_LABEL: Record<PackageType, string> = { day: 'Theo ngày', month: 'Theo tháng', session: 'Theo buổi' }
@@ -275,7 +275,7 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
           </Field>
         )}
         <Field label="Giá (đ)" htmlFor="p-price">
-          <Input id="p-price" type="number" min={0} required value={f.price} onChange={(e) => set('price', e.target.value)} />
+          <MoneyInput id="p-price" required value={f.price} onValueChange={(v) => set('price', v)} />
         </Field>
         <Field label="VAT (%)" htmlFor="p-vat">
           <Input id="p-vat" type="number" min={0} max={100} required value={f.vat_percent} onChange={(e) => set('vat_percent', e.target.value)} />
@@ -309,8 +309,8 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
         {target.mode === 'version' && (
           <fieldset className="full stack" style={{ border: 0, padding: 0, margin: 0 }}>
             <legend>Cách tạo</legend>
-            <label className="check"><input type="radio" name="p-mode" checked={f.deactivateOld === 'replace'} onChange={() => set('deactivateOld', 'replace')} />Thay thế gói cũ (vô hiệu hóa gói cũ)</label>
-            <label className="check"><input type="radio" name="p-mode" checked={f.deactivateOld === 'copy'} onChange={() => set('deactivateOld', 'copy')} />Chỉ sao chép (giữ cả hai gói đang bán)</label>
+            <Segmented<'replace' | 'copy'> fill ariaLabel="Cách tạo" value={f.deactivateOld} options={[{ value: 'replace', label: 'Thay thế gói cũ' }, { value: 'copy', label: 'Chỉ sao chép' }]} onChange={(v) => set('deactivateOld', v)} />
+            <span className="hint-muted">{f.deactivateOld === 'replace' ? 'Vô hiệu hóa gói cũ sau khi tạo gói mới.' : 'Giữ cả hai gói đang bán.'}</span>
           </fieldset>
         )}
       </form>

@@ -4,7 +4,10 @@ import { apiError } from '../lib/errors'
 import { CreateFlowError, STEP_LABEL, runCreateContract, type CreateOutcome } from '../lib/contracts'
 import { METHODS, METHOD_LABEL, PACKAGE_CATEGORIES, PACKAGE_CATEGORY, isPtCategory, fmtDate, fmtMoney, parseMoney, priceWithVat, todayISO } from '../lib/format'
 import { hasHsd, ptUsageDeadline, ptUsageMonths } from '../lib/pt'
-import { PROMO_OPTIONS, defaultStart, memberBanner, priceHint, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
+import { BANKS, bankReady, loadBank, transferContent, vietQrUrl } from '../lib/bank'
+import { createIpadSession, getIpadSession, ipadUrl, setIpadStage } from '../lib/ipad'
+import { QRImage } from '../components/QRImage'
+import { PROMO_OPTIONS, addDays, defaultStart, memberBanner, priceHint, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
 import type { ProcessedPhoto } from '../lib/photo'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
@@ -12,7 +15,7 @@ import { usePermission } from '../context/usePermission'
 import { SignaturePad } from '../components/SignaturePad'
 import { FaceModal } from '../components/FaceModal'
 import { MemberAvatar } from '../components/MemberAvatar'
-import { Button, Field, Input, Modal, Segmented, Select, Textarea, useToast } from '../components/ui'
+import { Button, Field, Input, Modal, MoneyInput, Segmented, Select, Textarea, useToast } from '../components/ui'
 import type { Gender, ListResp, Member, PayMethod, Pkg } from '../types'
 
 const pkgLabel = (p: Pkg) => `${p.name} - ${fmtMoney(priceWithVat(p.price, p.vat_percent))}`
@@ -34,12 +37,14 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const { can } = usePermission()
   const toast = useToast()
   const branches = useMemo(() => user?.branches ?? [], [user])
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [ipadToken, setIpadToken] = useState('')
+  const [ipadSigned, setIpadSigned] = useState(false)
   const [mode, setMode] = useState<'new' | 'existing'>(memberId ? 'existing' : 'new')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [gender, setGender] = useState<Gender | ''>('')
-  const [branch, setBranch] = useState(branchId ?? branches[0]?.id ?? '')
+  const [branch] = useState(branchId ?? branches[0]?.id ?? '')
   const [q, setQ] = useState('')
   const [results, setResults] = useState<Member[]>([])
   const [member, setMember] = useState<Member | null>(null)
@@ -51,6 +56,8 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const [promoValue, setPromoValue] = useState('')
   const [note, setNote] = useState('')
   const [paid, setPaid] = useState('')
+  const [paidTouched, setPaidTouched] = useState(false)
+  const [nextPay, setNextPay] = useState('')
   const [method, setMethod] = useState<PayMethod>('cash')
   const [photo, setPhoto] = useState<ProcessedPhoto | null>(null)
   const [faceId, setFaceId] = useState('')
@@ -107,7 +114,9 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const promoNum = parseMoney(promoValue)
   const promo: Promo | null = promoType && promoNum > 0 ? { type: promoType, value: promoNum } : null
   const promoErr = promoType === 'percent' && promoNum > 100 ? 'Tối đa 100%' : ''
-  const qt = quote(pkg, promo, parseMoney(paid), start)
+  const defaultPaid = quote(pkg, promo, 0, start).total
+  const qt = quote(pkg, promo, paidTouched ? parseMoney(paid) : defaultPaid, start)
+  const nextPayDate = nextPay || addDays(todayISO(), 25)
   const memberOk = existing ? !!member : name.trim().length > 1 && phone.trim().length >= 8
   const canNext = memberOk && !!pkg && !!start && !promoErr
   const who = existing ? member?.name ?? '' : name.trim()
@@ -165,6 +174,55 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     }
   }
 
+  const bank = loadBank()
+  const needsTransfer = (method === 'transfer' || method === 'vietqr') && qt.paid > 0
+  const content = transferContent(who, pkg?.name ?? '')
+  const bankName = BANKS.find((b) => b.code === bank.bank)?.name ?? bank.bank
+
+  useEffect(() => {
+    if (step === 1 || ipadToken) return
+    createIpadSession().then(setIpadToken).catch(() => setIpadToken(''))
+  }, [step, ipadToken])
+
+  useEffect(() => {
+    if (!ipadToken) return
+    if (step === 2 && pkg && bankReady(bank)) {
+      setIpadStage(ipadToken, 'pay', { amount: qt.paid, content, bankName, account: bank.account, holder: bank.holder, qrUrl: vietQrUrl(bank, qt.paid, content) }).catch(() => {})
+    } else if (step === 3 && pkg) {
+      const rows: [string, string][] = [
+        ['Họ và tên', who], ['Gói tập', pkg.name],
+        ['Thời hạn', `${fmtDate(start)}${qt.endDate ? ` đến ${fmtDate(qt.endDate)}` : `, ${qt.sessions ?? 0} buổi`}`],
+        ['Giá trị', fmtMoney(qt.total)], ['Đã thanh toán', fmtMoney(qt.paid)], ['Công nợ', fmtMoney(qt.remain)],
+      ]
+      setIpadSigned(false)
+      setIpadStage(ipadToken, 'sign', { title: 'Hợp đồng thành viên', rows }).catch(() => {})
+    } else {
+      setIpadStage(ipadToken, 'idle', null).catch(() => {})
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, ipadToken])
+
+  useEffect(() => {
+    if (!ipadToken || step !== 3) return
+    const id = window.setInterval(() => {
+      getIpadSession(ipadToken).then((r) => {
+        if (r.stage === 'signed' && r.signature) { setSig(r.signature); setConsent(true); setIpadSigned(true) }
+      }).catch(() => {})
+    }, 2000)
+    return () => window.clearInterval(id)
+  }, [ipadToken, step])
+
+  const ipadPanel = ipadToken ? (
+    <div className="ipad-box">
+      <QRImage text={ipadUrl(ipadToken)} size={110} />
+      <div>
+        <div className="cell-main">Mở trên iPad cho khách</div>
+        <div className="ipad-link hint-muted">{ipadUrl(ipadToken)}</div>
+        <Button small onClick={() => navigator.clipboard?.writeText(ipadUrl(ipadToken)).then(() => toast('Đã sao chép liên kết iPad')).catch(() => {})}>Sao chép liên kết</Button>
+      </div>
+    </div>
+  ) : null
+
   const footer =
     partial?.contractId ? (
       <>
@@ -174,11 +232,16 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     ) : step === 1 ? (
       <>
         <Button onClick={onClose}>Hủy</Button>
-        <Button variant="primary" disabled={!canNext} onClick={() => setStep(2)}>Tiếp tục</Button>
+        <Button variant="primary" disabled={!canNext} onClick={() => setStep(needsTransfer ? 2 : 3)}>Tiếp tục</Button>
+      </>
+    ) : step === 2 ? (
+      <>
+        <Button onClick={() => setStep(1)} disabled={busy}>Quay lại</Button>
+        <Button variant="primary" onClick={() => setStep(3)}>Đã nhận tiền, tiếp tục</Button>
       </>
     ) : (
       <>
-        <Button onClick={() => setStep(1)} disabled={busy}>Quay lại</Button>
+        <Button onClick={() => setStep(needsTransfer ? 2 : 1)} disabled={busy}>Quay lại</Button>
         <Button onClick={() => finish(false)} disabled={busy}>Bỏ qua, ký sau</Button>
         <Button variant="primary" disabled={busy || !sig || !consent} onClick={() => finish(true)}>{busy ? 'Đang xử lý...' : 'Hoàn tất'}</Button>
       </>
@@ -189,7 +252,8 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     <Modal title="Tạo hợp đồng mới" size="large" onClose={onClose} footer={footer}>
       <ol className="wiz-steps" aria-label="Các bước">
         <li aria-current={step === 1 ? 'step' : undefined}>1. Nhập thông tin</li>
-        <li aria-current={step === 2 ? 'step' : undefined}>2. Ký xác nhận</li>
+        {needsTransfer && <li aria-current={step === 2 ? 'step' : undefined}>2. Chuyển khoản</li>}
+        <li aria-current={step === 3 ? 'step' : undefined}>{needsTransfer ? 3 : 2}. Ký xác nhận</li>
       </ol>
       {err && <div className="form-error" role="alert" style={{ marginBottom: 12 }}>{err}</div>}
 
@@ -198,43 +262,31 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
           {existing && member && <div className="full info-ok" role="status">{memberBanner(member)}</div>}
           {!memberId && (
             <div className="full">
-              <Segmented ariaLabel="Loại hội viên" value={mode} onChange={(v) => { setMode(v); setMember(null) }} options={[{ value: 'new', label: 'Hội viên mới' }, { value: 'existing', label: 'Hội viên đã có' }]} />
+              <Segmented fill ariaLabel="Loại hội viên" value={mode} onChange={(v) => { setMode(v); setMember(null) }} options={[{ value: 'new', label: 'Hội viên mới' }, { value: 'existing', label: 'Hội viên đã có' }]} />
             </div>
           )}
-          {existing && !member && (
-            <div className="full stack">
-              {memberId ? <div className="hint-muted">Đang tải hội viên...</div> : (
-                <>
-                  <Field label="Tìm hội viên (tên, SĐT, mã)" htmlFor="cn-q"><Input id="cn-q" type="search" autoFocus value={q} onChange={(e) => setQ(e.target.value)} /></Field>
-                  <ul className="pick-list">
+          {(
+            <>
+              <Field label="Họ tên" htmlFor="cn-name">
+                <Input id="cn-name" required autoFocus readOnly={existing && !!member} placeholder={existing && !member ? 'Gõ tên, SĐT hoặc mã để tìm hội viên' : undefined} value={existing ? (member ? member.name : q) : name} onChange={(e) => (existing ? setQ(e.target.value) : setName(e.target.value))} />
+                {existing && !member && !memberId && q.trim().length >= 1 && (
+                  <ul className="pick-list pick-drop">
                     {results.map((m) => (
                       <li key={m.id}><button type="button" className="pick" onClick={() => setMember(m)}><b>{m.name}</b><span className="cell-sub">{m.code} - {m.phone}</span></button></li>
                     ))}
-                    {results.length === 0 && <li className="hint-muted">Không tìm thấy hội viên</li>}
+                    {results.length === 0 && <li className="hint-muted" style={{ padding: 8 }}>Không tìm thấy hội viên</li>}
                   </ul>
-                </>
-              )}
-            </div>
-          )}
-          {(!existing || member) && (
-            <>
-              <Field label="Họ tên" htmlFor="cn-name"><Input id="cn-name" required autoFocus={!existing} readOnly={existing} value={existing ? member?.name ?? '' : name} onChange={(e) => setName(e.target.value)} /></Field>
+                )}
+              </Field>
               <Field label="Số điện thoại" htmlFor="cn-phone"><Input id="cn-phone" type="tel" inputMode="tel" placeholder="0903123456" readOnly={existing} value={existing ? member?.phone ?? '' : phone} onChange={(e) => setPhone(e.target.value)} /></Field>
               <Field label="Giới tính" htmlFor="cn-gender">
-                <Select id="cn-gender" disabled={existing} value={existing ? member?.gender ?? '' : gender} onChange={(e) => setGender(e.target.value as Gender | '')}>
-                  <option value="">Chọn giới tính</option><option value="male">Nam</option><option value="female">Nữ</option><option value="other">Khác</option>
-                </Select>
-              </Field>
-              <Field label="Chi nhánh" htmlFor="cn-branch">
-                <Select id="cn-branch" disabled={existing} value={effBranch} onChange={(e) => setBranch(e.target.value)}>
-                  {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                </Select>
+                <Segmented<string> fill ariaLabel="Giới tính" disabled={existing} value={existing ? member?.gender ?? '' : gender} options={[{ value: 'male', label: 'Nam' }, { value: 'female', label: 'Nữ' }]} onChange={(v) => setGender((v === gender ? '' : v) as Gender | '')} />
               </Field>
               <div className="full face-row">
                 <div className="face-label">Ảnh và khuôn mặt</div>
                 <div className="face-line">
                   {photoThumb}
-                  <Button onClick={() => setFaceOpen(true)} disabled={existing && !can('members.update')}>Chụp ảnh, đăng ký khuôn mặt</Button>
+                  <Button onClick={() => setFaceOpen(true)} disabled={existing && (!member || !can('members.update'))}>Chụp ảnh, đăng ký khuôn mặt</Button>
                   <span className="hint-muted">{faceNote}</span>
                 </div>
                 <label className="check face-check"><input type="checkbox" disabled aria-describedby="cn-face-hint" />Đăng ký khuôn mặt lên máy chấm công khi hợp đồng có hiệu lực</label>
@@ -261,18 +313,8 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                     : 'Hạn sử dụng tính khi kích hoạt'}
                 </p>
               )}
-              <Field label="Khuyến mãi" htmlFor="cn-promo">
-                <Select id="cn-promo" value={promoType} onChange={(e) => { setPromoType(e.target.value as '' | PromoType); setPromoValue('') }}>
-                  {PROMO_OPTIONS.map((o) => <option key={o.value} value={o.value} disabled={!promoAllowed(o.value, pkg?.type)}>{o.label}</option>)}
-                </Select>
-              </Field>
-              {promoType && (
-                <Field label={promoLabel?.valueLabel ?? 'Giá trị'} htmlFor="cn-promo-val" error={promoErr}>
-                  <Input id="cn-promo-val" inputMode="numeric" invalid={!!promoErr} placeholder="0" value={promoValue} onChange={(e) => setPromoValue(e.target.value)} />
-                </Field>
-              )}
               <Field label="Thu ngay (đồng)" htmlFor="cn-paid" hint={`Thành tiền ${fmtMoney(qt.total)}`}>
-                <Input id="cn-paid" inputMode="numeric" placeholder="0" value={paid} onChange={(e) => setPaid(e.target.value)} />
+                <MoneyInput id="cn-paid" placeholder="0 ₫" value={paidTouched ? paid : defaultPaid ? String(defaultPaid) : ''} onValueChange={(v) => { setPaidTouched(true); setPaid(v) }} />
               </Field>
               <Field label="Ngày thanh toán" htmlFor="cn-pdate"><Input id="cn-pdate" type="date" readOnly value={todayISO()} /></Field>
               <Field label="Hình thức thanh toán" htmlFor="cn-method">
@@ -280,7 +322,23 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                   {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
                 </Select>
               </Field>
-              <Field label="Còn thiếu" htmlFor="cn-remain"><Input id="cn-remain" readOnly value={pkg && qt.remain === 0 ? 'Đã thu đủ' : fmtMoney(qt.remain)} /></Field>
+              <Field label="Công nợ" htmlFor="cn-remain"><Input id="cn-remain" readOnly value={pkg && qt.remain === 0 ? 'Đã thu đủ' : fmtMoney(qt.remain)} /></Field>
+              {qt.remain > 0 && (
+                <Field label="Ngày thanh toán tiếp theo" htmlFor="cn-next"><Input id="cn-next" type="date" min={todayISO()} value={nextPayDate} onChange={(e) => setNextPay(e.target.value)} /></Field>
+              )}
+              <div className="full cn-break" aria-hidden="true" />
+              <Field label="Khuyến mãi" htmlFor="cn-promo">
+                <Select id="cn-promo" value={promoType} onChange={(e) => { setPromoType(e.target.value as '' | PromoType); setPromoValue('') }}>
+                  {PROMO_OPTIONS.map((o) => <option key={o.value} value={o.value} disabled={!promoAllowed(o.value, pkg?.type)}>{o.label}</option>)}
+                </Select>
+              </Field>
+              {promoType && (
+                <Field label={promoLabel?.valueLabel ?? 'Giá trị'} htmlFor="cn-promo-val" error={promoErr}>
+                  {promoType === 'amount'
+                    ? <MoneyInput id="cn-promo-val" invalid={!!promoErr} placeholder="0 ₫" value={promoValue} onValueChange={setPromoValue} />
+                    : <Input id="cn-promo-val" inputMode="numeric" invalid={!!promoErr} placeholder="0" value={promoValue} onChange={(e) => setPromoValue(e.target.value)} />}
+                </Field>
+              )}
               {pkg && <p className="full hint-muted" id="cn-hint">{priceHint(pkg, qt)}</p>}
               <Field label="Ghi chú" htmlFor="cn-note" full><Textarea id="cn-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
             </>
@@ -289,6 +347,28 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
       )}
 
       {step === 2 && pkg && (
+        <div className="stack">
+          <div className="transfer-step">
+            {bankReady(bank) ? (
+              <>
+                <img className="transfer-qr" src={vietQrUrl(bank, qt.paid, content)} alt="Mã QR chuyển khoản" width={260} height={260} />
+                <dl className="kv">
+                  <dt>Ngân hàng</dt><dd>{bankName}</dd>
+                  <dt>Số tài khoản</dt><dd><b>{bank.account}</b></dd>
+                  <dt>Chủ tài khoản</dt><dd>{bank.holder}</dd>
+                  <dt>Số tiền</dt><dd><b>{fmtMoney(qt.paid)}</b></dd>
+                  <dt>Nội dung</dt><dd><b>{content}</b></dd>
+                </dl>
+              </>
+            ) : (
+              <div className="form-error" role="alert">Chưa cài đặt tài khoản ngân hàng của công ty. Vào Cài đặt, mục Tài khoản ngân hàng để nhập, rồi quay lại tạo hợp đồng.</div>
+            )}
+          </div>
+          {ipadPanel}
+          <p className="hint-muted">Khách quét mã để chuyển khoản (trên màn hình này hoặc trên iPad). Khi tiền đã về tài khoản, bấm "Đã nhận tiền, tiếp tục".</p>
+        </div>
+      )}
+      {step === 3 && pkg && (
         <div className="stack">
           <div className="contract-sheet">
             <h3>TH Gym &amp; Fitness, hợp đồng thành viên</h3>
@@ -300,12 +380,14 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
               <dt>Giá trị</dt><dd>{fmtMoney(qt.total)}{qt.discount > 0 ? ` (đã giảm ${fmtMoney(qt.discount)})` : ''}</dd>
               {promo && <><dt>Khuyến mãi</dt><dd>{promoLabel?.label}: {promoNum.toLocaleString('vi-VN')}</dd></>}
               <dt>Đã thanh toán</dt><dd>{fmtMoney(qt.paid)}{qt.paid > 0 ? `, ${METHOD_LABEL[method]}` : ''}</dd>
-              <dt>Còn thiếu</dt><dd>{fmtMoney(qt.remain)}</dd>
+              <dt>Công nợ</dt><dd>{fmtMoney(qt.remain)}</dd>
+              {qt.remain > 0 && <><dt>Thanh toán tiếp theo</dt><dd>{fmtDate(nextPayDate)}</dd></>}
             </dl>
           </div>
+          {ipadPanel}
           <div>
             <div className="sig-label">Chữ ký của {who}</div>
-            <SignaturePad onChange={setSig} />
+            {ipadSigned && sig ? <div className="info-ok" role="status">Khách đã ký trên iPad. <img src={sig} alt="Chữ ký" style={{ height: 60, verticalAlign: 'middle' }} /></div> : <SignaturePad onChange={setSig} />}
           </div>
           <label className="check"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />Hội viên đã đọc và đồng ý với điều khoản hợp đồng và nội quy phòng tập.</label>
         </div>

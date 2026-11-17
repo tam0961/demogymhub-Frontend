@@ -8,7 +8,7 @@ import { useBranch } from '../context/BranchContext'
 import { useShift } from '../context/ShiftContext'
 import { Modal } from '../components/Modal'
 import { PendingPanel } from '../components/PayModal'
-import { Button, Chip, DataTable, Icon, Kpi, KpiRow, PageHeader, Select, type Column } from '../components/ui'
+import { Button, Chip, DataTable, Icon, Kpi, KpiRow, PageHeader, Segmented, Select, type Column } from '../components/ui'
 import type { PayMethod, Payment } from '../types'
 
 export function paymentsToCSV(rows: Payment[]) {
@@ -90,10 +90,7 @@ export default function Payments() {
           <option value="">Mọi trạng thái</option>
           {Object.entries(PAY_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </Select>
-        <Select aria-label="Ca" value={shiftOnly ? 'cur' : ''} onChange={(e) => setShiftOnly(e.target.value === 'cur')}>
-          <option value="">Tất cả ca</option>
-          <option value="cur" disabled={!shift}>Ca hiện tại</option>
-        </Select>
+        <Segmented<string> fill ariaLabel="Ca" value={shiftOnly ? 'cur' : ''} options={[{ value: '', label: 'Tất cả ca' }, { value: 'cur', label: 'Ca hiện tại' }]} onChange={(v) => { if (v === 'cur' && !shift) return; setShiftOnly(v === 'cur') }} />
         <div className="grow">
           <Button onClick={() => downloadBlob(new Blob(['﻿' + paymentsToCSV(filtered)], { type: 'text/csv;charset=utf-8' }), 'phieu-thu.csv')} disabled={filtered.length === 0}><Icon name="download" size={16} />Xuất CSV</Button>
         </div>

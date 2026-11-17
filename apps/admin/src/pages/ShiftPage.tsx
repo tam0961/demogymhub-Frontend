@@ -4,7 +4,7 @@ import { apiError } from '../lib/errors'
 import { METHODS, METHOD_LABEL, diffTone, fmtDateTime, fmtMoney, parseMoney } from '../lib/format'
 import { useShift } from '../context/ShiftContext'
 import { usePermission } from '../context/usePermission'
-import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, useToast, type Column } from '../components/ui'
+import { Button, Chip, DataTable, Field, Kpi, MoneyInput, KpiRow, PageHeader, Panel, useToast, type Column } from '../components/ui'
 import type { ListResp, Payment, ShiftClose } from '../types'
 
 export default function ShiftPage() {
@@ -96,7 +96,7 @@ export default function ShiftPage() {
           <form className="stack narrow" onSubmit={close}>
             {err && <div className="form-error" role="alert">{err}</div>}
             <Field label="Tiền mặt đếm được (đồng)" htmlFor="sc-cash">
-              <Input id="sc-cash" inputMode="numeric" required value={counted} onChange={(e) => setCounted(e.target.value)} />
+              <MoneyInput id="sc-cash" required value={counted} onValueChange={setCounted} />
             </Field>
             <div><Button variant="primary" type="submit" disabled={busy || counted === ''}>{busy ? 'Đang đóng...' : 'Đóng ca'}</Button></div>
           </form>
