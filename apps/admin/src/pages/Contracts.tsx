@@ -63,7 +63,15 @@ export default function Contracts() {
       key: 'total', header: 'Giá trị', numeric: true, sortValue: (c) => c.total_amount,
       render: (c) => <><div className="cell-main">{c.bundle_of_id && c.total_amount === 0 ? <span className="hint-muted">Kèm gói PT</span> : fmtMoney(c.total_amount)}</div><div className="cell-sub">{c.last_payment_method ? METHOD_LABEL[c.last_payment_method] : ''}</div></>,
     },
-    { key: 'debt', header: 'Còn nợ', numeric: true, sortValue: (c) => c.debt_amount, render: (c) => (c.debt_amount > 0 ? <span className="text-bad cell-main">{fmtMoney(c.debt_amount)}</span> : <span className="hint-muted">-</span>) },
+    {
+      key: 'debt', header: 'Còn nợ', numeric: true, sortValue: (c) => c.debt_amount,
+      render: (c) => (
+        <>
+          <div className="cell-main">{c.debt_amount > 0 ? <span className="text-bad">{fmtMoney(c.debt_amount)}</span> : <span className="hint-muted">-</span>}</div>
+          <div className="cell-sub">{c.last_paid_at ? `TT ${fmtDate(c.last_paid_at)}` : 'Chưa thanh toán'}</div>
+        </>
+      ),
+    },
     { key: 'status', header: 'Trạng thái', sortValue: (c) => contractStatusLabel(c).label, render: (c) => { const s = contractStatusLabel(c); return <Chip tone={s.tone}>{s.label}</Chip> } },
   ]
 
@@ -84,7 +92,7 @@ export default function Contracts() {
           <Button onClick={exportCsv} disabled={filtered.length === 0}><Icon name="download" size={16} />Xuất CSV</Button>
         </div>
       </div>
-      <div className="card">
+      <div className="card contracts-table">
         <DataTable
           columns={columns}
           rows={filtered}

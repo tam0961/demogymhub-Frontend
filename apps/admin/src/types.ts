@@ -133,6 +133,7 @@ export interface Contract {
   bundle_of_id?: string | null
   bundled_contracts?: BundledContract[]
   last_payment_method?: PayMethod | null
+  last_paid_at?: string | null
   branch?: Branch | null
   events?: ContractEvent[]
   payments?: Payment[]
