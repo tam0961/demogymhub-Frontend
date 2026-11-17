@@ -35,6 +35,7 @@ export interface PtContract {
   code: string
   status: ContractStatus
   package_name: string
+  package_category?: PackageCategory
   start_date: string | null
   end_date: string | null
   sessions_total: number | null
@@ -42,12 +43,12 @@ export interface PtContract {
   usage_deadline: string | null
   usage_valid: boolean
 }
-export type PtReason = 'MEMBER_PACKAGE_EXPIRED' | 'NO_PT_PACKAGE' | 'PT_USAGE_EXPIRED'
+export type PtReason = 'MEMBER_PACKAGE_EXPIRED' | 'NO_PT_PACKAGE' | 'PT_USAGE_EXPIRED' | 'PT_PACKAGE_EXPIRED'
 export interface PtEligibility {
   eligible: boolean
   reasons: PtReason[]
   member_package: { ok: boolean; contract_code: string | null; end_date: string | null }
-  pt_package: { ok: boolean; contract_code: string | null; end_date: string | null; usage_deadline: string | null; sessions_left: number | null }
+  pt_package: { category?: PackageCategory | null; ok: boolean; contract_code: string | null; end_date: string | null; usage_deadline: string | null; sessions_left: number | null }
 }
 export interface CurrentContract {
   id: string

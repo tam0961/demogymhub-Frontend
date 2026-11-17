@@ -131,13 +131,13 @@ function ptOf(memberId: string) {
   const cs = contracts.filter((c) => c.member_id === memberId && isPt(c) && !['draft', 'signed', 'cancelled'].includes(c.status))
   return ORDER.map((st) => cs.find((c) => c.status === st)).find(Boolean) ?? null
 }
-const usageDeadlineOf = (c: Contract) => ptUsageDeadline(c.end_date, c.sessions_total)
+const usageDeadlineOf = (c: Contract) => (c.package.category === 'pt_1on1' ? ptUsageDeadline(c.end_date, c.sessions_total) : null)
 function ptOut(c: Contract): PtContract {
   const dl = usageDeadlineOf(c)
   return {
     id: c.id, code: c.code, status: c.status, package_name: c.package.name, start_date: c.start_date, end_date: c.end_date,
-    sessions_total: c.sessions_total, sessions_left: c.sessions_left, usage_deadline: dl,
-    usage_valid: ['active', 'expired'].includes(c.status) && (dl ? dl >= day(0) : true),
+    package_category: c.package.category, sessions_total: c.sessions_total, sessions_left: c.sessions_left, usage_deadline: dl,
+    usage_valid: c.package.category === 'pt_1on1' ? ['active', 'expired'].includes(c.status) && (dl ? dl >= day(0) : true) : c.status === 'active' && (c.end_date ? c.end_date >= day(0) : true),
   }
 }
 function eligibilityOf(memberId: string): PtEligibility {
@@ -148,12 +148,12 @@ function eligibilityOf(memberId: string): PtEligibility {
   const reasons: PtEligibility['reasons'] = []
   if (!memberOk) reasons.push('MEMBER_PACKAGE_EXPIRED')
   if (!pt) reasons.push('NO_PT_PACKAGE')
-  else if (!pt.usage_valid) reasons.push('PT_USAGE_EXPIRED')
+  else if (!pt.usage_valid) reasons.push(pt.package_category === 'pt_1on1' ? 'PT_USAGE_EXPIRED' : 'PT_PACKAGE_EXPIRED')
   return {
     eligible: reasons.length === 0,
     reasons,
     member_package: { ok: memberOk, contract_code: mc?.code ?? null, end_date: mc?.end_date ?? null },
-    pt_package: { ok: !!pt?.usage_valid, contract_code: pc?.code ?? null, end_date: pc?.end_date ?? null, usage_deadline: pt?.usage_deadline ?? null, sessions_left: pc?.sessions_left ?? null },
+    pt_package: { category: pt?.package_category ?? null, ok: !!pt?.usage_valid, contract_code: pc?.code ?? null, end_date: pc?.end_date ?? null, usage_deadline: pt?.usage_deadline ?? null, sessions_left: pc?.sessions_left ?? null },
   }
 }
 const photos = new Map<string, { content_type: string; image_base64: string; version: number }>()
@@ -177,7 +177,7 @@ function memberOut(m: Member): Member {
 function contractOut(c: Contract): Contract {
   const last = payments.filter((p) => p.contract_id === c.id && p.status === 'confirmed').sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
   const bundled: BundledContract[] = contracts.filter((x) => x.bundle_of_id === c.id).map((x) => ({ id: x.id, code: x.code, status: x.status, start_date: x.start_date, end_date: x.end_date, package: x.package }))
-  return { ...c, bundle_of_id: c.bundle_of_id ?? null, bundled_contracts: isPt(c) ? bundled : undefined, usage_deadline: isPt(c) ? usageDeadlineOf(c) : undefined, last_payment_method: last?.method ?? null, branch: branches.find((b) => b.id === c.branch_id) ?? null }
+  return { ...c, bundle_of_id: c.bundle_of_id ?? null, bundled_contracts: isPt(c) ? bundled : undefined, usage_deadline: c.package.category === 'pt_1on1' ? usageDeadlineOf(c) : undefined, last_payment_method: last?.method ?? null, branch: branches.find((b) => b.id === c.branch_id) ?? null }
 }
 function log(actor: string, action: string, resource: string, result = 'ALLOW', ago = 0) {
   audit.unshift({ id: nid('a'), actor_email: actor, actor, action, resource, result, ip: '127.0.0.1', created_at: new Date(Date.now() - ago).toISOString() })

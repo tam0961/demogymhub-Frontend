@@ -139,3 +139,14 @@ describe('copy mode', () => {
     expect(body.name).toBe('Gói 1 tháng')
   })
 })
+
+describe('HSD only for PT 1:1', () => {
+  it('HSD column and rule note only in the PT 1:1 box', async () => {
+    page()
+    await screen.findByText('PT 10 buổi')
+    expect(screen.getAllByRole('columnheader', { name: /^HSD/ })).toHaveLength(1)
+    expect(screen.getByText('+3 tháng sau hết hạn')).toBeTruthy()
+    expect(screen.getAllByText(/Chỉ áp dụng cho gói PT 1:1/)).toHaveLength(1)
+    expect(screen.queryByText(/Dùng thêm/)).toBeNull()
+  })
+})

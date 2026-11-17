@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { GENDER_LABEL, METHOD_LABEL, downloadBlob, fmtDate, fmtDateTime, fmtMoney, daysLeftText, memberStatus, toCSV, CONTRACT_STATUS, PT_REASON } from '../lib/format'
+import { hasHsd } from '../lib/pt'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
@@ -44,10 +45,17 @@ export function PtCell({ m }: { m: Member }) {
       <div className="cell-main">{pt.package_name}</div>
       <div className="cell-sub">{pt.sessions_left ?? 0}/{pt.sessions_total ?? 0} buổi</div>
       <div className="cell-sub">Hết hạn {fmtDate(pt.end_date)}</div>
-      <div className="cell-sub">
-        Hạn sử dụng {pt.usage_deadline ? `đến ${fmtDate(pt.usage_deadline)}` : 'Không giới hạn'}{' '}
-        {pt.usage_valid ? <Chip tone="ok">Còn hạn sử dụng</Chip> : <Chip tone="bad">Quá hạn sử dụng</Chip>}
-      </div>
+    </div>
+  )
+}
+
+export function HsdCell({ m }: { m: Member }) {
+  const pt = m.pt_contract
+  if (!pt || !hasHsd(pt.package_category)) return <span className="hint-muted">-</span>
+  return (
+    <div>
+      <div>{pt.usage_deadline ? fmtDate(pt.usage_deadline) : 'Không giới hạn'}</div>
+      {pt.usage_valid ? <Chip tone="ok">Còn HSD</Chip> : <Chip tone="bad">Quá HSD</Chip>}
     </div>
   )
 }
@@ -78,19 +86,20 @@ export function memberColumns(showBranch: boolean, branchOf: (m: Member) => Bran
       render: (m) => (m.current_contract?.end_date ? <><div className="cell-main">{fmtDate(m.current_contract.end_date)}</div><div className="cell-sub">{daysLeftText(m.current_contract.end_date)}</div></> : <span className="hint-muted">-</span>),
     },
     { key: 'pt', header: 'Gói PT', sortValue: (m) => m.pt_contract?.package_name, render: (m) => <PtCell m={m} /> },
+    { key: 'hsd', header: 'HSD', sortValue: (m) => (hasHsd(m.pt_contract?.package_category) ? m.pt_contract?.usage_deadline : null), render: (m) => <HsdCell m={m} /> },
   )
   return cols
 }
 
 export function membersCsvRows(rows: Member[], showBranch: boolean, branchOf: (m: Member) => Branch | undefined) {
-  const head = ['Mã', 'Họ tên', 'Số điện thoại', 'Giới tính', 'Trạng thái', ...(showBranch ? ['Chi nhánh'] : []), 'Gói hiện tại', 'Mã hợp đồng', 'Ngày đăng ký', 'Hết hạn', 'Gói PT', 'Số buổi PT', 'Hết hạn gói PT', 'Hạn sử dụng gói PT', 'Tình trạng hạn sử dụng PT']
+  const head = ['Mã', 'Họ tên', 'Số điện thoại', 'Giới tính', 'Trạng thái', ...(showBranch ? ['Chi nhánh'] : []), 'Gói hiện tại', 'Mã hợp đồng', 'Ngày đăng ký', 'Hết hạn', 'Gói PT', 'Số buổi PT', 'Hết hạn gói PT', 'HSD', 'Tình trạng HSD']
   const body = rows.map((m) => {
     const pt = m.pt_contract
     return [
       m.code, m.name, m.phone, m.gender ? GENDER_LABEL[m.gender] : '', statusOf(m).label, ...(showBranch ? [branchOf(m)?.name ?? ''] : []),
       m.current_contract?.package_name ?? '', m.current_contract?.code ?? '', fmtDate(m.created_at), fmtDate(m.current_contract?.end_date),
       pt?.package_name ?? '', pt ? `${pt.sessions_left ?? 0}/${pt.sessions_total ?? 0}` : '', pt ? fmtDate(pt.end_date) : '',
-      pt ? (pt.usage_deadline ? fmtDate(pt.usage_deadline) : 'Không giới hạn') : '', pt ? (pt.usage_valid ? 'Còn hạn sử dụng' : 'Quá hạn sử dụng') : '',
+      pt && hasHsd(pt.package_category) ? (pt.usage_deadline ? fmtDate(pt.usage_deadline) : 'Không giới hạn') : '', pt && hasHsd(pt.package_category) ? (pt.usage_valid ? 'Còn HSD' : 'Quá HSD') : '',
     ]
   })
   return [head, ...body]
@@ -109,6 +118,8 @@ export function PtEligibilityPanel({ memberId }: { memberId: string }) {
     return () => { alive = false }
   }, [memberId])
 
+  const cat = data?.pt_package.category
+  const usesHsd = cat ? hasHsd(cat) : data?.pt_package.usage_deadline != null
   return (
     <section className="pt-elig" aria-label="Điều kiện xếp lịch PT">
       <h3 className="prof-sec">Điều kiện xếp lịch PT</h3>
@@ -127,10 +138,10 @@ export function PtEligibilityPanel({ memberId }: { memberId: string }) {
           </div>
           <div className="prof-row">
             <div>
-              <div>Gói PT còn trong hạn sử dụng</div>
+              <div>{usesHsd ? 'Gói PT còn trong hạn sử dụng' : 'Gói PT còn hạn'}</div>
               <div className="cell-sub">
                 {data.pt_package.contract_code
-                  ? `${data.pt_package.contract_code}, hạn sử dụng ${data.pt_package.usage_deadline ? `đến ${fmtDate(data.pt_package.usage_deadline)}` : 'không giới hạn'}, còn ${data.pt_package.sessions_left ?? 0} buổi`
+                  ? `${data.pt_package.contract_code}, ${usesHsd ? `hạn sử dụng ${data.pt_package.usage_deadline ? `đến ${fmtDate(data.pt_package.usage_deadline)}` : 'không giới hạn'}` : `hết hạn ${fmtDate(data.pt_package.end_date)}`}, còn ${data.pt_package.sessions_left ?? 0} buổi`
                   : 'Chưa có gói PT'}
               </div>
             </div>

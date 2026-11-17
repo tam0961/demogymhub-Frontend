@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { api } from '../lib/api'
 import { PACKAGE_CATEGORIES, PACKAGE_CATEGORY, fmtMoney, isPtCategory } from '../lib/format'
 import { BOX_ORDER, IN_USE_TITLE, bundleText, changedFields, groupPackages, packageError, termText, type PkgForm } from '../lib/packages'
-import { PT_RULE_HINT, ptUsageMonths } from '../lib/pt'
+import { PT_RULE_HINT, hasHsd, hsdRuleText } from '../lib/pt'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
@@ -35,9 +35,10 @@ export function PackageBoxes({ rows, showInactive, q, canEdit, canCreate, action
       { key: 'price', header: 'Giá', numeric: true, sortValue: (p) => p.price, render: (p) => <>{fmtMoney(p.price)}<div className="cell-sub">đã gồm VAT {p.vat_percent}%</div></> },
       {
         key: 'term', header: pt ? 'Số buổi' : 'Thời hạn', sortValue: (p) => (p.type === 'session' ? p.sessions : p.duration_days),
-        render: (p) => <span title={pt ? PT_RULE_HINT : undefined}>{termText(p)}{pt && <div className="cell-sub">Dùng thêm {ptUsageMonths(p.sessions)} tháng sau hết hạn</div>}</span>,
+        render: (p) => termText(p),
       },
     ]
+    if (hasHsd(cat)) cols.push({ key: 'hsd', header: 'HSD', sortValue: (p) => p.sessions, render: (p) => hsdRuleText(p.sessions) })
     if (pt) cols.push({ key: 'bundle', header: 'Gói member đi kèm', render: (p) => (p.bundled_member_package ? bundleText(p.bundled_member_package) : <Chip tone="warn">Chưa gắn</Chip>) })
     if ((user?.branches.length ?? 0) > 1) cols.push({ key: 'branch', header: 'Chi nhánh', render: (p) => <BranchTag branch={user?.branches.find((b) => b.id === p.branch_id)} /> })
     cols.push(
@@ -62,7 +63,8 @@ export function PackageBoxes({ rows, showInactive, q, canEdit, canCreate, action
     <div className="stack">
       {BOX_ORDER.map((cat) => (
         <Panel key={cat} title={PACKAGE_CATEGORY[cat]} count={<>{groups[cat].length} gói {canCreate && <Button small onClick={() => actions.onAdd(cat)}>Thêm gói</Button>}</>} flush>
-          {cat !== 'member' && <div className="panel-note">{PT_RULE_HINT} Gói PT đi kèm một gói member: khi bán gói PT, hệ thống tự gán gói member đó cho khách.</div>}
+          {hasHsd(cat) && <div className="panel-note">{PT_RULE_HINT}</div>}
+          {cat !== 'member' && <div className="panel-note">Gói PT đi kèm một gói member: khi bán gói PT, hệ thống tự gán gói member đó cho khách.</div>}
           <DataTable
             columns={columnsFor(cat)}
             rows={groups[cat]}
@@ -237,7 +239,7 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
         <Field label="Tên gói" htmlFor="p-name" full>
           <Input id="p-name" required value={f.name} onChange={(e) => set('name', e.target.value)} />
         </Field>
-        <Field label="Loại gói" htmlFor="p-category" hint={pt ? PT_RULE_HINT : undefined}>
+        <Field label="Loại gói" htmlFor="p-category" hint={hasHsd(f.category) ? PT_RULE_HINT : undefined}>
           <Select id="p-category" value={f.category} onChange={(e) => set('category', e.target.value as PackageCategory)}>
             {PACKAGE_CATEGORIES.map((c) => <option key={c} value={c}>{PACKAGE_CATEGORY[c]}</option>)}
           </Select>

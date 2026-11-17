@@ -3,7 +3,7 @@ import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { CreateFlowError, STEP_LABEL, runCreateContract, type CreateOutcome } from '../lib/contracts'
 import { METHODS, METHOD_LABEL, PACKAGE_CATEGORIES, PACKAGE_CATEGORY, isPtCategory, fmtDate, fmtMoney, parseMoney, priceWithVat, todayISO } from '../lib/format'
-import { ptUsageDeadline, ptUsageMonths } from '../lib/pt'
+import { hasHsd, ptUsageDeadline, ptUsageMonths } from '../lib/pt'
 import { PROMO_OPTIONS, defaultStart, memberBanner, priceHint, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
 import type { ProcessedPhoto } from '../lib/photo'
 import { useAuth } from '../context/AuthContext'
@@ -254,7 +254,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
               <Field label="Ngày hết hạn" htmlFor="cn-end">
                 <Input id="cn-end" readOnly value={pkg ? (qt.endDate ? fmtDate(qt.endDate) : 'Tính khi kích hoạt') : ''} />
               </Field>
-              {pkg && isPtCategory(pkg.category) && (
+              {pkg && hasHsd(pkg.category) && (
                 <p className="full hint-muted" id="cn-pt-usage">
                   {qt.endDate
                     ? `Hạn sử dụng gói PT: ${fmtDate(ptUsageDeadline(qt.endDate, qt.sessions ?? pkg.sessions))} (hết hạn + ${ptUsageMonths(qt.sessions ?? pkg.sessions)} tháng)`

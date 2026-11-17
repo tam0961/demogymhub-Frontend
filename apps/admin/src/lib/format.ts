@@ -62,6 +62,7 @@ export const PT_REASON: Record<PtReason, string> = {
   MEMBER_PACKAGE_EXPIRED: 'Gói member đã hết hạn',
   NO_PT_PACKAGE: 'Chưa có gói PT',
   PT_USAGE_EXPIRED: 'Đã quá hạn sử dụng gói PT',
+  PT_PACKAGE_EXPIRED: 'Gói PT đã hết hạn',
 }
 export const GENDER_LABEL = { male: 'Nam', female: 'Nữ', other: 'Khác' } as const
 export const parseMoney = (s: string) => Number(s.replace(/[^\d]/g, '')) || 0

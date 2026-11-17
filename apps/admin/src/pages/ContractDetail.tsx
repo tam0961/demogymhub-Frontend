@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, isPtCategory, contractActions, daysLeftText, downloadBlob, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
-import { PT_RULE_HINT } from '../lib/pt'
+import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, downloadBlob, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
+import { PT_RULE_HINT, hasHsd } from '../lib/pt'
 import { usePermission } from '../context/usePermission'
 import { FormDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
@@ -160,7 +160,7 @@ export default function ContractDetail() {
         <Kpi value={c.bundle_of_id && c.total_amount === 0 ? 'Kèm gói PT' : fmtMoney(c.total_amount)} label="Giá trị" />
         <Kpi value={fmtMoney(c.paid_amount)} label="Đã thu" />
         <Kpi value={<span className={c.debt_amount > 0 ? 'text-bad' : ''}>{fmtMoney(c.debt_amount)}</span>} label="Còn nợ" />
-        {isPtCategory(c.package.category) && <Kpi value={c.usage_deadline ? fmtDate(c.usage_deadline) : '-'} label="Hạn sử dụng gói PT" />}
+        {hasHsd(c.package.category) && <Kpi value={c.usage_deadline ? fmtDate(c.usage_deadline) : '-'} label="Hạn sử dụng gói PT" />}
         <Kpi value={c.sessions_total != null ? `${c.sessions_left ?? 0}/${c.sessions_total}` : daysLeftText(c.end_date) || '-'} label={c.sessions_total != null ? 'Số buổi còn' : 'Thời hạn còn lại'} />
       </KpiRow>
 
@@ -171,7 +171,7 @@ export default function ContractDetail() {
             <dt>Dịch vụ</dt><dd>{c.package.name} <Chip>{categoryLabel(c.package.category)}</Chip></dd>
             <dt>Bắt đầu</dt><dd>{fmtDate(c.start_date)}</dd>
             <dt>Kết thúc</dt><dd>{fmtDate(c.end_date)}</dd>
-            {isPtCategory(c.package.category) && (<><dt>Hạn sử dụng gói PT</dt><dd>{c.usage_deadline ? fmtDate(c.usage_deadline) : '-'}<div className="cell-sub">{PT_RULE_HINT}</div></dd></>)}
+            {hasHsd(c.package.category) && (<><dt>Hạn sử dụng gói PT</dt><dd>{c.usage_deadline ? fmtDate(c.usage_deadline) : '-'}<div className="cell-sub">{PT_RULE_HINT}</div></dd></>)}
             {c.frozen_until && (<><dt>Bảo lưu đến</dt><dd>{fmtDate(c.frozen_until)}</dd></>)}
             <dt>Giảm giá</dt><dd>{fmtMoney(c.discount)}</dd>
             {c.note && (<><dt>Ghi chú</dt><dd>{c.note}</dd></>)}

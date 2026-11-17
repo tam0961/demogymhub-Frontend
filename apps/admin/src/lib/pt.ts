@@ -19,4 +19,6 @@ export function ptUsageDeadline(endDate: string | null | undefined, sessions: nu
   return endDate ? addMonths(endDate, ptUsageMonths(sessions)) : null
 }
 
-export const PT_RULE_HINT = 'Hạn sử dụng = ngày hết hạn + 3 tháng (từ 30 buổi trở xuống) hoặc + 6 tháng (trên 30 buổi).'
+export const PT_RULE_HINT = 'Chỉ áp dụng cho gói PT 1:1: HSD = ngày hết hạn + 3 tháng (từ 30 buổi trở xuống) hoặc + 6 tháng (trên 30 buổi).'
+export const hasHsd = (category: string | null | undefined) => category === 'pt_1on1'
+export const hsdRuleText = (sessions: number | null | undefined) => `+${ptUsageMonths(sessions)} tháng sau hết hạn`
