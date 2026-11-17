@@ -7,6 +7,7 @@ import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
 import { PtBookModal } from '../components/PtBookModal'
 import { Button, Input, Kpi, KpiRow, Segmented, useToast } from '../components/ui'
+import { isLateCancel } from '../lib/pt'
 import type { PtSession, PtStatus } from '../types'
 
 interface Trainer { id: string; name: string }
@@ -44,7 +45,7 @@ const cardState = (s: PtSession): CardState => {
 
 export default function PtOne() {
   const { branchId } = useBranch()
-  const { can } = usePermission()
+  const { can, hasRole } = usePermission()
   const toast = useToast()
   const [mode, setMode] = useState<Mode>('day')
   const [day, setDay] = useState(localISO(new Date()))
@@ -54,6 +55,10 @@ export default function PtOne() {
   const [adding, setAdding] = useState<{ trainerId?: string; date?: string; time?: string } | null>(null)
   const [assigning, setAssigning] = useState<PtSession | null>(null)
   const [picked, setPicked] = useState<PtSession | null>(null)
+  const [editing, setEditing] = useState<PtSession | null>(null)
+  const [cancelling, setCancelling] = useState<PtSession | null>(null)
+  const [free, setFree] = useState(false)
+  const canOverride = hasRole('super_admin') || hasRole('owner') || hasRole('branch_manager')
 
   const from = mode === 'day' ? day : mondayOf(day)
   const to = mode === 'day' ? day : addDays(from, 6)
@@ -88,11 +93,13 @@ export default function PtOne() {
   const slots = Array.from({ length: Math.round((maxEnd - minStart) / 30) }, (_, i) => minStart + i * 30)
 
   const live = rows.filter((r) => r.status !== 'cancelled')
-  const act = async (s: PtSession, kind: 'complete' | 'cancel') => {
+  const isLate = (s: PtSession) => !!s.member && isLateCancel(s.start_at)
+  const act = async (s: PtSession, kind: 'complete' | 'cancel' | 'no-show', body?: object) => {
     try {
-      await api.post(`/pt/sessions/${s.id}/${kind}`)
-      toast(kind === 'complete' ? 'Đã xác nhận buổi tập' : 'Đã hủy buổi')
+      const r = await api.post<{ data: PtSession }>(`/pt/sessions/${s.id}/${kind}`, body)
+      toast(kind === 'complete' ? 'Đã xác nhận buổi tập' : kind === 'no-show' ? 'Đã ghi nhận vắng mặt, đã trừ 1 buổi' : r.data.data.status === 'no_show' ? 'Hủy sát giờ: tính là vắng mặt, đã trừ 1 buổi' : 'Đã hủy buổi')
       setPicked(null)
+      setCancelling(null)
       load()
     } catch (e) {
       toast(apiError(e).message)
@@ -188,7 +195,7 @@ export default function PtOne() {
       </KpiRow>
       <p className="ptg-note">
         Màu ô là trạng thái buổi; vạch màu bên trái ô là PT. Ô nét đứt là ca PT đã báo nhưng chưa có khách: bấm vào để gán khách.
-        Bấm vào ô trống để thêm buổi, bấm vào một buổi để gán khách, hoàn thành hoặc hủy.
+        Bấm vào ô trống để thêm buổi, bấm vào một buổi để gán khách, hoàn thành, ghi vắng mặt, sửa lịch hoặc hủy.
       </p>
 
       {picked && (
@@ -198,7 +205,9 @@ export default function PtOne() {
           footer={
             <>
               <Button onClick={() => setPicked(null)}>Đóng</Button>
-              {picked.status === 'scheduled' && can('pt_sessions.cancel') && <Button variant="danger" onClick={() => act(picked, 'cancel')}>Hủy buổi</Button>}
+              {picked.status === 'scheduled' && can('pt_sessions.cancel') && <Button variant="danger" onClick={() => { setFree(false); setCancelling(picked); setPicked(null) }}>Hủy buổi</Button>}
+              {picked.status === 'scheduled' && picked.member && (can('pt_sessions.complete') || can('pt_sessions.cancel')) && <Button onClick={() => act(picked, 'no-show')}>Vắng mặt</Button>}
+              {picked.status === 'scheduled' && can('pt_sessions.create') && <Button onClick={() => { setEditing(picked); setPicked(null) }}>Sửa lịch</Button>}
               {picked.status === 'scheduled' && !picked.member && (can('pt_sessions.create') || can('pt_sessions.complete')) && <Button onClick={() => { setAssigning(picked); setPicked(null) }}>Gán khách</Button>}
               {picked.status === 'scheduled' && picked.member && can('pt_sessions.complete') && <Button variant="primary" onClick={() => act(picked, 'complete')}>Hoàn thành</Button>}
             </>
@@ -214,6 +223,20 @@ export default function PtOne() {
           </dl>
         </Modal>
       )}
+      {cancelling && (
+        <Modal
+          title="Hủy buổi PT"
+          onClose={() => setCancelling(null)}
+          footer={<><Button onClick={() => setCancelling(null)}>Không hủy</Button><Button variant="danger" onClick={() => act(cancelling, 'cancel', free ? { cancel_free: true } : undefined)}>Xác nhận hủy</Button></>}
+        >
+          <p>Hủy trước giờ bắt đầu từ 90 phút trở lên thì miễn phí, không trừ buổi. Hủy sát giờ (dưới 90 phút) tính là vắng mặt và trừ 1 buổi.</p>
+          {isLate(cancelling) && !free && <p className="form-error" role="alert">Buổi này bắt đầu trong chưa đầy 90 phút: hủy bây giờ sẽ bị trừ 1 buổi.</p>}
+          {canOverride && cancelling.member && (
+            <label className="check"><input type="checkbox" checked={free} onChange={(e) => setFree(e.target.checked)} /> Hủy miễn phí, không trừ buổi (chủ phòng hoặc quản lý duyệt)</label>
+          )}
+        </Modal>
+      )}
+      {editing && <PtBookModal day={day} trainers={trainers} edit={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); toast('Đã cập nhật lịch'); load() }} />}
       {assigning && <PtBookModal day={day} trainers={trainers} assign={assigning} onClose={() => setAssigning(null)} onSaved={() => { setAssigning(null); toast('Đã gán khách'); load() }} />}
       {adding && <PtBookModal day={day} trainers={trainers} initial={adding} onClose={() => setAdding(null)} onSaved={() => { setAdding(null); toast('Đã đặt buổi PT'); load() }} />}
     </>

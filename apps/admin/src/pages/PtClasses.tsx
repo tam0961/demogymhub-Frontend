@@ -35,6 +35,7 @@ const REG_STATUS: Record<GroupRegStatus, { label: string; tone: ChipTone }> = {
   attended: { label: 'Có mặt', tone: 'ok' },
   absent: { label: 'Vắng (mất buổi)', tone: 'bad' },
   cancelled: { label: 'Đã hủy', tone: 'bad' },
+  waitlist: { label: 'Danh sách chờ', tone: 'neutral' },
 }
 
 export default function PtClasses() {
@@ -145,20 +146,20 @@ export default function PtClasses() {
     { key: 'phone', header: 'SĐT', render: (r) => r.phone },
     { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
     { key: 'class', header: 'Lớp đăng ký', sortValue: (r) => r.class.start_at, render: (r) => <>{fmtDateTime(r.class.start_at)}<div className="cell-sub">{r.class.title}{r.class.muscle_group ? ` - ${r.class.muscle_group}` : ''}</div></> },
-    { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => <><Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip>{r.status === 'booked' && r.deducted && <div className="cell-sub">Tạm trừ 1 buổi</div>}</> },
+    { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => <><Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip>{r.status === 'booked' && r.deducted && <div className="cell-sub">Tạm trừ 1 buổi</div>}{r.status === 'waitlist' && <div className="cell-sub">Chưa trừ buổi, tự xếp lớp khi có chỗ</div>}</> },
     {
       key: 'cancel',
       header: '',
       render: (r) => (
         <>
-          {r.status !== 'cancelled' && can('pt_sessions.complete') && (
+          {r.status !== 'cancelled' && r.status !== 'waitlist' && can('pt_sessions.complete') && (
             <>
               <Button small variant={r.status === 'attended' ? 'primary' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận có mặt', { status: 'attended' })}>Có mặt</Button>{' '}
               <Button small variant={r.status === 'absent' ? 'danger' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận vắng, khách mất buổi', { status: 'absent' })}>Vắng</Button>{' '}
             </>
           )}
-          {r.status === 'booked' && can('pt_sessions.cancel') && (
-            <Button small variant="danger" onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
+          {(r.status === 'booked' || r.status === 'waitlist') && can('pt_sessions.cancel') && (
+            <Button small variant="danger" onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, r.status === 'waitlist' ? 'Đã bỏ khỏi danh sách chờ' : 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
           )}
         </>
       ),
@@ -167,7 +168,7 @@ export default function PtClasses() {
 
   return (
     <>
-      <PageHeader title="Lịch lớp nhóm" sub="Lịch 7 ngày. Đăng ký tạm trừ 1 buổi, PT xác nhận dạy xong thì trừ chính thức, hủy thì trả lại buổi." />
+      <PageHeader title="Lịch lớp nhóm" sub="Lịch 7 ngày. Đăng ký tạm trừ 1 buổi, PT xác nhận dạy xong thì trừ chính thức, hủy thì trả lại buổi. Lớp đầy thì khách vào danh sách chờ." />
       <div className="toolbar">
         <Button small onClick={() => setWeek(addDays(week, -7))} aria-label="Tuần trước">‹</Button>
         <span className="cell-main">{dayLabel(week)} - {dayLabel(addDays(week, 6))}</span>
@@ -196,6 +197,7 @@ export default function PtClasses() {
         <Kpi value={stats?.classes.total ?? 0} label="Số lớp" />
         <Kpi value={stats?.classes.completed ?? 0} label="Lớp đã dạy" />
         <Kpi value={stats?.registrations.booked ?? 0} label="Đang chờ học" />
+        <Kpi value={stats?.registrations.waitlist ?? 0} label="Danh sách chờ" />
         <Kpi value={stats?.registrations.attended ?? 0} label="Lượt có mặt" />
         <Kpi value={`${stats?.fill_rate ?? 0}%`} label="Tỷ lệ lấp đầy" />
       </KpiRow>
@@ -309,7 +311,7 @@ function RegisterModal({ cls, onClose, onSaved }: { cls: GroupClass; onClose: ()
       <form id="reg-form" className="form-grid" onSubmit={submit}>
         {error && <div className="form-error full" role="alert">{error}</div>}
         <Field label="Tìm hội viên (tên, SĐT, mã)" htmlFor="r-q" full><Input id="r-q" value={q} onChange={(e) => { setQ(e.target.value); setMemberId('') }} /></Field>
-        <Field label="Hội viên" htmlFor="r-member" full hint="Đăng ký sẽ tạm trừ 1 buổi gói PT nhóm. PT xác nhận dạy xong thì trừ chính thức; hủy thì trả lại buổi.">
+        <Field label="Hội viên" htmlFor="r-member" full hint="Đăng ký sẽ tạm trừ 1 buổi gói PT nhóm. PT xác nhận dạy xong thì trừ chính thức; hủy thì trả lại buổi. Lớp đầy thì khách vào danh sách chờ.">
           <Select id="r-member" required value={memberId} onChange={(e) => setMemberId(e.target.value)}>
             <option value="" disabled>{members.length ? 'Chọn hội viên' : 'Nhập để tìm'}</option>
             {members.map((m) => <option key={m.id} value={m.id}>{m.name} - {m.phone}</option>)}

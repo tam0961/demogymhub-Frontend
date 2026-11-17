@@ -216,7 +216,7 @@ export interface GroupClass {
   status: 'scheduled' | 'completed' | 'cancelled'
   completed_at: string | null
 }
-export type GroupRegStatus = 'booked' | 'attended' | 'absent' | 'cancelled'
+export type GroupRegStatus = 'booked' | 'attended' | 'absent' | 'cancelled' | 'waitlist'
 export interface GroupReg {
   id: string
   member_id: string
@@ -232,7 +232,7 @@ export interface GroupReg {
 }
 export interface GroupStats {
   classes: { total: number; scheduled: number; completed: number; cancelled: number }
-  registrations: { booked: number; attended: number; absent: number; cancelled: number }
+  registrations: { booked: number; attended: number; absent: number; cancelled: number; waitlist: number }
   fill_rate: number
   trainers: { id: string; name: string; classes: number; attended: number }[]
 }

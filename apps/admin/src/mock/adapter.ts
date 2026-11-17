@@ -502,15 +502,22 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     ptSessions.push(row)
     return ok(row)
   }
-  const ptm = url.match(/^\/pt\/sessions\/(.+)\/(complete|cancel|assign)$/)
+  const ptm = url.match(/^\/pt\/sessions\/(.+)\/(complete|cancel|assign|no-show)$/)
   if (ptm && method === 'post') {
     const row = ptSessions.find((x) => x.id === ptm[1])
     if (!row) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
     else if (ptm[2] === 'assign') { const mem = members.find((x) => x.id === body.member_id); if (mem) row.member = { id: mem.id, code: mem.code, name: mem.name, phone: mem.phone } }
-    else row.status = ptm[2] === 'complete' ? 'completed' : 'cancelled'
+    else row.status = ptm[2] === 'complete' ? 'completed' : ptm[2] === 'no-show' ? 'no_show' : 'cancelled'
     return ok(row)
   }
-  if (url.startsWith('/pt/classes')) return url.endsWith('/stats') ? ok({ classes: { total: 0, scheduled: 0, completed: 0, cancelled: 0 }, registrations: { booked: 0, attended: 0, cancelled: 0 }, fill_rate: 0, trainers: [] }) : ok([])
+  const ptp = url.match(/^\/pt\/sessions\/(.+)$/)
+  if (ptp && method === 'patch') {
+    const row = ptSessions.find((x) => x.id === ptp[1])
+    if (!row) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
+    else if (body.start_at) { const d = new Date(row.end_at).getTime() - new Date(row.start_at).getTime(); row.start_at = new Date(body.start_at).toISOString(); row.end_at = new Date(new Date(body.start_at).getTime() + (body.duration_min ? body.duration_min * 60000 : d)).toISOString() }
+    return ok(row)
+  }
+  if (url.startsWith('/pt/classes')) return url.endsWith('/stats') ? ok({ classes: { total: 0, scheduled: 0, completed: 0, cancelled: 0 }, registrations: { booked: 0, attended: 0, absent: 0, cancelled: 0, waitlist: 0 }, fill_rate: 0, trainers: [] }) : ok([])
   if (url === '/packages' && method === 'get') {
     let rows = packages
     if (branchFilter) rows = rows.filter((p) => !p.branch_id || p.branch_id === branchFilter)

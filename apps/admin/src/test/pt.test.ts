@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addMonths, ptUsageDeadline, ptUsageMonths } from '../lib/pt'
+import { addMonths, isLateCancel, ptUsageDeadline, ptUsageMonths } from '../lib/pt'
 
 describe('addMonths', () => {
   it('adds months and clamps to month end', () => {
@@ -23,5 +23,14 @@ describe('ptUsageDeadline', () => {
   })
   it('returns null without an end date', () => {
     expect(ptUsageDeadline(null, 12)).toBeNull()
+  })
+})
+
+describe('isLateCancel', () => {
+  const now = Date.parse('2026-11-17T10:00:00Z')
+  it('is free at 90 minutes or more, late below', () => {
+    expect(isLateCancel('2026-11-17T11:30:00Z', now)).toBe(false)
+    expect(isLateCancel('2026-11-17T11:29:00Z', now)).toBe(true)
+    expect(isLateCancel('2026-11-17T09:00:00Z', now)).toBe(true)
   })
 })
