@@ -10,7 +10,7 @@ export function groupPackages(rows: Pkg[], showInactive: boolean, q = ''): Recor
   rows.forEach((p) => {
     if (!showInactive && !p.active) return
     if (k && !p.name.toLowerCase().includes(k)) return
-    out[p.category ?? 'member'].push(p)
+    out[p.display_group ?? p.category ?? 'member'].push(p)
   })
   return out
 }
@@ -35,6 +35,7 @@ export interface PkgForm {
   vat_percent: number
   bundled_member_package_id: string
   bundle_only?: boolean
+  display_group?: string
   gift?: string
   checkin_before?: string
 }
@@ -50,6 +51,7 @@ export function changedFields(old: Pkg, f: PkgForm): Record<string, unknown> {
   if (f.vat_percent !== old.vat_percent) out.vat_percent = f.vat_percent
   if (f.category === 'member') {
     if ((f.bundle_only ?? false) !== (old.bundle_only ?? false)) out.bundle_only = f.bundle_only ?? false
+    if ((f.display_group ?? '') !== (old.display_group ?? '')) out.display_group = f.display_group || null
     if ((f.checkin_before ?? '') !== (old.checkin_before ?? '')) out.checkin_before = f.checkin_before || null
   }
   if ((f.gift ?? '') !== (old.gift ?? '')) out.gift = f.gift || null

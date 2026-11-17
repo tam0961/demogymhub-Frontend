@@ -169,7 +169,7 @@ export default function Packages() {
   )
 }
 
-interface FormState { name: string; category: PackageCategory; type: PackageType; duration_days: string; sessions: string; price: string; vat_percent: string; branch_id: string; bundle: string; bundleOnly: boolean; gift: string; checkinBefore: string; deactivateOld: 'replace' | 'copy' }
+interface FormState { name: string; category: PackageCategory; type: PackageType; duration_days: string; sessions: string; price: string; vat_percent: string; branch_id: string; bundle: string; bundleOnly: boolean; groupBox: boolean; gift: string; checkinBefore: string; deactivateOld: 'replace' | 'copy' }
 
 export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: FormTarget; allPkgs: Pkg[]; onClose: () => void; onSaved: () => void }) {
   const { user } = useAuth()
@@ -186,6 +186,7 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
     branch_id: pkg?.branch_id ?? branchId ?? (user?.branches.length === 1 ? user.branches[0].id : ''),
     bundle: pkg?.bundled_member_package?.id ?? '',
     bundleOnly: pkg?.bundle_only ?? false,
+    groupBox: pkg?.display_group === 'pt_group',
     gift: pkg?.gift ?? '',
     checkinBefore: pkg?.checkin_before ?? '',
     deactivateOld: 'replace',
@@ -205,17 +206,17 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
       duration_days: f.type === 'session' ? (pt && f.duration_days ? Number(f.duration_days) : null) : Number(f.duration_days),
       sessions: f.type === 'session' ? Number(f.sessions) : null,
       price: Number(f.price), vat_percent: Number(f.vat_percent), bundled_member_package_id: f.bundle,
-      bundle_only: f.bundleOnly, gift: f.gift.trim(), checkin_before: f.checkinBefore,
+      bundle_only: f.bundleOnly, display_group: f.groupBox ? 'pt_group' : '', gift: f.gift.trim(), checkin_before: f.checkinBefore,
     }
     try {
       if (target.mode === 'edit') {
         await api.patch(`/packages/${target.pkg.id}`, changedFields(target.pkg, next))
       } else {
-        const { bundled_member_package_id, bundle_only, gift, checkin_before, ...rest } = next
+        const { bundled_member_package_id, bundle_only, display_group, gift, checkin_before, ...rest } = next
         await api.post('/packages', {
           ...rest, gift: gift || null, branch_id: f.branch_id, active: true,
           ...(pt && bundled_member_package_id ? { bundled_member_package_id } : {}),
-          ...(f.category === 'member' ? { bundle_only: !!bundle_only, checkin_before: checkin_before || null } : {}),
+          ...(f.category === 'member' ? { bundle_only: !!bundle_only, display_group: display_group || null, checkin_before: checkin_before || null } : {}),
           ...(target.mode === 'version' && f.deactivateOld === 'replace' ? { replaces_id: target.pkg.id, deactivate_replaced: true } : {}),
         })
       }
@@ -294,6 +295,7 @@ export function PackageModal({ target, allPkgs, onClose, onSaved }: { target: Fo
               <Input id="p-before" type="time" value={f.checkinBefore} onChange={(e) => set('checkinBefore', e.target.value)} />
             </Field>
             <label className="check full"><input type="checkbox" checked={f.bundleOnly} onChange={(e) => set('bundleOnly', e.target.checked)} />Chỉ tặng kèm gói PT (không bán riêng cho khách)</label>
+            <label className="check full"><input type="checkbox" checked={f.groupBox} onChange={(e) => set('groupBox', e.target.checked)} />Xếp vào box PT nhóm (vẫn tính doanh số và check-in như member)</label>
           </>
         )}
         {pt && (

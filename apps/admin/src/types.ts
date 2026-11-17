@@ -75,6 +75,7 @@ export interface Pkg {
   active: boolean
   bundled_member_package?: BundledPkg | null
   bundle_only?: boolean
+  display_group?: 'pt_group' | null
   gift?: string | null
   checkin_before?: string | null
   replaces_id?: string | null
