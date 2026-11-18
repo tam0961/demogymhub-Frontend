@@ -45,12 +45,12 @@ describe('Members columns', () => {
   const branchOf = (m: Member) => m.branch ?? undefined
   it('all branches: Chi nhánh column is shown and order is correct', () => {
     table(memberColumns(true, branchOf), [member()])
-    expect(headers()).toEqual(['Mã', 'Thông tin khách hàng', 'Trạng thái', 'Chi nhánh', 'Gói hiện tại', 'Ngày đăng ký', 'Hết hạn', 'Gói PT'])
+    expect(headers()).toEqual(['Mã', 'Thông tin khách hàng', 'Trạng thái', 'Chi nhánh', 'Gói tập', 'Ngày đăng ký', 'Hết hạn'])
   })
   it('single branch: Chi nhánh column is hidden, Ngày đăng ký sits next to Hết hạn', () => {
     table(memberColumns(false, branchOf), [member()])
     const h = headers()
-    expect(h).toEqual(['Mã', 'Thông tin khách hàng', 'Trạng thái', 'Gói hiện tại', 'Ngày đăng ký', 'Hết hạn', 'Gói PT'])
+    expect(h).toEqual(['Mã', 'Thông tin khách hàng', 'Trạng thái', 'Gói tập', 'Ngày đăng ký', 'Hết hạn'])
     expect(h.indexOf('Hết hạn') - h.indexOf('Ngày đăng ký')).toBe(1)
   })
   it('CSV follows the visible columns', () => {

@@ -4,7 +4,7 @@ import { fetchAll } from '../lib/fetchAll'
 import { apiError } from '../lib/errors'
 import { CONTRACT_STATUS_OPTIONS, contractStatusLabel, contractsToCSV } from '../lib/contracts'
 import { hasHsd } from '../lib/pt'
-import { METHOD_LABEL, categoryLabel, downloadBlob, fmtDate, fmtMoney } from '../lib/format'
+import { METHOD_LABEL, downloadBlob, fmtDate, fmtMoney } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission } from '../context/usePermission'
 import { Button, Chip, DataTable, Icon, PageHeader, Select, type Column } from '../components/ui'
@@ -53,7 +53,7 @@ export default function Contracts() {
   const columns: Column<Contract>[] = [
     { key: 'code', header: 'Mã HĐ', sortValue: (c) => c.code, render: (c) => <><div className="cell-main">{c.code}{c.bundle_of_id && <> <span className="hint-muted">Kèm PT</span></>}</div><div className="cell-sub">{c.branch?.name ?? ''}</div></> },
     { key: 'member', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><div className="cell-main">{c.member.name}</div><div className="cell-sub">{c.member.code}</div></> },
-    { key: 'pkg', header: 'Dịch vụ', sortValue: (c) => c.package.name, render: (c) => <>{c.package.name} <Chip>{categoryLabel(c.package.category)}</Chip></> },
+    { key: 'pkg', header: 'Dịch vụ', sortValue: (c) => c.package.name, render: (c) => c.package.name },
     { key: 'signed', header: 'Ngày ký', sortValue: (c) => c.signed_at ?? c.created_at, render: (c) => fmtDate(c.signed_at ?? c.created_at) },
     {
       key: 'end', header: 'Hết hạn', sortValue: (c) => c.end_date,

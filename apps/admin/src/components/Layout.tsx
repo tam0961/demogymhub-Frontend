@@ -43,9 +43,10 @@ export const NAV_GROUPS: NavGroup[] = [
   ] },
   { title: 'Khách hàng', items: [
     { to: '/members', label: 'Hội viên', icon: 'members', perm: ['members.read'] },
-    { to: '/expiring', label: 'Sắp hết hạn', icon: 'calendar', perm: ['reports.view'] },
-    { to: '/leads', label: 'Khách tiềm năng', icon: 'users', perm: ['leads.read'] },
     { to: '/contracts', label: 'Hợp đồng', icon: 'contracts', perm: ['contracts.read'] },
+  ] },
+  { title: 'Marketing', items: [
+    { to: '/leads', label: 'Khách tiềm năng', icon: 'users', perm: ['leads.read'] },
   ] },
   { title: 'Lịch PT', items: [
     { to: '/pt/classes', label: 'Lịch lớp nhóm', icon: 'calendar', perm: ['pt_sessions.read'] },

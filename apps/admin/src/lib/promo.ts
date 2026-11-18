@@ -44,7 +44,7 @@ export function quote(pkg: Pkg | undefined, promo: Promo | null, paidRaw: number
   const bonusDays = promo?.type === 'bonus_months' ? v * 30 : promo?.type === 'bonus_days' ? v : 0
   const bonusSessions = promo?.type === 'bonus_sessions' ? v : 0
   const isSession = pkg?.type === 'session'
-  const days = pkg && !isSession ? (pkg.duration_days ?? 30) + bonusDays : null
+  const days = pkg && (!isSession || pkg.duration_days) ? (pkg.duration_days ?? 30) + bonusDays : null
   const sessions = pkg && isSession ? (pkg.sessions ?? 0) + bonusSessions : null
   const paid = Math.min(paidRaw, total)
   return { gross, discount, total, paid, remain: Math.max(0, total - paid), bonusDays, bonusSessions, days, sessions, endDate: days != null && start ? addDays(start, days) : null }

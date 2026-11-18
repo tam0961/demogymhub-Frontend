@@ -77,24 +77,28 @@ export function memberColumns(showBranch: boolean, branchOf: (m: Member) => Bran
   if (showBranch) cols.push({ key: 'branch', header: 'Chi nhánh', sortValue: (m) => branchOf(m)?.name, render: (m) => <BranchTag branch={branchOf(m)} /> })
   cols.push(
     {
-      key: 'pkg', header: 'Gói hiện tại', sortValue: (m) => m.current_contract?.package_name,
-      render: (m) => (m.current_contract ? <><div className="cell-main">{m.current_contract.package_name}</div><div className="cell-sub">{m.current_contract.code}</div></> : <span className="hint-muted">-</span>),
+      key: 'pkg', header: 'Gói tập', sortValue: (m) => m.pt_contract?.package_name ?? m.current_contract?.package_name,
+      render: (m) => {
+        const pt = m.pt_contract
+        if (pt) return <><div className="cell-main">{pt.package_name}</div><div className="cell-sub">{pt.sessions_left ?? 0}/{pt.sessions_total ?? 0} buổi</div></>
+        return m.current_contract ? <><div className="cell-main">{m.current_contract.package_name}</div><div className="cell-sub">{m.current_contract.code}</div></> : <span className="hint-muted">-</span>
+      },
     },
     { key: 'created', header: 'Ngày đăng ký', sortValue: (m) => m.created_at, render: (m) => fmtDate(m.created_at) },
     {
-      key: 'end', header: 'Hết hạn', numeric: true, sortValue: (m) => m.current_contract?.end_date,
+      key: 'end', header: 'Hết hạn', numeric: true, sortValue: (m) => m.pt_contract?.end_date ?? m.current_contract?.end_date,
       render: (m) => {
+        const end = m.pt_contract ? m.pt_contract.end_date : m.current_contract?.end_date
         const hasHsdRow = hasHsd(m.pt_contract?.package_category)
-        if (!m.current_contract?.end_date && !hasHsdRow) return <span className="hint-muted">-</span>
+        if (!end && !hasHsdRow) return <span className="hint-muted">-</span>
         return (
           <>
-            {m.current_contract?.end_date && <><div className="cell-main">{fmtDate(m.current_contract.end_date)}</div><div className="cell-sub">{daysLeftText(m.current_contract.end_date)}</div></>}
+            {end && <><div className="cell-main">{fmtDate(end)}</div><div className="cell-sub">{daysLeftText(end)}</div></>}
             {hasHsdRow && <HsdCell m={m} />}
           </>
         )
       },
     },
-    { key: 'pt', header: 'Gói PT', sortValue: (m) => m.pt_contract?.package_name, render: (m) => <PtCell m={m} /> },
   )
   return cols
 }

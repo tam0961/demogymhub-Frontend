@@ -61,9 +61,9 @@ describe('reminderText', () => {
 })
 
 describe('navigation', () => {
-  it('has the leads and expiring items under Khách hàng', () => {
-    const items = NAV_GROUPS.find((g) => g.title === 'Khách hàng')!.items
+  it('has the leads item under Marketing and no expiring item', () => {
+    const items = NAV_GROUPS.find((g) => g.title === 'Marketing')!.items
     expect(items.find((i) => i.to === '/leads')).toMatchObject({ label: 'Khách tiềm năng', perm: ['leads.read'] })
-    expect(items.find((i) => i.to === '/expiring')).toMatchObject({ label: 'Sắp hết hạn', perm: ['reports.view'] })
+    expect(NAV_GROUPS.flatMap((g) => g.items).find((i) => i.to === '/expiring')).toBeUndefined()
   })
 })
