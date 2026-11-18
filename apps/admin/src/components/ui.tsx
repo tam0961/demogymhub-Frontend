@@ -202,7 +202,7 @@ export function PageHeader({ title, sub, action }: { title: string; sub?: ReactN
   )
 }
 
-interface PanelProps { title?: string; count?: ReactNode; note?: ReactNode; flush?: boolean; className?: string; children: ReactNode }
+interface PanelProps { title?: ReactNode; count?: ReactNode; note?: ReactNode; flush?: boolean; className?: string; children: ReactNode }
 export function Panel({ title, count, note, flush, className = '', children }: PanelProps) {
   const right = count ?? note
   return (

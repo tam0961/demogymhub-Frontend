@@ -18,12 +18,12 @@ export function groupPackages(rows: Pkg[], showInactive: boolean, q = ''): Recor
 export const BOX_ORDER = PACKAGE_CATEGORIES
 
 export function termText(p: Pkg): string {
-  if (p.type === 'session') return `${p.sessions ?? 0} buổi${p.duration_days ? `, hết hạn sau ${p.duration_days} ngày` : ''}`
+  if (p.type === 'session') return `${p.sessions ?? 0} buổi${p.duration_days ? ` / ${p.duration_days} ngày` : ''}`
   const d = p.duration_days ?? 0
   return d >= 30 && d % 30 === 0 && p.type === 'month' ? `${d / 30} tháng` : `${d} ngày`
 }
 
-export const bundleText = (b: { name: string; duration_days: number | null }) => `${b.name} (${b.duration_days ?? 0} ngày)`
+export const bundleText = (b: { name: string }) => b.name
 
 export interface PkgForm {
   name: string

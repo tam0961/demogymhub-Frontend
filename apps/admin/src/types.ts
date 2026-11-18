@@ -79,6 +79,9 @@ export interface Pkg {
   display_group?: 'pt_group' | null
   gift?: string | null
   checkin_before?: string | null
+  promo_type?: 'bonus_months' | 'bonus_days' | 'bonus_sessions' | 'percent' | 'amount' | null
+  promo_value?: number | null
+  promo_until?: string | null
   replaces_id?: string | null
   contracts_count?: number
   in_use?: boolean
@@ -162,6 +165,7 @@ export interface CheckinResult {
 export interface Dashboard {
   revenue_today: number
   revenue_by_method: Partial<Record<PayMethod, number>>
+  revenue_by_kind?: Record<string, number>
   new_contracts_today: number
   active_members: number
   expiring_in_7_days: number

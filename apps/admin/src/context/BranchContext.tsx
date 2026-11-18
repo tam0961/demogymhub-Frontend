@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useAuth } from './AuthContext'
+import { activeBranches } from '../lib/branches'
 import { loadSavedBranch, saveBranch, setBranchId } from '../lib/session'
 
 interface BranchValue {
@@ -11,8 +12,11 @@ const BranchContext = createContext<BranchValue>({ branchId: null, setBranch: ()
 export function BranchProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth()
   const [branchId, set] = useState<string | null>(() => {
+    const open = activeBranches(user?.branches)
+    if (open.length === 1) return open[0].id
     const s = loadSavedBranch()
-    return s && user?.branches.some((b) => b.id === s) ? s : null
+    if (s && open.some((b) => b.id === s)) return s
+    return null
   })
   setBranchId(branchId)
   useEffect(() => () => setBranchId(null), [])

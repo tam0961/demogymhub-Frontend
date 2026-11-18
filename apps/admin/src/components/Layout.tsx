@@ -5,6 +5,7 @@ import { BranchProvider, useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { useShift, ShiftProvider } from '../context/ShiftContext'
 import { useConnected } from '../lib/connection'
+import { activeBranches } from '../lib/branches'
 import { Avatar, BranchTag, Icon, Segmented, branchColor } from './ui'
 import type { Me } from '../types'
 import type { IconName } from './icons'
@@ -192,10 +193,11 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
     setQ('')
   }
 
-  const single = user?.branches.length === 1 ? user.branches[0] : null
+  const shown = activeBranches(user?.branches)
+  const single = shown.length === 1 ? shown[0] : null
   const options = [
     { value: '', label: 'Tất cả chi nhánh', dot: 'all' as const },
-    ...(user?.branches.map((b) => ({ value: b.id, label: b.name, dot: branchColor(b.code) as 'q2' | 'nb' | 'q7' | 'all' })) ?? []),
+    ...(shown.map((b) => ({ value: b.id, label: b.name, dot: branchColor(b.code) as 'q2' | 'nb' | 'q7' | 'all' })) ?? []),
   ]
 
   return (

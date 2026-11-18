@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import axios from 'axios'
 import { mockAdapter } from '../mock/adapter'
-import { barLayout, contractActions, diffRoles, diffTone, fmtMoney, needsConfirm, parseMoney, priceWithVat, reasonText, toCSV } from '../lib/format'
+import { barLayout, contractActions, diffRoles, diffTone, fmtMoney, needsConfirm, parseMoney, reasonText, toCSV } from '../lib/format'
 import { auditToCSV } from '../pages/Audit'
 import { loadSavedBranch, saveBranch } from '../lib/session'
 
@@ -41,7 +41,6 @@ describe('format helpers', () => {
   it('money and parse', () => {
     expect(fmtMoney(1200000)).toMatch(/^1\.200\.000\s?₫$/)
     expect(parseMoney('1.200.000 đ')).toBe(1200000)
-    expect(priceWithVat(600000, 8)).toBe(648000)
   })
   it('diffTone', () => {
     expect(diffTone(0)).toBe('ok')

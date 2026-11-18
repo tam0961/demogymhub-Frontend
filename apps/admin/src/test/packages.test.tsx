@@ -5,7 +5,7 @@ import { ToastProvider } from '../components/Toast'
 import { groupPackages, changedFields, termText } from '../lib/packages'
 import type { Pkg } from '../types'
 
-const h = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn() }))
+const h = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() }))
 vi.mock('../lib/api', () => ({ api: h }))
 vi.mock('../context/AuthContext', () => ({ useAuth: () => ({ user: { branches: [{ id: 'b1', code: 'NB', name: 'Nhà Bè' }] } }) }))
 vi.mock('../context/BranchContext', () => ({ useBranch: () => ({ branchId: 'b1' }) }))
@@ -31,6 +31,7 @@ beforeEach(() => {
   h.get.mockReset().mockResolvedValue({ data: { data: LIST, meta: { page: 1, limit: 200, total: 4 } } })
   h.post.mockReset().mockResolvedValue({ data: { data: {} } })
   h.patch.mockReset().mockResolvedValue({ data: { data: {} } })
+  h.delete.mockReset().mockResolvedValue({ data: { data: {} } })
 })
 afterEach(cleanup)
 
@@ -44,7 +45,7 @@ describe('package helpers', () => {
   })
   it('term text and changed fields only', () => {
     expect(termText(pkg({ type: 'month', duration_days: 90 }))).toBe('3 tháng')
-    expect(termText(pkg({ type: 'session', sessions: 10, duration_days: 60 }))).toBe('10 buổi, hết hạn sau 60 ngày')
+    expect(termText(pkg({ type: 'session', sessions: 10, duration_days: 60 }))).toBe('10 buổi / 60 ngày')
     const f = { name: 'Gói 1 tháng', category: 'member' as const, type: 'month' as const, duration_days: 30, sessions: null, price: 700000, vat_percent: 8, bundled_member_package_id: '' }
     expect(changedFields(M, f)).toEqual({ price: 700000 })
   })
@@ -54,56 +55,68 @@ describe('Packages page', () => {
   it('renders 4 boxes in order with counts', async () => {
     page()
     await screen.findByText('PT 10 buổi')
-    const heads = screen.getAllByRole('heading', { level: 2 }).map((x) => x.textContent)
+    const heads = screen.getAllByRole('heading', { level: 2 }).map((x) => x.firstChild?.textContent ?? '')
     expect(heads).toEqual(['Gói member', 'PT 1:1', 'PT 1:2', 'PT nhóm'])
-    expect(screen.getAllByRole('button', { name: 'Thêm gói' })).toHaveLength(4)
+    expect(screen.getAllByRole('heading', { level: 2 })[0].textContent).toMatch(/\d+ gói$/)
     expect(screen.getByText('Chưa gắn')).toBeTruthy()
     expect(screen.getByText('Phiên bản mới')).toBeTruthy()
   })
   it('inactive toggle shows muted packages', async () => {
     page()
-    await screen.findByText('Gói 1 tháng')
+    await screen.findAllByText('Gói 1 tháng')
     expect(screen.queryByText('Gói cũ')).toBeNull()
     fireEvent.click(screen.getByLabelText('Hiện gói đã vô hiệu hóa'))
     expect(screen.getByText('Gói cũ')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Kích hoạt lại' })).toBeTruthy()
   })
-  it('Sửa is disabled only for packages in use', async () => {
+  it('rows only offer Sửa and Xóa', async () => {
     page()
     await screen.findByText('PT 10 buổi')
-    const rowOf = (name: string) => screen.getByText(name).closest('tr') as HTMLElement
-    const used = within(rowOf('PT 10 buổi')).getByRole('button', { name: 'Sửa' }) as HTMLButtonElement
-    expect(used.disabled).toBe(true)
-    expect(used.title).toBe('Gói đã có hợp đồng, không sửa được. Hãy tạo phiên bản mới.')
-    expect((within(rowOf('Gói 1 tháng')).getByRole('button', { name: 'Sửa' }) as HTMLButtonElement).disabled).toBe(false)
+    const row = screen.getByText('PT 10 buổi').closest('tr') as HTMLElement
+    const names = within(row).getAllByRole('button').map((x) => x.textContent)
+    expect(names).toEqual(['Sửa', 'Xóa'])
   })
-  it('deactivate confirms then patches only active', async () => {
+  it('Xóa confirms then deletes', async () => {
     page()
-    await screen.findByText('Gói 1 tháng')
-    const row = screen.getByText('Gói 1 tháng').closest('tr') as HTMLElement
-    fireEvent.click(within(row).getByRole('button', { name: 'Vô hiệu hóa' }))
-    expect(screen.getByText('Gói sẽ không hiện khi bán mới. Các hợp đồng đã bán giữ nguyên.')).toBeTruthy()
+    await screen.findAllByText('Gói 1 tháng')
+    const row = screen.getAllByText('Gói 1 tháng')[0].closest('tr') as HTMLElement
+    fireEvent.click(within(row).getByRole('button', { name: 'Xóa' }))
     const dlg = screen.getByRole('dialog')
-    fireEvent.click(within(dlg).getByRole('button', { name: 'Vô hiệu hóa' }))
-    await waitFor(() => expect(h.patch).toHaveBeenCalledWith('/packages/m1', { active: false }))
+    fireEvent.click(within(dlg).getByRole('button', { name: 'Xóa gói' }))
+    await waitFor(() => expect(h.delete).toHaveBeenCalledWith('/packages/m1'))
   })
-  it('new version posts replaces_id and deactivate_replaced', async () => {
+  it('Sửa asks to save as a new package and deactivates the old one', async () => {
     const onSaved = vi.fn()
-    render(<ToastProvider><PackageModal target={{ mode: 'version', pkg: LIST[2] }} allPkgs={LIST} onClose={() => {}} onSaved={onSaved} /></ToastProvider>)
-    expect(screen.getByText('Tạo phiên bản mới của PT 10 buổi')).toBeTruthy()
-    expect(screen.getByText(/Gói cũ và các hợp đồng đã bán giữ nguyên/)).toBeTruthy()
+    render(<ToastProvider><PackageModal target={{ mode: 'edit', pkg: LIST[2] }} allPkgs={LIST} onClose={() => {}} onSaved={onSaved} /></ToastProvider>)
     fireEvent.change(screen.getByLabelText('Giá (đ)'), { target: { value: '3300000' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo phiên bản' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }))
+    expect(screen.getByText(/lưu thành gói mới và vô hiệu hóa gói cũ/)).toBeTruthy()
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Lưu thành gói mới?' })).getByRole('button', { name: 'Xác nhận' }))
     await waitFor(() => expect(onSaved).toHaveBeenCalled())
     expect(h.post).toHaveBeenCalledWith('/packages', expect.objectContaining({ replaces_id: 'pt1', deactivate_replaced: true, bundled_member_package_id: 'm1', price: 3300000, branch_id: 'b1' }))
   })
+  it('Sửa can update the current package in place', async () => {
+    const onSaved = vi.fn()
+    render(<ToastProvider><PackageModal target={{ mode: 'edit', pkg: M }} allPkgs={LIST} onClose={() => {}} onSaved={onSaved} /></ToastProvider>)
+    fireEvent.change(screen.getByLabelText('Giá (đ)'), { target: { value: '800000' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Lưu thành gói mới?' })).getByRole('button', { name: 'Cập nhật vào gói hiện tại' }))
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith('update'))
+    expect(h.patch).toHaveBeenCalledWith('/packages/m1', expect.objectContaining({ price: 800000 }))
+    expect(h.post).not.toHaveBeenCalled()
+  })
+  it('promotion needs a value and an end date', async () => {
+    render(<ToastProvider><PackageModal target={{ mode: 'edit', pkg: LIST[0] }} allPkgs={LIST} onClose={() => {}} onSaved={() => {}} /></ToastProvider>)
+    fireEvent.change(screen.getByLabelText('Khuyến mãi'), { target: { value: 'bonus_months' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }))
+    expect(screen.getByText('Hãy nhập giá trị khuyến mãi')).toBeTruthy()
+  })
   it('maps PACKAGE_IN_USE to a clear message', async () => {
-    h.patch.mockRejectedValue({ response: { status: 409, data: { error: { code: 'PACKAGE_IN_USE', message: 'x' } } } })
+    h.post.mockRejectedValue({ response: { status: 409, data: { error: { code: 'PACKAGE_IN_USE', message: 'x' } } } })
     render(<ToastProvider><PackageModal target={{ mode: 'edit', pkg: M }} allPkgs={LIST} onClose={() => {}} onSaved={() => {}} /></ToastProvider>)
     fireEvent.change(screen.getByLabelText('Giá (đ)'), { target: { value: '1' } })
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Lưu thành gói mới?' })).getByRole('button', { name: 'Xác nhận' }))
     expect(await screen.findByText('Gói đã có hợp đồng nên không sửa được. Hãy tạo phiên bản mới.')).toBeTruthy()
-    expect(h.patch).toHaveBeenCalledWith('/packages/m1', { price: 1 })
   })
 })
 
@@ -125,27 +138,11 @@ describe('bundle UI', () => {
   })
 })
 
-describe('copy mode', () => {
-  it('copy sends neither replaces_id nor deactivate_replaced', async () => {
-    h.post.mockClear()
-    const onSaved = vi.fn()
-    render(<ToastProvider><PackageModal target={{ mode: 'version', pkg: M }} allPkgs={LIST} onClose={() => {}} onSaved={onSaved} /></ToastProvider>)
-    fireEvent.click(screen.getByRole('button', { name: 'Chỉ sao chép' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo phiên bản' }))
-    await waitFor(() => expect(onSaved).toHaveBeenCalled())
-    const body = h.post.mock.calls[0][1]
-    expect(body).not.toHaveProperty('replaces_id')
-    expect(body).not.toHaveProperty('deactivate_replaced')
-    expect(body.name).toBe('Gói 1 tháng')
-  })
-})
-
-describe('HSD only for PT 1:1', () => {
-  it('HSD column and rule note only in the PT 1:1 box', async () => {
+describe('HSD note only for PT 1:1', () => {
+  it('no HSD column, rule note only in the PT 1:1 box', async () => {
     page()
     await screen.findByText('PT 10 buổi')
-    expect(screen.getAllByRole('columnheader', { name: /^HSD/ })).toHaveLength(1)
-    expect(screen.getByText('+3 tháng sau hết hạn')).toBeTruthy()
+    expect(screen.queryAllByRole('columnheader', { name: /^HSD/ })).toHaveLength(0)
     expect(screen.getAllByText(/Chỉ áp dụng cho gói PT 1:1/)).toHaveLength(1)
     expect(screen.queryByText(/Dùng thêm/)).toBeNull()
   })

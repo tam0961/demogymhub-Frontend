@@ -1,5 +1,5 @@
 import type { CurrentContract, Member, PackageType, Pkg } from '../types'
-import { fmtMoney, priceWithVat, todayISO } from './format'
+import { fmtMoney, todayISO } from './format'
 
 export type PromoType = 'bonus_months' | 'bonus_days' | 'bonus_sessions' | 'percent' | 'amount'
 export interface Promo { type: PromoType; value: number }
@@ -35,7 +35,7 @@ export interface Quote {
 }
 
 export function quote(pkg: Pkg | undefined, promo: Promo | null, paidRaw: number, start: string): Quote {
-  const gross = pkg ? priceWithVat(pkg.price, pkg.vat_percent) : 0
+  const gross = pkg ? pkg.price : 0
   const v = promo ? Math.max(0, Math.floor(promo.value)) : 0
   let discount = 0
   if (promo?.type === 'percent') discount = Math.round((gross * Math.min(v, 100)) / 100)

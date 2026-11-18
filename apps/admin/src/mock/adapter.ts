@@ -78,32 +78,53 @@ const members: Member[] = Array.from({ length: 60 }, (_, i) => {
   }
 })
 
-const packages: Pkg[] = [
-  { id: 'p1', name: 'Vé ngày', category: 'member', type: 'day', duration_days: 1, sessions: null, price: 80000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p2', name: 'Gói 1 tháng', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 600000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p3', name: 'Gói 12 buổi PT', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 12, price: 3600000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p4', name: 'Gói 3 tháng (ngưng bán)', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 8, branch_id: 'b-q7', active: false },
-  { id: 'p5', name: 'Gói 1 tháng Q7', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 650000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p7', name: 'Gói 3 tháng', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p9', name: 'Gói 12 tháng', category: 'member', type: 'month', duration_days: 365, sessions: null, price: 5000000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p8', name: 'Gói 12 tháng Q7', category: 'member', type: 'month', duration_days: 365, sessions: null, price: 5400000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p10', name: 'Gói 10 buổi PT Q7', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 10, price: 3000000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p11', name: 'Gói 1 tháng Q2', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 650000, vat_percent: 8, branch_id: 'b-q2', active: true },
-  { id: 'p12', name: 'Gói 3 tháng Q2', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1600000, vat_percent: 8, branch_id: 'b-q2', active: true },
-  { id: 'p13', name: 'Gói 12 tháng Q2', category: 'member', type: 'month', duration_days: 365, sessions: null, price: 5400000, vat_percent: 8, branch_id: 'b-q2', active: true },
-  { id: 'p14', name: 'Gói 10 buổi PT Q2', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 10, price: 3000000, vat_percent: 8, branch_id: 'b-q2', active: true },
-  { id: 'p6', name: 'Gói 6 tháng Q7', category: 'member', type: 'month', duration_days: 180, sessions: null, price: 3000000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p15', name: 'Gói 30 buổi PT Q7', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 30, price: 8000000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p16', name: 'Gói 40 buổi PT Q7', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 40, price: 10400000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p17', name: 'Gói 3 tháng Q7', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1600000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p18', name: 'Gói 20 buổi PT nhóm Q7', category: 'pt_group', type: 'session', duration_days: null, sessions: 20, price: 3200000, vat_percent: 8, branch_id: 'b-q7', active: true },
-  { id: 'p19', name: 'Gói 6 tháng Nhà Bè', category: 'member', type: 'month', duration_days: 180, sessions: null, price: 2800000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p20', name: 'Gói 12 buổi PT 1:2 Nhà Bè', category: 'pt_1on2', type: 'session', duration_days: null, sessions: 12, price: 2400000, vat_percent: 8, branch_id: 'b-nb', active: true },
-  { id: 'p21', name: 'Gói 1 tháng khuyến mãi hè', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 500000, vat_percent: 8, branch_id: 'b-nb', active: false },
-  { id: 'p22', name: 'Gói 1 tháng khuyến mãi thu', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 550000, vat_percent: 8, branch_id: 'b-nb', active: true, replaces_id: 'p21' },
-  { id: 'p23', name: 'Gói 8 buổi PT 1:1 (cũ)', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 8, price: 2400000, vat_percent: 8, branch_id: 'b-nb', active: false },
+interface PkgTpl { key: string; name: string; category: Pkg['category']; type: Pkg['type']; duration_days: number | null; sessions: number | null; price: number; gift?: string; checkin_before?: string; bundle_only?: boolean; bundle?: string }
+const PKG_TPLS: PkgTpl[] = [
+  { key: 'm1', name: 'MEMBER 1 THÁNG', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 700000 },
+  { key: 'm3', name: 'MEMBER 3 THÁNG + 1', category: 'member', type: 'month', duration_days: 120, sessions: null, price: 1990000 },
+  { key: 'm6', name: 'MEMBER 6 THÁNG + 4', category: 'member', type: 'month', duration_days: 300, sessions: null, price: 3990000, gift: 'Túi tote' },
+  { key: 'm12', name: 'GÓI 12 THÁNG (TẶNG 6 THÁNG)', category: 'member', type: 'month', duration_days: 540, sessions: null, price: 6590000, gift: 'Ô gấp' },
+  { key: 'e1', name: 'ECO 1 THÁNG', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 700000, checkin_before: '14:00' },
+  { key: 'e3', name: 'ECO 3 THÁNG', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1100000, checkin_before: '14:00' },
+  { key: 'e6', name: 'ECO 6 THÁNG + 1', category: 'member', type: 'month', duration_days: 210, sessions: null, price: 2200000, gift: 'Túi tote', checkin_before: '14:00' },
+  { key: 'e12', name: 'ECO 12 THÁNG + 3', category: 'member', type: 'month', duration_days: 450, sessions: null, price: 4000000, gift: 'Ô gấp', checkin_before: '14:00' },
+  { key: 'b1', name: 'Member PT 10b', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 0, bundle_only: true },
+  { key: 'b2', name: 'Member PT 20b', category: 'member', type: 'month', duration_days: 60, sessions: null, price: 0, bundle_only: true },
+  { key: 'b3', name: 'MEMBER PT 30b', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 0, bundle_only: true },
+  { key: 'b6', name: 'Member PT 60b', category: 'member', type: 'month', duration_days: 180, sessions: null, price: 0, bundle_only: true },
+  { key: 'b8', name: 'Member PT 100b', category: 'member', type: 'month', duration_days: 240, sessions: null, price: 0, bundle_only: true },
+  { key: 'pt10', name: 'PT 1:1 - 10b', category: 'pt_1on1', type: 'session', duration_days: 30, sessions: 10, price: 5850000, bundle: 'b1' },
+  { key: 'pt20', name: 'PT 1:1 - 20b', category: 'pt_1on1', type: 'session', duration_days: 60, sessions: 20, price: 9900000, bundle: 'b2', gift: 'Túi Tote' },
+  { key: 'pt30', name: 'PT 1:1 - 30b', category: 'pt_1on1', type: 'session', duration_days: 30, sessions: 30, price: 14250000, bundle: 'b3', gift: 'Ô gấp' },
+  { key: 'pt60', name: 'PT 1:1 - 60 BUỔI', category: 'pt_1on1', type: 'session', duration_days: 30, sessions: 60, price: 25200000, bundle: 'b6', gift: 'Ô Gấp' },
+  { key: 'pt100', name: 'PT 1:1 - 100 BUỔI', category: 'pt_1on1', type: 'session', duration_days: 30, sessions: 100, price: 35800000, bundle: 'b8', gift: 'Ô Gấp' },
+  { key: 'grp10', name: 'PT NHÓM 10 BUỔI', category: 'pt_group', type: 'session', duration_days: 30, sessions: 10, price: 2350000, bundle: 'b1' },
+  { key: 'grp20', name: 'PT NHÓM 20 BUỔI', category: 'pt_group', type: 'session', duration_days: 30, sessions: 20, price: 4050000, bundle: 'b2', gift: 'Túi Tote' },
 ]
-const bundleIds = new Map<string, string>([['p3', 'p2'], ['p10', 'p5'], ['p14', 'p11'], ['p15', 'p6'], ['p16', 'p17'], ['p18', 'p5'], ['p23', 'p2']])
+const LEGACY_IDS: Record<string, Record<string, string>> = {
+  'b-nb': { m1: 'p2', m3: 'p7', m6: 'p19', m12: 'p9', pt10: 'p3' },
+  'b-q7': { m1: 'p5', m3: 'p17', m6: 'p6', m12: 'p8', pt10: 'p10', pt30: 'p15', pt60: 'p16', grp20: 'p18' },
+  'b-q2': { m1: 'p11', m3: 'p12', m12: 'p13', pt10: 'p14' },
+}
+const packages: Pkg[] = []
+const bundleIds = new Map<string, string>()
+const PKG_ID: Record<string, Record<string, string>> = {}
+for (const br of branches) {
+  PKG_ID[br.id] = {}
+  for (const t of PKG_TPLS) PKG_ID[br.id][t.key] = LEGACY_IDS[br.id]?.[t.key] ?? `d-${br.code.toLowerCase()}-${t.key}`
+  for (const t of PKG_TPLS) {
+    const id = PKG_ID[br.id][t.key]
+    packages.push({ id, name: t.name, category: t.category, type: t.type, duration_days: t.duration_days, sessions: t.sessions, price: t.price, vat_percent: 0, branch_id: br.id, active: true, bundle_only: !!t.bundle_only, gift: t.gift ?? null, checkin_before: t.checkin_before ?? null, display_group: null })
+    if (t.bundle) bundleIds.set(id, PKG_ID[br.id][t.bundle])
+  }
+}
+packages.push(
+  { id: 'p4', name: 'GÓI 3 THÁNG (cũ)', category: 'member', type: 'month', duration_days: 90, sessions: null, price: 1500000, vat_percent: 0, branch_id: 'b-q7', active: false },
+  { id: 'p20', name: 'PT 1:2 - 12 BUỔI (cũ)', category: 'pt_1on2', type: 'session', duration_days: null, sessions: 12, price: 2400000, vat_percent: 0, branch_id: 'b-nb', active: false },
+  { id: 'p21', name: 'GÓI 1 THÁNG KHUYẾN MÃI HÈ (cũ)', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 500000, vat_percent: 0, branch_id: 'b-nb', active: false },
+  { id: 'p22', name: 'GÓI 1 THÁNG KHUYẾN MÃI THU (cũ)', category: 'member', type: 'month', duration_days: 30, sessions: null, price: 550000, vat_percent: 0, branch_id: 'b-nb', active: false, replaces_id: 'p21' },
+  { id: 'p23', name: 'PT 1:1 - 8 BUỔI (cũ)', category: 'pt_1on1', type: 'session', duration_days: null, sessions: 8, price: 2400000, vat_percent: 0, branch_id: 'b-nb', active: false },
+)
 
 const DAY = 86400000
 const iso = (offsetDays = 0) => new Date(Date.now() + offsetDays * DAY).toISOString()
@@ -224,7 +245,7 @@ function seedContract(memberId: string, packageId: string, status: Contract['sta
   recalc(c)
   return c
 }
-const PKG_BY_BRANCH: Record<string, string[]> = { 'b-nb': ['p2', 'p7', 'p9', 'p19'], 'b-q7': ['p5', 'p6', 'p8', 'p17'], 'b-q2': ['p11', 'p12', 'p13', 'p11'] }
+const PKG_BY_BRANCH: Record<string, string[]> = Object.fromEntries(branches.map((br) => [br.id, ['m1', 'm3', 'm6', 'm12'].map((k) => PKG_ID[br.id][k])]))
 const REMAIN = [1, 1, 2, 3, 5, 6, 9, 15, 20, 28, 45, 70, 120, 200, 300]
 seedContract('m3', 'p2', 'expired', 648000, -45)
 seedContract('m4', 'p2', 'frozen', 648000, -15)
@@ -296,7 +317,7 @@ for (let k = 0; k < 60; k++) {
   })
   recalc(c)
 }
-const PT_BY_BRANCH: Record<string, string[]> = { 'b-nb': ['p3', 'p20'], 'b-q7': ['p10', 'p15', 'p16', 'p18'], 'b-q2': ['p14'] }
+const PT_BY_BRANCH: Record<string, string[]> = Object.fromEntries(branches.map((br) => [br.id, ['pt10', 'pt20', 'pt30', 'pt60', 'grp20', 'pt100'].map((k) => PKG_ID[br.id][k])]))
 function seedPt(m: Member, pid: string, endOffset: number, left: number) {
   const pk = pkgOf(pid)
   const c = seedContract(m.id, pid, 'active', Math.round(pk.price * (1 + pk.vat_percent / 100)), endOffset - 90)
@@ -314,6 +335,101 @@ members.filter((m) => currentOf(m.id)?.status === 'expired').slice(0, 4).forEach
   const list = PT_BY_BRANCH[m.branch_id]
   seedPt(m, list[0], [-10, 15, -10, 15][i], 5)
 })
+
+// ---- Kịch bản mẫu: mỗi hội viên "TEST ..." đại diện một trường hợp để chỉnh giao diện ----
+let scenarioNo = 0
+function addScenario(name: string, branch: string, extra: Partial<Member> = {}): Member {
+  scenarioNo += 1
+  const m: Member = {
+    id: `ms${scenarioNo}`, code: `HV9${String(scenarioNo).padStart(3, '0')}`, name: `TEST ${name}`, phone: `0988${String(100000 + scenarioNo * 137).slice(0, 6)}`,
+    email: `test${scenarioNo}@example.com`, dob: '1995-05-20', gender: scenarioNo % 2 ? 'male' : 'female', status: 'active', branch_id: branch, avatar_url: null,
+    created_at: new Date(Date.now() - (30 + scenarioNo * 5) * DAY).toISOString(), ...extra,
+  }
+  members.push(m)
+  return m
+}
+const Q7 = 'b-q7'
+const pid = (br: string, key: string) => PKG_ID[br][key]
+const startFor = (days: number, endInDays: number) => endInDays - days
+addScenario('Chưa có hợp đồng', Q7)
+addScenario('Member còn hạn dài', Q7, { face_id: 'FACE-0001' })
+seedContract(`ms2`, pid(Q7, 'm3'), 'active', 1990000, startFor(120, 110))
+addScenario('Sắp hết hạn 2 ngày', Q7)
+seedContract('ms3', pid(Q7, 'm1'), 'active', 700000, startFor(30, 2))
+addScenario('Hết hạn hôm nay', Q7)
+seedContract('ms4', pid(Q7, 'm1'), 'active', 700000, startFor(30, 0))
+addScenario('Đã hết hạn', Q7)
+seedContract('ms5', pid(Q7, 'm1'), 'expired', 700000, -50)
+addScenario('Đang bảo lưu', Q7)
+seedContract('ms6', pid(Q7, 'm3'), 'frozen', 1990000, -40)
+addScenario('Chờ ký (nháp)', Q7)
+seedContract('ms7', pid(Q7, 'm1'), 'draft', 0, null)
+addScenario('Đã ký, chưa kích hoạt', Q7)
+seedContract('ms8', pid(Q7, 'm6'), 'signed', 1000000, null)
+addScenario('Hợp đồng đã hủy', Q7)
+seedContract('ms9', pid(Q7, 'm1'), 'cancelled', 0, -20)
+addScenario('Nợ một phần', Q7)
+seedContract('ms10', pid(Q7, 'm6'), 'active', 1500000, -20)
+addScenario('Nợ toàn bộ', Q7)
+seedContract('ms11', pid(Q7, 'm3'), 'active', 0, -5)
+addScenario('Đã thu đủ', Q7)
+seedContract('ms12', pid(Q7, 'm12'), 'active', 6590000, -60)
+addScenario('Thanh toán chờ xác nhận', Q7)
+{
+  const c = seedContract('ms13', pid(Q7, 'm1'), 'signed', 700000, null)
+  const pay = payments.find((x) => x.contract_id === c.id)
+  if (pay) { pay.status = 'pending'; pay.method = 'vietqr'; pay.confirmed_at = null; pay.ref = 'GDTEST0013'; recalc(c) }
+}
+addScenario('Yêu cầu hoàn tiền', Q7)
+{
+  const c = seedContract('ms14', pid(Q7, 'm1'), 'active', 700000, -10)
+  const pay = payments.find((x) => x.contract_id === c.id)
+  if (pay) { pay.refund_requested = true; pay.method = 'transfer'; pay.ref = 'GDTEST0014' }
+}
+addScenario('Gói ECO vào trước 14h', Q7)
+seedContract('ms15', pid(Q7, 'e3'), 'active', 1100000, -15)
+addScenario('PT 1:1 còn nhiều buổi', Q7)
+seedContract('ms16', pid(Q7, 'm3'), 'active', 1990000, -30)
+seedPt(memberOf('ms16'), pid(Q7, 'pt30'), 60, 24)
+addScenario('PT 1:1 hết buổi', Q7)
+seedContract('ms17', pid(Q7, 'm3'), 'active', 1990000, -30)
+seedPt(memberOf('ms17'), pid(Q7, 'pt10'), 40, 0)
+addScenario('PT hết hạn, còn HSD', Q7)
+seedContract('ms18', pid(Q7, 'm3'), 'active', 1990000, -30)
+seedPt(memberOf('ms18'), pid(Q7, 'pt10'), -15, 6).status = 'expired'
+addScenario('PT quá HSD', Q7)
+seedContract('ms19', pid(Q7, 'm1'), 'active', 700000, -10)
+seedPt(memberOf('ms19'), pid(Q7, 'pt10'), -130, 4).status = 'expired'
+addScenario('PT nhóm', Q7)
+seedContract('ms20', pid(Q7, 'm3'), 'active', 1990000, -30)
+seedPt(memberOf('ms20'), pid(Q7, 'grp20'), 45, 14)
+addScenario('PT 60 buổi (HSD +6 tháng)', Q7)
+seedContract('ms21', pid(Q7, 'm6'), 'active', 3990000, -100)
+seedPt(memberOf('ms21'), pid(Q7, 'pt60'), -100, 33)
+addScenario('Có PT nhưng member hết hạn', Q7)
+seedContract('ms22', pid(Q7, 'm1'), 'expired', 700000, -50)
+seedPt(memberOf('ms22'), pid(Q7, 'pt10'), 20, 7)
+addScenario('Mua PT kèm member tặng', Q7)
+{
+  const c = seedPt(memberOf('ms23'), pid(Q7, 'pt20'), 90, 18)
+  const child = seedContract('ms23', pid(Q7, 'b2'), 'active', 0, -1)
+  child.bundle_of_id = c.id
+  child.end_date = day(60 - 1)
+}
+addScenario('Gia hạn hợp đồng', Q7)
+{
+  const old = seedContract('ms24', pid(Q7, 'm1'), 'expired', 700000, -60)
+  const nw = seedContract('ms24', pid(Q7, 'm3'), 'active', 1990000, -10)
+  nw.renewed_from_id = old.id
+}
+addScenario('Không email, không SĐT hợp lệ', Q7, { email: null, phone: '0900000000' })
+seedContract('ms25', pid(Q7, 'm1'), 'active', 700000, -5)
+addScenario('Khách chi nhánh Nhà Bè', 'b-nb')
+seedContract('ms26', pid('b-nb', 'm3'), 'active', 1990000, -30)
+addScenario('Khách chi nhánh Quận 2', 'b-q2')
+seedContract('ms27', pid('b-q2', 'm1'), 'expired', 700000, -45)
+addScenario('Tên rất dài để kiểm tra cắt chữ trong bảng và hộp thoại hội viên', Q7)
+seedContract('ms28', pid(Q7, 'm12'), 'active', 3000000, -200)
 const pendingSeed = payments.filter((p) => p.status === 'confirmed' && p.method === 'vietqr').slice(0, 3)
 pendingSeed.forEach((p) => {
   p.status = 'pending'
@@ -673,6 +789,13 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     if (!p) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
     if (method === 'get') return ok(pkgOut(p as Pkg))
     need('packages.update')
+    if (method === 'delete') {
+      if (contracts.some((c) => c.package_id === (p as Pkg).id)) fail(config, 409, 'PACKAGE_IN_USE', 'Gói đã có hợp đồng, không xóa được')
+      if ([...bundleIds.values()].includes((p as Pkg).id)) fail(config, 409, 'PACKAGE_IS_BUNDLE', 'Gói đang được gói PT khác gắn kèm, không xóa được')
+      packages.splice(packages.indexOf(p as Pkg), 1)
+      bundleIds.delete((p as Pkg).id)
+      return ok({ id: (p as Pkg).id })
+    }
     const { bundled_member_package_id, ...rest } = body as Record<string, unknown>
     const used = contracts.some((c) => c.package_id === (p as Pkg).id)
     if (used && (Object.keys(rest).some((k) => k !== 'active') || bundled_member_package_id !== undefined)) fail(config, 409, 'PACKAGE_IN_USE', 'Gói đã có hợp đồng, không sửa được')
@@ -1034,6 +1157,15 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return ok({
       revenue_today: Object.values(byMethod).reduce((a, b) => a + b, 0),
       revenue_by_method: byMethod,
+      revenue_by_kind: (() => {
+        const k: Record<string, number> = { member: 0, pt_1on1: 0, pt_1on2: 0, pt_group: 0 }
+        for (const p of payments) {
+          if (p.status !== 'confirmed' || !(p.confirmed_at ?? '').startsWith(day(0))) continue
+          const c = contracts.find((x) => x.id === p.contract_id)
+          if (c) k[c.package.category] = (k[c.package.category] ?? 0) + p.amount
+        }
+        return k
+      })(),
       new_contracts_today: cs.filter((c) => c.created_at.slice(0, 10) === t).length,
       active_members: new Set(cs.filter((c) => c.status === 'active').map((c) => c.member_id)).size,
       expiring_in_7_days: cs.filter((c) => c.status === 'active' && c.end_date && c.end_date <= day(7) && c.end_date >= t).length,

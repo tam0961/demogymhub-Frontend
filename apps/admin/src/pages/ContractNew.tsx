@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { CreateFlowError, STEP_LABEL, runCreateContract, type CreateOutcome } from '../lib/contracts'
-import { METHODS, METHOD_LABEL, PACKAGE_CATEGORIES, PACKAGE_CATEGORY, isPtCategory, fmtDate, fmtMoney, parseMoney, priceWithVat, todayISO } from '../lib/format'
+import { METHODS, METHOD_LABEL, PACKAGE_CATEGORIES, PACKAGE_CATEGORY, isPtCategory, fmtDate, fmtMoney, parseMoney, todayISO } from '../lib/format'
 import { BANKS, bankReady, loadBank, transferContent, vietQrUrl } from '../lib/bank'
 import { createIpadSession, getIpadSession, ipadUrl, setIpadStage } from '../lib/ipad'
 import { QRImage } from '../components/QRImage'
@@ -17,7 +17,7 @@ import { MemberAvatar } from '../components/MemberAvatar'
 import { Button, Field, Input, Modal, MoneyInput, Segmented, Select, Textarea, useToast } from '../components/ui'
 import type { Gender, ListResp, Member, PayMethod, Pkg } from '../types'
 
-const pkgLabel = (p: Pkg) => `${p.name} - ${fmtMoney(priceWithVat(p.price, p.vat_percent))}`
+const pkgLabel = (p: Pkg) => `${p.name} - ${fmtMoney(p.price)}`
 
 export function BundleInfo({ pkg, runningEnd }: { pkg: Pkg; runningEnd: string | null }) {
   const b = pkg.bundled_member_package
@@ -109,6 +109,13 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   useEffect(() => {
     if (promoType && !promoAllowed(promoType, pkg?.type)) { setPromoType(''); setPromoValue('') }
   }, [pkg, promoType])
+  useEffect(() => {
+    if (!pkg) return
+    const live = !!pkg.promo_type && (!pkg.promo_until || pkg.promo_until >= todayISO())
+    setPromoType(live ? (pkg.promo_type as PromoType) : '')
+    setPromoValue(live ? String(pkg.promo_value ?? '') : '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pkgId])
 
   const promoNum = parseMoney(promoValue)
   const promo: Promo | null = promoType && promoNum > 0 ? { type: promoType, value: promoNum } : null

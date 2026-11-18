@@ -163,10 +163,6 @@ export function barLayout(values: number[], height: number) {
   return values.map((v) => Math.round((v / max) * height))
 }
 
-export function priceWithVat(price: number, vat: number) {
-  return Math.round(price * (1 + vat / 100))
-}
-
 export function downloadBlob(blob: Blob, name: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

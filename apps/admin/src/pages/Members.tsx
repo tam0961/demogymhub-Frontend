@@ -38,6 +38,12 @@ async function fetchAll<T>(url: string, params: Record<string, unknown>): Promis
 
 export const showBranchColumn = (user: Pick<Me, 'branches'> | null | undefined, branchId: string | null) => !branchId && (user?.branches.length ?? 0) > 1
 
+const nameLines = (name: string) => {
+  const w = name.trim().split(/\s+/)
+  if (w.length <= 5) return name
+  return <>{w.slice(0, 5).join(' ')}<br />{w.slice(5).join(' ')}</>
+}
+
 export function PtCell({ m }: { m: Member }) {
   const pt = m.pt_contract
   if (!pt) return <span className="hint-muted">-</span>
@@ -62,45 +68,53 @@ export function HsdCell({ m }: { m: Member }) {
 
 export function memberColumns(showBranch: boolean, branchOf: (m: Member) => Branch | undefined): Column<Member>[] {
   const cols: Column<Member>[] = [
-    { key: 'code', header: 'Mã', sortValue: (m) => m.code, render: (m) => <><div className="cell-main">{m.code}</div>{m.face_id && <div className="cell-sub">{m.face_id}</div>}</> },
+    { key: 'code', className: 'mb-code', header: 'Mã', sortValue: (m) => m.code, render: (m) => <><div className="cell-main">{m.code}</div>{m.face_id && <div className="cell-sub">{m.face_id}</div>}</> },
     {
-      key: 'name', header: 'Thông tin khách hàng', sortValue: (m) => m.name,
+      key: 'name', className: 'mb-name', header: 'Thông tin khách hàng', sortValue: (m) => m.name,
       render: (m) => (
         <div className="cell-person">
           <MemberAvatar member={m} />
-          <div><div className="cell-main">{m.name}</div><div className="cell-sub">{m.phone}{m.gender ? ` · ${GENDER_LABEL[m.gender]}` : ''}</div></div>
+          <div><div className="cell-main">{nameLines(m.name)}</div><div className="cell-sub">{m.phone}{m.gender ? ` · ${GENDER_LABEL[m.gender]}` : ''}</div></div>
         </div>
       ),
     },
-    { key: 'status', header: 'Trạng thái', sortValue: (m) => statusOf(m).label, render: (m) => { const s = statusOf(m); return <Chip tone={s.tone}>{s.label}</Chip> } },
+    { key: 'status', className: 'mb-status', header: 'Trạng thái', sortValue: (m) => statusOf(m).label, render: (m) => { const s = statusOf(m); return <Chip tone={s.tone}>{s.label}</Chip> } },
   ]
   if (showBranch) cols.push({ key: 'branch', header: 'Chi nhánh', sortValue: (m) => branchOf(m)?.name, render: (m) => <BranchTag branch={branchOf(m)} /> })
   cols.push(
     {
-      key: 'pkg', header: 'Gói tập', sortValue: (m) => m.pt_contract?.package_name ?? m.current_contract?.package_name,
+      key: 'pkg', className: 'mb-pkg', header: 'Gói tập', sortValue: (m) => m.pt_contract?.package_name ?? m.current_contract?.package_name,
       render: (m) => {
         const pt = m.pt_contract
         if (pt) return <><div className="cell-main">{pt.package_name}</div><div className="cell-sub">{pt.sessions_left ?? 0}/{pt.sessions_total ?? 0} buổi</div></>
         return m.current_contract ? <><div className="cell-main">{m.current_contract.package_name}</div><div className="cell-sub">{m.current_contract.code}</div></> : <span className="hint-muted">-</span>
       },
     },
-    { key: 'created', header: 'Ngày đăng ký', sortValue: (m) => m.created_at, render: (m) => fmtDate(m.created_at) },
+    { key: 'created', className: 'mb-created', header: 'Ngày đăng ký', sortValue: (m) => m.created_at, render: (m) => fmtDate(m.created_at) },
     {
-      key: 'end', header: 'Hết hạn', numeric: true, sortValue: (m) => m.pt_contract?.end_date ?? m.current_contract?.end_date,
+      key: 'end', className: 'mb-end', header: 'Hết hạn', numeric: true, sortValue: (m) => m.pt_contract?.end_date ?? m.current_contract?.end_date,
       render: (m) => {
         const end = m.pt_contract ? m.pt_contract.end_date : m.current_contract?.end_date
-        const hasHsdRow = hasHsd(m.pt_contract?.package_category)
-        if (!end && !hasHsdRow) return <span className="hint-muted">-</span>
+        if (!end) return <span className="hint-muted">-</span>
+        return <><div className="cell-main">{fmtDate(end)}</div><div className="cell-sub">{daysLeftText(end)}</div></>
+      },
+    },
+    {
+      key: 'hsd', className: 'mb-hsd', header: 'HSD', sortValue: (m) => (hasHsd(m.pt_contract?.package_category) ? m.pt_contract?.usage_deadline ?? '9999-12-31' : ''),
+      render: (m) => {
+        const pt = m.pt_contract
+        if (!pt || !hasHsd(pt.package_category)) return null
         return (
           <>
-            {end && <><div className="cell-main">{fmtDate(end)}</div><div className="cell-sub">{daysLeftText(end)}</div></>}
-            {hasHsdRow && <HsdCell m={m} />}
+            <div className="cell-main">{pt.usage_deadline ? fmtDate(pt.usage_deadline) : 'Không giới hạn'}</div>
+            <div>{pt.usage_valid ? <Chip tone="ok">Còn HSD</Chip> : <Chip tone="bad">Quá HSD</Chip>}</div>
           </>
         )
       },
     },
   )
-  return cols
+  const order = ['code', 'name', 'pkg', 'status', 'branch', 'created', 'end', 'hsd']
+  return cols.sort((x, y) => order.indexOf(x.key) - order.indexOf(y.key))
 }
 
 export function membersCsvRows(rows: Member[], showBranch: boolean, branchOf: (m: Member) => Branch | undefined) {
@@ -318,7 +332,7 @@ export default function Members() {
           <RequirePermission permission="contracts.create"><Button variant="primary" onClick={() => nav('/contracts/new')}>Tạo hợp đồng mới</Button></RequirePermission>
         </div>
       </div>
-      <div className="card">
+      <div className="card members-table">
         <DataTable
           columns={columns}
           rows={filtered}

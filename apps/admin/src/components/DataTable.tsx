@@ -53,11 +53,12 @@ interface Props<T> {
   itemLabel?: string
   caption?: string
   rowClassName?: (row: T) => string
+  hidePager?: boolean
 }
 
 export function DataTable<T>({
   columns, rows, rowKey, onRowClick, selectable, selected = [], onSelectionChange, defaultSort, pageSize = 50,
-  pageSizes = [25, 50, 100], loading, error, emptyText = 'Không có dữ liệu', itemLabel = 'mục', caption, rowClassName,
+  pageSizes = [25, 50, 100], loading, error, emptyText = 'Không có dữ liệu', itemLabel = 'mục', caption, rowClassName, hidePager,
 }: Props<T>) {
   const [sort, setSort] = useState(defaultSort ?? null)
   const [size, setSize] = useState(pageSize)
@@ -94,7 +95,7 @@ export function DataTable<T>({
               {columns.map((c) => {
                 const active = sort?.key === c.key
                 return (
-                  <th key={c.key} className={c.numeric ? 'num' : ''} aria-sort={active ? (sort?.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
+                  <th key={c.key} className={`${c.numeric ? 'num' : ''} ${c.className ?? ''}`} aria-sort={active ? (sort?.dir === 'asc' ? 'ascending' : 'descending') : undefined}>
                     {c.sortValue ? (
                       <button type="button" className="th-sort" onClick={() => toggleSort(c)}>
                         {c.header}
@@ -136,7 +137,7 @@ export function DataTable<T>({
         {!loading && error && <div className="empty" role="alert">{error}</div>}
         {!loading && !error && rows.length === 0 && <div className="empty">{emptyText}</div>}
       </div>
-      <div className="dt-foot">
+      {!hidePager && <div className="dt-foot">
         <label className="dt-size">
           Hiển thị
           <select className="select" value={size} onChange={(e) => { setSize(Number(e.target.value)); setPage(1) }} aria-label={`Số ${itemLabel} mỗi trang`}>
@@ -157,7 +158,7 @@ export function DataTable<T>({
           <button type="button" className="pg" onClick={() => setPage(cur + 1)} disabled={cur >= pages} aria-label="Trang sau">›</button>
           <button type="button" className="pg" onClick={() => setPage(pages)} disabled={cur >= pages} aria-label="Trang cuối">»</button>
         </nav>
-      </div>
+      </div>}
     </div>
   )
 }

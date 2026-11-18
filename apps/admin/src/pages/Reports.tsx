@@ -97,6 +97,20 @@ export default function Reports() {
           </div>
         </Panel>
       </div>
+      {d.revenue_by_kind && (
+        <div style={{ marginTop: 16 }}>
+          <Panel title="Doanh thu hôm nay theo loại gói" note={fmtMoney(Object.values(d.revenue_by_kind).reduce((s, x) => s + x, 0))}>
+            <ul className="legend">
+              {([['member', 'Member'], ['pt_1on1', 'PT 1:1'], ['pt_1on2', 'PT 1:2'], ['pt_group', 'PT nhóm']] as const).map(([k, label]) => (
+                <li key={k}>
+                  <span>{label}</span>
+                  <b className="num">{fmtMoney(d.revenue_by_kind?.[k] ?? 0)}</b>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        </div>
+      )}
       <div className="grid-2" style={{ marginTop: 16 }}>
         <Panel title="Sắp hết hạn trong 7 ngày" count={`${d.expiring_in_7_days} hợp đồng`} flush>
           {expiring.length === 0 && <EmptyState title="Không có hợp đồng sắp hết hạn" />}

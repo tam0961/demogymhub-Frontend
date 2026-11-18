@@ -28,8 +28,8 @@ describe('quote', () => {
     expect(quote(pt, null, 0, '2026-11-12')).toMatchObject({ sessions: 12, endDate: null })
     expect(quote(pt, { type: 'bonus_sessions', value: 3 }, 0, '2026-11-12')).toMatchObject({ sessions: 15, endDate: null })
   })
-  it('price includes VAT', () => {
-    expect(quote(month, null, 0, '2026-11-12').gross).toBe(700000)
+  it('price is final, VAT already included', () => {
+    expect(quote(month, null, 0, '2026-11-12').gross).toBe(648148)
   })
 })
 

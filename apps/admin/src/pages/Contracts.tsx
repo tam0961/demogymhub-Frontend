@@ -7,7 +7,7 @@ import { hasHsd } from '../lib/pt'
 import { METHOD_LABEL, downloadBlob, fmtDate, fmtMoney } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission } from '../context/usePermission'
-import { Button, Chip, DataTable, Icon, PageHeader, Select, type Column } from '../components/ui'
+import { Button, Chip, DataTable, Icon, Select, type Column } from '../components/ui'
 import ContractNew from './ContractNew'
 import type { Contract } from '../types'
 
@@ -77,19 +77,19 @@ export default function Contracts() {
 
   return (
     <>
-      <PageHeader
-        title="Hợp đồng"
-        action={<RequirePermission permission="contracts.create"><Button variant="primary" onClick={() => nav('/contracts/new')}>Tạo hợp đồng mới</Button></RequirePermission>}
-      />
-      <div className="toolbar">
-        <input className="input" type="search" placeholder="Tìm mã HĐ, tên, mã hội viên" aria-label="Tìm hợp đồng" value={q} onChange={(e) => setQ(e.target.value)} />
-        <Select aria-label="Lọc trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="">Mọi trạng thái</option>
-          {CONTRACT_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
-        </Select>
-        <div className="grow">
+      <div className="page-head members-head">
+        <h1>Hợp đồng</h1>
+        <div className="members-filters">
+          <input className="input" type="search" placeholder="Tìm mã HĐ, tên, mã hội viên" aria-label="Tìm hợp đồng" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Select aria-label="Lọc trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">Mọi trạng thái</option>
+            {CONTRACT_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+        </div>
+        <div className="page-action">
           <span className="hint-muted">{filtered.length} hợp đồng</span>
           <Button onClick={exportCsv} disabled={filtered.length === 0}><Icon name="download" size={16} />Xuất CSV</Button>
+          <RequirePermission permission="contracts.create"><Button variant="primary" onClick={() => nav('/contracts/new')}>Tạo hợp đồng mới</Button></RequirePermission>
         </div>
       </div>
       <div className="card contracts-table">

@@ -363,3 +363,47 @@ button.prof-row-click:hover { background: var(--brand-soft); }
 .ipad-wait { color: var(--muted); margin-top: 48px; }
 .field:has(.pick-drop) { position: relative; }
 .pick-drop { position: absolute; left: 0; right: 0; top: 100%; z-index: 5; max-height: 220px; overflow-y: auto; margin: 2px 0 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+.panel-count { margin-left: 10px; font-size: 14px; font-weight: 400; color: var(--muted); }
+
+.pkg-boxes .dt .table-wrap { max-height: none; min-height: 0; overflow-x: auto; overflow-y: visible; }
+.pkg-boxes table.table { table-layout: fixed; width: 100%; min-width: 900px; }
+.pkg-boxes table.table:has(.pk-bundle) { min-width: 1100px; }
+.pkg-boxes .pk-name { width: 26%; }
+.pkg-boxes .pk-price { width: 14%; }
+.pkg-boxes .pk-term { width: 14%; }
+.pkg-boxes .pk-gift { width: 14%; }
+.pkg-boxes .pk-status { width: 13%; }
+.pkg-boxes .pk-count { width: 11%; }
+.pkg-boxes table:has(.pk-bundle) .pk-name { width: 19%; }
+.pkg-boxes table:has(.pk-bundle) .pk-price { width: 11%; }
+.pkg-boxes table:has(.pk-bundle) .pk-term { width: 17%; }
+.pkg-boxes table:has(.pk-bundle) .pk-gift { width: 10%; }
+.pkg-boxes table:has(.pk-bundle) .pk-bundle { width: 16%; }
+.pkg-boxes table:has(.pk-bundle) .pk-status { width: 10%; }
+.pkg-boxes table:has(.pk-bundle) .pk-count { width: 9%; }
+.pkg-boxes th.actions, .pkg-boxes td.actions { width: 160px; }
+.pkg-boxes th, .pkg-boxes td { padding-left: 12px; padding-right: 12px; }
+.pkg-boxes th { white-space: normal; line-height: 1.25; }
+.pkg-boxes td.actions { white-space: nowrap; }
+.pk-row3 { display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) { .pk-row3 { grid-template-columns: 1fr; } }
+.modal .pk-row3 .field { min-width: 0; }
+
+.members-table .dt .table-wrap { max-height: none; overflow-x: auto; }
+.members-table table.table { table-layout: fixed; width: 100%; min-width: 1000px; }
+.members-table .col-check { width: 44px; }
+.members-table .mb-code { width: 9%; }
+.members-table .mb-name { width: 25%; }
+.members-table .mb-status { width: 11%; }
+.members-table .mb-pkg { width: 19%; }
+.members-table .mb-created { width: 11%; }
+.members-table .mb-end { width: 12%; }
+.members-table .mb-hsd { width: 11%; }
+.members-table th { white-space: normal; line-height: 1.25; }
+.members-table th.mb-end, .members-table td.mb-end { padding-right: 32px; }
+.members-table .mb-name { width: 26%; }
+
+/* column headers: brand yellow, black text */
+table.table thead th { background: var(--brand); color: var(--brand-ink); border-bottom: 1px solid var(--brand-deep); }
+table.table thead th .th-sort, table.table thead th .th-arrow { color: inherit; }
+table.table thead th[aria-sort] { background: var(--brand); }
