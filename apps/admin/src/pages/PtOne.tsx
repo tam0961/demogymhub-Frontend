@@ -250,7 +250,7 @@ export default function PtOne() {
             <dt>PT</dt><dd>{signing.trainer.name}</dd>
             <dt>Giờ</dt><dd>{dayText(dayOf(signing.start_at))} {fmtTime(signing.start_at)} - {fmtTime(signing.end_at)}</dd>
           </dl>
-          <p className="cell-sub" style={{ marginTop: 12 }}>Sau khi khách ký, khách sẽ nhận tin Zalo ZNS xác nhận buổi tập (cấu hình trong Cài đặt, mục Zalo ZNS).</p>
+          <p className="cell-sub" style={{ marginTop: 12 }}>Sau khi khách ký, khách sẽ nhận tin Zalo ZNS xác nhận buổi tập (cấu hình trong Thiết lập, mục Zalo ZNS).</p>
         </Modal>
       )}
       {cancelling && (

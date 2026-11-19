@@ -45,7 +45,7 @@ export default function Attendance() {
     <>
       <PageHeader
         title="Chấm công"
-        sub="Giờ vào là lần quét đầu tiên trong ngày, giờ ra là lần quét cuối cùng. Thêm máy chấm công ở Cài đặt, Thiết bị."
+        sub="Giờ vào là lần quét đầu tiên trong ngày, giờ ra là lần quét cuối cùng. Thêm máy chấm công ở Thiết lập, Thiết bị."
         action={<Input type="month" aria-label="Tháng" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />}
       />
       <KpiRow>

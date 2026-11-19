@@ -360,7 +360,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                 </dl>
               </>
             ) : (
-              <div className="form-error" role="alert">Chưa cài đặt tài khoản ngân hàng của công ty. Vào Cài đặt, mục Tài khoản ngân hàng để nhập, rồi quay lại tạo hợp đồng.</div>
+              <div className="form-error" role="alert">Chưa cài đặt tài khoản ngân hàng của công ty. Vào Thiết lập, mục Tài khoản ngân hàng để nhập, rồi quay lại tạo hợp đồng.</div>
             )}
           </div>
           {ipadPanel}

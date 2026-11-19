@@ -67,7 +67,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { title: 'Thống kê', items: [
     { to: '/reports', label: 'Hiệu suất kinh doanh', icon: 'reports', perm: ['reports.view'] },
   ] },
-  { title: 'Cài đặt', items: [
+  { title: 'Thiết lập', items: [
     { to: '/users', label: 'Tài khoản và phân quyền', icon: 'users', perm: ['roles.read'] },
     { to: '/roles', label: 'Vai trò', icon: 'roles', perm: ['roles.read'] },
     { to: '/settings/bank', label: 'Tài khoản ngân hàng', icon: 'payments', perm: ['roles.read'] },

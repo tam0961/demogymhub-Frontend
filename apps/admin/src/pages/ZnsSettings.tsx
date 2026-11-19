@@ -66,7 +66,7 @@ export default function ZnsSettings() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  if (!form) return <><PageHeader title="Cài đặt Zalo ZNS" />{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</>
+  if (!form) return <><PageHeader title="Thiết lập Zalo ZNS" />{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</>
 
   const setTop = (k: TopKey, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f))
   const setEv = (k: EventKey, patch: Partial<EventForm>) => setForm((f) => (f ? { ...f, events: { ...f.events, [k]: { ...f.events[k], ...patch } } } : f))
@@ -131,7 +131,7 @@ export default function ZnsSettings() {
 
   return (
     <>
-      <PageHeader title="Cài đặt Zalo ZNS" sub="Cấu hình lưu trên máy chủ. Điền một lần, hệ thống tự gửi tin." />
+      <PageHeader title="Thiết lập Zalo ZNS" sub="Cấu hình lưu trên máy chủ. Điền một lần, hệ thống tự gửi tin." />
       <form onSubmit={save}>
         {err && <div className="form-error" role="alert">{err}</div>}
         <Panel title="Kết nối Zalo Official Account">

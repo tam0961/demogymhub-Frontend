@@ -69,7 +69,7 @@ export default function Staff() {
     <>
       <PageHeader
         title="Nhân viên"
-        sub="Tài khoản nhân viên và vai trò. Phân quyền chi tiết ở mục Cài đặt, Tài khoản và phân quyền."
+        sub="Tài khoản nhân viên và vai trò. Phân quyền chi tiết ở mục Thiết lập, Tài khoản và phân quyền."
         action={<RequirePermission permission="roles.assign"><Button variant="primary" onClick={() => setAdding(true)}>Thêm nhân viên</Button></RequirePermission>}
       />
       <div className="card">
