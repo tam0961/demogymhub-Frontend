@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
-import { apiError } from '../lib/errors'
 import { daysLeftText, fmtDate, fmtMoney } from '../lib/format'
-import { useAuth } from '../context/AuthContext'
 import { usePermission } from '../context/usePermission'
 import { MemberAvatar } from './MemberAvatar'
 import { Button } from './ui'
@@ -12,7 +10,23 @@ interface ScanMember {
   package_name: string | null; end_date: string | null; state: 'ok' | 'expired' | 'frozen' | 'not_started' | 'no_package'
   sessions_left: number | null; debt: number
 }
-interface ScanItem { id: string; employee_no: string; scanned_at: string; member: ScanMember | null }
+interface ScanItem { id: string; employee_no: string; scanned_at: string; result: 'allowed' | 'denied' | null; reason: string | null; member: ScanMember | null }
+
+const REASON: Record<string, { label: string; tone: 'warn' | 'bad' }> = {
+  EXPIRED: { label: 'HẾT HẠN', tone: 'bad' },
+  FROZEN: { label: 'ĐANG BẢO LƯU', tone: 'warn' },
+  NO_SESSIONS: { label: 'HẾT BUỔI', tone: 'bad' },
+  OUTSIDE_HOURS: { label: 'NGOÀI GIỜ GÓI', tone: 'warn' },
+  NO_ACTIVE_CONTRACT: { label: 'CHƯA CÓ GÓI', tone: 'bad' },
+  WRONG_BRANCH: { label: 'SAI CHI NHÁNH', tone: 'bad' },
+}
+
+function verdict(it: ScanItem): { label: string; tone: 'ok' | 'warn' | 'bad' } {
+  if (!it.member) return { label: 'KHÔNG NHẬN RA KHÁCH', tone: 'bad' }
+  if (it.result === 'allowed') return { label: 'ĐÃ CHECK-IN', tone: 'ok' }
+  if (it.result === 'denied') return REASON[it.reason ?? ''] ?? { label: 'KHÔNG CHO VÀO', tone: 'bad' }
+  return STATE[it.member.state]
+}
 
 const STATE: Record<ScanMember['state'], { label: string; tone: 'ok' | 'warn' | 'bad' }> = {
   ok: { label: 'CÒN HẠN', tone: 'ok' },
@@ -43,13 +57,10 @@ function beep(ok: boolean) {
 }
 
 export default function ScanPopup() {
-  const { user } = useAuth()
   const { can } = usePermission()
   const allowed = can('checkins.read')
-  const canCheckin = can('checkins.create') && !user?.roles.some((r) => r === 'owner' || r === 'super_admin')
   const since = useRef<string | null>(null)
   const [queue, setQueue] = useState<ScanItem[]>([])
-  const [msg, setMsg] = useState('')
   const cur = queue[0]
 
   useEffect(() => {
@@ -69,34 +80,23 @@ export default function ScanPopup() {
     return () => { alive = false; clearInterval(t) }
   }, [allowed])
 
-  const next = useCallback(() => { setMsg(''); setQueue((q) => q.slice(1)) }, [])
+  const next = useCallback(() => { setQueue((q) => q.slice(1)) }, [])
 
   useEffect(() => {
     if (!cur) return
-    beep(!!cur.member && cur.member.state === 'ok')
-    const t = setTimeout(next, 30000)
+    beep(cur.result === 'allowed')
+    const t = setTimeout(next, cur.result === 'allowed' ? 10000 : 25000)
     return () => clearTimeout(t)
   }, [cur, next])
 
   if (!cur) return null
   const m = cur.member
-  const checkin = async () => {
-    if (!m) return
-    try {
-      const { data } = await api.post<{ data: { result: 'allowed' | 'denied'; reason: string | null } }>('/checkins', { member_code: m.code, direction: 'in' })
-      if (data.data.result === 'allowed') next()
-      else setMsg(`Không cho vào: ${data.data.reason ?? 'không đủ điều kiện'}`)
-    } catch (e) {
-      setMsg(apiError(e).message)
-    }
-  }
-
-  const tone = m ? STATE[m.state].tone : 'bad'
+  const v = verdict(cur)
   const days = m?.end_date ? daysLeftText(m.end_date) : ''
   return (
     <div className="scan-overlay" role="alertdialog" aria-live="assertive" aria-label="Khách vừa quét mặt">
-      <div className={`scan-card scan-${tone}`}>
-        <div className="scan-banner">{m ? STATE[m.state].label : 'KHÔNG NHẬN RA KHÁCH'}</div>
+      <div className={`scan-card scan-${v.tone}`}>
+        <div className="scan-banner">{v.label}</div>
         {m ? (
           <>
             <div className="scan-person">
@@ -113,9 +113,7 @@ export default function ScanPopup() {
               {m.sessions_left != null && (<><dt>Còn lại</dt><dd>{m.sessions_left} buổi</dd></>)}
             </dl>
             {m.debt > 0 && <div className="scan-debt-bar">Còn nợ {fmtMoney(m.debt)}</div>}
-            {msg && <div className="form-error" role="alert">{msg}</div>}
             <div className="scan-foot">
-              {canCheckin && <Button variant="primary" className="scan-btn" onClick={checkin}>Check-in</Button>}
               <Button className="scan-btn" onClick={next}>Đóng</Button>
             </div>
           </>
