@@ -177,7 +177,7 @@ export interface Dashboard {
 }
 export interface Closing { totals_by_method: Partial<Record<PayMethod, number>>; total: number; items: Payment[] }
 export interface UserRoleRef { id: string; role: string; branch_id: string | null }
-export interface AdminUser { id: string; email: string; name: string; roles: UserRoleRef[] }
+export interface AdminUser { id: string; email: string; name: string; employee_no?: string | null; roles: UserRoleRef[] }
 export interface RoleRow { id: string; name: string; description?: string | null; permissions: (string | { key: string })[] }
 export interface AuditRow { id: string; actor_id?: string | null; target_id?: string | null; actor?: string | null; actor_email?: string | null; action: string; resource?: string | null; result?: string | null; ip?: string | null; created_at: string }
 export interface SessionRow { id: string; device?: string | null; user_agent?: string | null; ip?: string | null; created_at: string; last_used_at?: string | null; current?: boolean }

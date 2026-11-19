@@ -47,6 +47,7 @@ const hm = (iso: string | undefined, fallback = '') => {
   return `${d.getHours()}h${m ? String(m).padStart(2, '0') : ''}`
 }
 
+const classTitle = (t: string) => t.replace(/^PT nhóm\s*[-:]?\s*/i, '').trim() || 'Lớp'
 const ptName = (t: { name: string } | null) => `PT ${t?.name.trim().split(/\s+/).pop() ?? 'Thịnh'}`
 
 interface PtReportRow { pt: string; taught: number; booked: number; attended: number; people: number; upcoming: number }
@@ -200,7 +201,7 @@ export default function PtClasses() {
                 </div>
               ))}
               {slots.map((slot) => (
-                <GridRow key={slot} slot={slot} days={days} today={today} items={shown.filter((c) => fmtTime(c.start_at) === slot)} regs={regs} fillTone={fillTone} onOpen={setDetailId} />
+                <GridRow key={slot} slot={slot} days={days} today={today} items={shown.filter((c) => fmtTime(c.start_at) === slot)} regs={regs} fillTone={fillTone} onOpen={setDetailId} onComplete={(c) => act(`/pt/classes/${c.id}/complete`, 'Đã xác nhận dạy xong lớp')} />
               ))}
               {!loading && slots.length === 0 && <div className="empty" style={{ gridColumn: '1 / -1' }}>Chưa có lớp nào có người đăng ký trong tuần</div>}
             </div>
@@ -253,7 +254,8 @@ export default function PtClasses() {
   )
 }
 
-function GridRow({ slot, days, today, items, regs, fillTone, onOpen }: { slot: string; days: string[]; today: string; items: GroupClass[]; regs: GroupReg[]; fillTone: (c: GroupClass) => string; onOpen: (id: string) => void }) {
+function GridRow({ slot, days, today, items, regs, fillTone, onOpen, onComplete }: { slot: string; days: string[]; today: string; items: GroupClass[]; regs: GroupReg[]; fillTone: (c: GroupClass) => string; onOpen: (id: string) => void; onComplete: (c: GroupClass) => void }) {
+  const { can } = usePermission()
   return (
     <>
       <div className="gcal-time"><span>{hm(items[0]?.start_at, slot)}</span><span>- {hm(items[0]?.end_at)}</span></div>
@@ -266,12 +268,15 @@ function GridRow({ slot, days, today, items, regs, fillTone, onOpen }: { slot: s
               const mine = regs.filter((r) => r.class.id === c.id && r.status !== 'cancelled' && r.status !== 'waitlist')
               const tone = fillTone(c)
               return (
-                <button key={c.id} type="button" className={`gcal-card ${tone}${c.status === 'completed' ? ' done' : ''}`} onClick={() => onOpen(c.id)}>
-                  <span className="gcal-title">{c.title}{c.muscle_group ? ` + ${c.muscle_group}` : ''}</span>
+                <div key={c.id} className={`gcal-card ${tone}${c.status === 'completed' ? ' done' : ''}`}>
+                  <button type="button" className="gcal-open" onClick={() => onOpen(c.id)}>
+                  <span className="gcal-title">{classTitle(c.title)}{c.muscle_group ? ` + ${c.muscle_group}` : ''}</span>
                   <span className="gcal-pt">{ptName(c.trainer)}</span>
                   <span className="gcal-bar">{Array.from({ length: Math.max(1, c.capacity) }, (_, k) => <span key={k} className={k < c.registered ? 'on' : ''} />)}</span>
                   <span className="gcal-chips">{mine.map((r) => <span key={r.id} className={`gcal-chip${r.status === 'absent' ? ' bad' : ''}`}>{r.name}</span>)}</span>
-                </button>
+                  </button>
+                  {c.status === 'scheduled' && c.trainer && c.registered > 0 && can('pt_sessions.complete') && <Button small variant="primary" onClick={() => onComplete(c)}>Hoàn thành</Button>}
+                </div>
               )
             })}
           </div>
@@ -321,7 +326,7 @@ function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: 
   const open = cls.status === 'scheduled'
   return (
     <Modal
-      title={`${cls.title}${cls.muscle_group ? ` - ${cls.muscle_group}` : ''} | ${ptName(cls.trainer)}`}
+      title={`${classTitle(cls.title)}${cls.muscle_group ? ` - ${cls.muscle_group}` : ''} | ${ptName(cls.trainer)}`}
       size="large"
       onClose={onClose}
       footer={open ? (
@@ -348,7 +353,7 @@ function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: 
 function ClassModal({ week, trainers, onClose, onSaved }: { week: string; trainers: Trainer[]; onClose: () => void; onSaved: () => void }) {
   const { branchId } = useBranch()
   const { user } = useAuth()
-  const [title, setTitle] = useState('PT nhóm')
+  const [title, setTitle] = useState('Lớp nhóm')
   const [muscle, setMuscle] = useState('')
   const [trainerId, setTrainerId] = useState('')
   const [date, setDate] = useState(week)
@@ -433,7 +438,7 @@ function RegisterModal({ cls, onClose, onSaved }: { cls: GroupClass; onClose: ()
   }
 
   return (
-    <Modal title={`Đăng ký khách - ${cls.title} ${fmtDateTime(cls.start_at)}`} onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="reg-form" disabled={busy || !memberId}>{busy ? 'Đang lưu...' : 'Đăng ký'}</Button></>}>
+    <Modal title={`Đăng ký khách - ${classTitle(cls.title)} ${fmtDateTime(cls.start_at)}`} onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="reg-form" disabled={busy || !memberId}>{busy ? 'Đang lưu...' : 'Đăng ký'}</Button></>}>
       <form id="reg-form" className="form-grid" onSubmit={submit}>
         {error && <div className="form-error full" role="alert">{error}</div>}
         <Field label="Tìm hội viên (tên, SĐT, mã)" htmlFor="r-q" full><Input id="r-q" value={q} onChange={(e) => { setQ(e.target.value); setMemberId('') }} /></Field>

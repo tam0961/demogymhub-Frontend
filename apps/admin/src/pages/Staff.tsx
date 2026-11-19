@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { useAuth } from '../context/AuthContext'
-import { RequirePermission } from '../context/usePermission'
+import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
 import { Button, Chip, DataTable, Field, Input, PageHeader, Select, useToast, type Column } from '../components/ui'
 import type { AdminUser, ListResp } from '../types'
@@ -20,6 +20,8 @@ export default function Staff() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
+  const [editing, setEditing] = useState<AdminUser | null>(null)
+  const { can } = usePermission()
   const toast = useToast()
 
   const load = useCallback(async () => {
@@ -51,6 +53,16 @@ export default function Staff() {
         </span>
       ),
     },
+    {
+      key: 'emp',
+      header: 'Mã chấm công',
+      render: (u) => (
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {u.employee_no ?? <span className="cell-sub">Chưa gán</span>}
+          {can('attendance.manage') && <Button small onClick={() => setEditing(u)}>Sửa</Button>}
+        </span>
+      ),
+    },
   ]
 
   return (
@@ -63,8 +75,31 @@ export default function Staff() {
       <div className="card">
         <DataTable columns={columns} rows={rows} rowKey={(u) => u.id} loading={loading} error={error} emptyText="Chưa có nhân viên" itemLabel="nhân viên" />
       </div>
+      {editing && <EmpModal user={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); toast('Đã lưu mã chấm công'); load() }} />}
       {adding && <AddModal onClose={() => setAdding(false)} onSaved={(msg) => { setAdding(false); toast(msg); load() }} />}
     </>
+  )
+}
+
+function EmpModal({ user, onClose, onSaved }: { user: AdminUser; onClose: () => void; onSaved: () => void }) {
+  const [no, setNo] = useState(user.employee_no ?? '')
+  const [error, setError] = useState('')
+  const save = async (e: FormEvent) => {
+    e.preventDefault()
+    try {
+      await api.put(`/attendance/staff/${user.id}`, { employee_no: no.trim() || null })
+      onSaved()
+    } catch (er) {
+      setError(apiError(er).message)
+    }
+  }
+  return (
+    <Modal title={`Mã chấm công - ${user.name}`} onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="emp-form">Lưu</Button></>}>
+      <form id="emp-form" onSubmit={save}>
+        {error && <div className="form-error" role="alert">{error}</div>}
+        <Field label="Mã nhân viên trên máy chấm công" htmlFor="emp-no" hint="Trùng với Employee No khi đăng ký khuôn mặt trên máy. Để trống để bỏ gán."><Input id="emp-no" value={no} onChange={(e) => setNo(e.target.value)} /></Field>
+      </form>
+    </Modal>
   )
 }
 

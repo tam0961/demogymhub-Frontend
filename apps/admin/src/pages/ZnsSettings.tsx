@@ -1,63 +1,153 @@
-import { useState, type FormEvent } from 'react'
-import { Button, Field, Input, PageHeader, Panel, useToast } from '../components/ui'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { api } from '../lib/api'
+import { apiError } from '../lib/errors'
+import { fmtDateTime } from '../lib/format'
+import { Button, Chip, Field, Input, PageHeader, Panel, Textarea, useToast } from '../components/ui'
 
-const KEY = 'gymhub.zns.config.v2'
+type EventKey = 'new_contract' | 'renewal' | 'expiring' | 'pt_signed'
 
-interface EventDef { key: string; label: string; hint: string; days?: number }
-const EVENTS: EventDef[] = [
-  { key: 'new_contract', label: 'Đăng ký gói mới', hint: 'Gửi ngay khi hợp đồng mới được kích hoạt.' },
-  { key: 'renewal', label: 'Gia hạn', hint: 'Gửi ngay khi hợp đồng gia hạn được kích hoạt.' },
-  { key: 'payment_due', label: 'Nhắc ngày thanh toán', hint: 'Gửi trước ngày hẹn thanh toán số tiền còn nợ.', days: 2 },
-  { key: 'expiring', label: 'Nhắc ngày hết hạn', hint: 'Gửi trước ngày hợp đồng hết hạn.', days: 2 },
-  { key: 'pt_signed', label: 'Khách ký xác nhận buổi PT', hint: 'Gửi ngay sau khi khách ký xong buổi PT.' },
-]
-
-interface EventCfg { enabled: boolean; templateId: string; days: string }
-interface Cfg { oaId: string; appId: string; testPhone: string; events: Record<string, EventCfg> }
-
-const fresh = (): Cfg => ({
-  oaId: '', appId: '', testPhone: '',
-  events: Object.fromEntries(EVENTS.map((e) => [e.key, { enabled: false, templateId: '', days: String(e.days ?? 0) }])),
-})
-
-const load = (): Cfg => {
-  const base = fresh()
-  try {
-    const saved = JSON.parse(localStorage.getItem(KEY) ?? '{}')
-    return { ...base, ...saved, events: Object.fromEntries(EVENTS.map((e) => [e.key, { ...base.events[e.key], ...(saved.events?.[e.key] ?? {}) }])) }
-  } catch { return base }
+interface EventDef { key: EventKey; label: string; hint: string; vars: string[]; hasDays?: boolean }
+const VAR_LABEL: Record<string, string> = {
+  customer_name: 'tên khách', contract_code: 'mã hợp đồng', package_name: 'tên gói', end_date: 'ngày hết hạn',
+  days_left: 'số ngày còn lại', pt_name: 'tên PT', session_time: 'giờ buổi tập', gym_name: 'tên phòng gym',
 }
+const EVENTS: EventDef[] = [
+  { key: 'new_contract', label: 'Đăng ký gói mới', hint: 'Gửi ngay khi hợp đồng mới được kích hoạt.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'gym_name'] },
+  { key: 'renewal', label: 'Gia hạn', hint: 'Gửi ngay khi hợp đồng gia hạn được kích hoạt.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'gym_name'] },
+  { key: 'expiring', label: 'Nhắc hết hạn', hint: 'Gửi mỗi ngày từ 9h cho hợp đồng sắp hết hạn, mỗi mốc gửi một lần. Bỏ qua khách đã gia hạn.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'days_left', 'gym_name'], hasDays: true },
+  { key: 'pt_signed', label: 'Khách ký xác nhận buổi PT', hint: 'Gửi ngay sau khi PT hoàn thành buổi tập 1:1.', vars: ['customer_name', 'pt_name', 'session_time', 'gym_name'] },
+]
+const EVENT_LABEL: Record<string, string> = Object.fromEntries(EVENTS.map((e) => [e.key, e.label]))
+
+interface EventForm { enabled: boolean; templateId: string; days: string; params: string }
+type TopKey = 'appId' | 'oaId' | 'testPhone' | 'secretKey' | 'accessToken' | 'refreshToken'
+type Form = Record<TopKey, string> & { events: Record<EventKey, EventForm> }
+interface ServerCfg {
+  app_id: string; oa_id: string; test_phone: string; has_secret_key: boolean; has_access_token: boolean; has_refresh_token: boolean
+  events: Record<EventKey, { enabled: boolean; template_id: string; days: number[]; params: Record<string, string> }>
+}
+interface LogRow { id: string; event: string; phone: string; status: string; error: string | null; created_at: string }
+
+const paramsToText = (p: Record<string, string>) => Object.entries(p).map(([k, v]) => `${k}=${v}`).join('\n')
+const textToParams = (t: string) => {
+  const out: Record<string, string> = {}
+  for (const line of t.split('\n')) {
+    const i = line.indexOf('=')
+    if (i > 0 && line.slice(i + 1).trim()) out[line.slice(0, i).trim()] = line.slice(i + 1).trim()
+  }
+  return out
+}
+const fromServer = (c: ServerCfg): Form => ({
+  appId: c.app_id, oaId: c.oa_id, testPhone: c.test_phone, secretKey: '', accessToken: '', refreshToken: '',
+  events: Object.fromEntries(EVENTS.map((e) => {
+    const s = c.events[e.key]
+    return [e.key, { enabled: s.enabled, templateId: s.template_id, days: s.days.join(', '), params: paramsToText(s.params) }]
+  })) as Record<EventKey, EventForm>,
+})
+const parseDays = (t: string) => t.split(/[,\s]+/).filter(Boolean).map(Number)
 
 export default function ZnsSettings() {
   const toast = useToast()
-  const [cfg, setCfg] = useState<Cfg>(load)
-  const [secret, setSecret] = useState('')
-  const [token, setToken] = useState('')
+  const [form, setForm] = useState<Form | null>(null)
+  const [has, setHas] = useState({ secret: false, access: false, refresh: false })
+  const [logs, setLogs] = useState<LogRow[]>([])
   const [err, setErr] = useState('')
-  const setTop = (k: 'oaId' | 'appId' | 'testPhone', v: string) => setCfg((c) => ({ ...c, [k]: v }))
-  const setEv = (k: string, patch: Partial<EventCfg>) => setCfg((c) => ({ ...c, events: { ...c.events, [k]: { ...c.events[k], ...patch } } }))
+  const [busy, setBusy] = useState(false)
 
-  const save = (e: FormEvent) => {
-    e.preventDefault()
-    const bad = EVENTS.find((d) => d.days !== undefined && cfg.events[d.key].enabled && !(Number(cfg.events[d.key].days) >= 1 && Number(cfg.events[d.key].days) <= 60))
-    if (bad) { setErr(`"${bad.label}": số ngày phải từ 1 đến 60`); return }
-    setErr('')
-    try { localStorage.setItem(KEY, JSON.stringify(cfg)) } catch { /* ignore */ }
-    toast('Đã lưu cấu hình Zalo ZNS (giao diện, chưa lưu lên máy chủ)')
+  const load = useCallback(async () => {
+    try {
+      const [c, l] = await Promise.all([api.get<{ data: ServerCfg }>('/zalo/config'), api.get<{ data: LogRow[] }>('/zalo/logs')])
+      setForm(fromServer(c.data.data))
+      setHas({ secret: c.data.data.has_secret_key, access: c.data.data.has_access_token, refresh: c.data.data.has_refresh_token })
+      setLogs(l.data.data)
+    } catch (e) {
+      setErr(apiError(e).message)
+    }
+  }, [])
+  useEffect(() => { load() }, [load])
+
+  if (!form) return <><PageHeader title="Cài đặt Zalo ZNS" />{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</>
+
+  const setTop = (k: TopKey, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f))
+  const setEv = (k: EventKey, patch: Partial<EventForm>) => setForm((f) => (f ? { ...f, events: { ...f.events, [k]: { ...f.events[k], ...patch } } } : f))
+
+  const payload = () => ({
+    app_id: form.appId.trim(), oa_id: form.oaId.trim(), test_phone: form.testPhone.trim(),
+    secret_key: form.secretKey || undefined, access_token: form.accessToken || undefined, refresh_token: form.refreshToken || undefined,
+    events: Object.fromEntries(EVENTS.map((e) => {
+      const f = form.events[e.key]
+      return [e.key, { enabled: f.enabled, template_id: f.templateId.trim(), days: e.hasDays ? parseDays(f.days) : [], params: textToParams(f.params) }]
+    })),
+  })
+
+  const validate = () => {
+    const badDays = EVENTS.find((d) => d.hasDays && form.events[d.key].enabled && !parseDays(form.events[d.key].days).every((n) => Number.isInteger(n) && n >= 1 && n <= 90))
+    if (badDays) return `"${badDays.label}": các mốc ngày phải từ 1 đến 90, cách nhau bằng dấu phẩy`
+    const noTpl = EVENTS.find((d) => form.events[d.key].enabled && !form.events[d.key].templateId.trim())
+    if (noTpl) return `"${noTpl.label}": cần nhập mã mẫu tin`
+    return ''
+  }
+
+  const save = async (ev: FormEvent) => {
+    ev.preventDefault()
+    const bad = validate()
+    setErr(bad)
+    if (bad) return
+    setBusy(true)
+    try {
+      await api.put('/zalo/config', payload())
+      toast('Đã lưu cấu hình Zalo ZNS')
+      await load()
+    } catch (e) {
+      setErr(apiError(e).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const test = async (key: EventKey) => {
+    const bad = validate()
+    setErr(bad)
+    if (bad) return
+    try {
+      await api.put('/zalo/config', payload())
+      const { data } = await api.post<{ data: { status: string; error?: string } }>('/zalo/test', { event: key })
+      toast(data.data.status === 'sent' ? 'Đã gửi tin thử' : `Không gửi được: ${data.data.error ?? data.data.status}`)
+      await load()
+    } catch (e) {
+      toast(apiError(e).message)
+    }
+  }
+
+  const runReminders = async () => {
+    try {
+      const { data } = await api.post<{ data: { sent: number } }>('/zalo/run-reminders')
+      toast(`Đã gửi ${data.data.sent} tin nhắc hết hạn`)
+      await load()
+    } catch (e) {
+      toast(apiError(e).message)
+    }
   }
 
   return (
     <>
-      <PageHeader title="Cài đặt Zalo ZNS" />
+      <PageHeader title="Cài đặt Zalo ZNS" sub="Cấu hình lưu trên máy chủ. Điền một lần, hệ thống tự gửi tin." />
       <form onSubmit={save}>
         {err && <div className="form-error" role="alert">{err}</div>}
         <Panel title="Kết nối Zalo Official Account">
           <div className="form-grid">
-            <Field label="OA ID" htmlFor="z-oa"><Input id="z-oa" value={cfg.oaId} onChange={(e) => setTop('oaId', e.target.value)} /></Field>
-            <Field label="App ID" htmlFor="z-app"><Input id="z-app" value={cfg.appId} onChange={(e) => setTop('appId', e.target.value)} /></Field>
-            <Field label="Secret key" htmlFor="z-secret" hint="Không hiển thị lại sau khi lưu."><Input id="z-secret" type="password" autoComplete="off" value={secret} onChange={(e) => setSecret(e.target.value)} /></Field>
-            <Field label="Access token OA" htmlFor="z-token"><Input id="z-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} /></Field>
-            <Field label="Số điện thoại gửi thử" htmlFor="z-test"><Input id="z-test" inputMode="tel" placeholder="0903123456" value={cfg.testPhone} onChange={(e) => setTop('testPhone', e.target.value)} /></Field>
+            <Field label="OA ID" htmlFor="z-oa"><Input id="z-oa" value={form.oaId} onChange={(e) => setTop('oaId', e.target.value)} /></Field>
+            <Field label="App ID" htmlFor="z-app"><Input id="z-app" value={form.appId} onChange={(e) => setTop('appId', e.target.value)} /></Field>
+            <Field label="Secret key" htmlFor="z-secret" hint={has.secret ? 'Đã lưu. Để trống để giữ nguyên.' : 'Dùng để tự làm mới token.'}>
+              <Input id="z-secret" type="password" autoComplete="off" value={form.secretKey} onChange={(e) => setTop('secretKey', e.target.value)} />
+            </Field>
+            <Field label="Access token OA" htmlFor="z-token" hint={has.access ? 'Đã lưu. Để trống để giữ nguyên.' : undefined}>
+              <Input id="z-token" type="password" autoComplete="off" value={form.accessToken} onChange={(e) => setTop('accessToken', e.target.value)} />
+            </Field>
+            <Field label="Refresh token OA" htmlFor="z-refresh" hint={has.refresh ? 'Đã lưu. Hệ thống tự làm mới access token khi hết hạn.' : 'Cần để tự làm mới access token.'}>
+              <Input id="z-refresh" type="password" autoComplete="off" value={form.refreshToken} onChange={(e) => setTop('refreshToken', e.target.value)} />
+            </Field>
+            <Field label="Số điện thoại gửi thử" htmlFor="z-test"><Input id="z-test" inputMode="tel" placeholder="0903123456" value={form.testPhone} onChange={(e) => setTop('testPhone', e.target.value)} /></Field>
           </div>
         </Panel>
 
@@ -65,7 +155,7 @@ export default function ZnsSettings() {
         <Panel title="Sự kiện gửi tin">
           <div className="zns-events">
             {EVENTS.map((d) => {
-              const ev = cfg.events[d.key]
+              const ev = form.events[d.key]
               return (
                 <div key={d.key} className="zns-event">
                   <label className="zns-head">
@@ -75,13 +165,17 @@ export default function ZnsSettings() {
                   <div className="cell-sub">{d.hint}</div>
                   <div className="zns-fields">
                     <Field label="Mã mẫu tin (Template ID)" htmlFor={`z-tpl-${d.key}`}>
-                      <Input id={`z-tpl-${d.key}`} disabled={!ev.enabled} value={ev.templateId} onChange={(e) => setEv(d.key, { templateId: e.target.value })} />
+                      <Input id={`z-tpl-${d.key}`} value={ev.templateId} onChange={(e) => setEv(d.key, { templateId: e.target.value })} />
                     </Field>
-                    {d.days !== undefined && (
-                      <Field label="Gửi trước (ngày)" htmlFor={`z-days-${d.key}`}>
-                        <Input id={`z-days-${d.key}`} type="number" min={1} max={60} disabled={!ev.enabled} value={ev.days} onChange={(e) => setEv(d.key, { days: e.target.value })} />
+                    {d.hasDays && (
+                      <Field label="Gửi trước (ngày)" htmlFor={`z-days-${d.key}`} hint="Nhiều mốc cách nhau bằng dấu phẩy, ví dụ 30, 14, 7.">
+                        <Input id={`z-days-${d.key}`} value={ev.days} onChange={(e) => setEv(d.key, { days: e.target.value })} />
                       </Field>
                     )}
+                    <Field label="Tham số mẫu" htmlFor={`z-par-${d.key}`} full hint={`Mỗi dòng: tên_tham_số_trong_mẫu=biến. Biến dùng được: ${d.vars.map((v) => `${v} (${VAR_LABEL[v]})`).join(', ')}.`}>
+                      <Textarea id={`z-par-${d.key}`} rows={3} placeholder={'customer_name=customer_name\nend_date=end_date'} value={ev.params} onChange={(e) => setEv(d.key, { params: e.target.value })} />
+                    </Field>
+                    <div><Button small type="button" onClick={() => test(d.key)}>Lưu và gửi thử</Button></div>
                   </div>
                 </div>
               )
@@ -90,10 +184,31 @@ export default function ZnsSettings() {
         </Panel>
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-          <Button type="button" disabled title="Cần kết nối máy chủ">Gửi thử</Button>
-          <Button type="submit" variant="primary">Lưu cấu hình</Button>
+          <Button type="button" onClick={runReminders}>Chạy nhắc hết hạn ngay</Button>
+          <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu cấu hình'}</Button>
         </div>
       </form>
+
+      <div style={{ height: 16 }} />
+      <Panel title="Lịch sử gửi gần đây" count={`${logs.length} tin`}>
+        {logs.length === 0 ? <p className="cell-sub">Chưa gửi tin nào.</p> : (
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>Thời gian</th><th>Sự kiện</th><th>Số điện thoại</th><th>Kết quả</th></tr></thead>
+              <tbody>
+                {logs.map((l) => (
+                  <tr key={l.id}>
+                    <td>{fmtDateTime(l.created_at)}</td>
+                    <td>{EVENT_LABEL[l.event] ?? l.event}</td>
+                    <td>{l.phone}</td>
+                    <td><Chip tone={l.status === 'sent' ? 'ok' : l.status === 'failed' ? 'bad' : 'warn'}>{l.status === 'sent' ? 'Đã gửi' : l.status === 'failed' ? 'Lỗi' : 'Đang gửi'}</Chip>{l.error && <div className="cell-sub">{l.error}</div>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </>
   )
 }
