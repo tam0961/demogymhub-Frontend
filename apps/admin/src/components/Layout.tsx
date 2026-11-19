@@ -72,7 +72,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/roles', label: 'Vai trò', icon: 'roles', perm: ['roles.read'] },
     { to: '/settings/bank', label: 'Tài khoản ngân hàng', icon: 'payments', perm: ['roles.read'] },
     { to: '/settings/devices', label: 'Thiết bị', icon: 'shift', perm: ['attendance.manage'] },
-    { to: '/settings/zns', label: 'Zalo ZNS', icon: 'roles', perm: ['roles.read'] },
+    { to: '/settings/zns', label: 'Marketing', icon: 'roles', perm: ['roles.read'] },
     { to: '/audit', label: 'Nhật ký thao tác', icon: 'audit', perm: ['system.view_audit_log'] },
   ] },
 ]

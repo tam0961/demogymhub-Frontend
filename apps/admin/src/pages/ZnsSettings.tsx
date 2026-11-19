@@ -66,7 +66,7 @@ export default function ZnsSettings() {
   }, [])
   useEffect(() => { load() }, [load])
 
-  if (!form) return <><PageHeader title="Thiết lập Zalo ZNS" />{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</>
+  if (!form) return <><PageHeader title="Marketing" />{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</>
 
   const setTop = (k: TopKey, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f))
   const setEv = (k: EventKey, patch: Partial<EventForm>) => setForm((f) => (f ? { ...f, events: { ...f.events, [k]: { ...f.events[k], ...patch } } } : f))
@@ -131,10 +131,10 @@ export default function ZnsSettings() {
 
   return (
     <>
-      <PageHeader title="Thiết lập Zalo ZNS" sub="Cấu hình lưu trên máy chủ. Điền một lần, hệ thống tự gửi tin." />
+      <PageHeader title="Marketing" sub="Thiết lập Zalo ZNS. Cấu hình lưu trên máy chủ, điền một lần, hệ thống tự gửi tin." />
       <form onSubmit={save}>
         {err && <div className="form-error" role="alert">{err}</div>}
-        <Panel title="Kết nối Zalo Official Account">
+        <Panel title="Zalo: kết nối Official Account">
           <div className="form-grid">
             <Field label="OA ID" htmlFor="z-oa"><Input id="z-oa" value={form.oaId} onChange={(e) => setTop('oaId', e.target.value)} /></Field>
             <Field label="App ID" htmlFor="z-app"><Input id="z-app" value={form.appId} onChange={(e) => setTop('appId', e.target.value)} /></Field>
@@ -152,7 +152,7 @@ export default function ZnsSettings() {
         </Panel>
 
         <div style={{ height: 16 }} />
-        <Panel title="Sự kiện gửi tin">
+        <Panel title="Zalo: sự kiện gửi tin">
           <div className="zns-events">
             {EVENTS.map((d) => {
               const ev = form.events[d.key]
@@ -190,7 +190,7 @@ export default function ZnsSettings() {
       </form>
 
       <div style={{ height: 16 }} />
-      <Panel title="Lịch sử gửi gần đây" count={`${logs.length} tin`}>
+      <Panel title="Zalo: lịch sử gửi gần đây" count={`${logs.length} tin`}>
         {logs.length === 0 ? <p className="cell-sub">Chưa gửi tin nào.</p> : (
           <div className="table-wrap">
             <table className="table">
