@@ -520,7 +520,7 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
       )}
     </Modal>
     {payFor && <PayModal contract={payFor} onClose={() => { setPayFor(null); setReloadKey((k) => k + 1) }} onChanged={() => setReloadKey((k) => k + 1)} />}
-    {faceOpen && <FaceModal member={member} initialFaceId={member.face_id ?? ''} onSave={saveFace} onClose={() => setFaceOpen(false)} />}
+    {faceOpen && <FaceModal member={member} initialFaceId={member.face_id ?? ''} onSave={saveFace} onSent={faceJobs.reload} onClose={() => setFaceOpen(false)} />}
     </>
   )
 }

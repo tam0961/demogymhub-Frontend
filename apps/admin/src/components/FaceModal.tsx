@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import type { ProcessedPhoto } from '../lib/photo'
 import { Button, Field, Input, Modal } from './ui'
@@ -13,15 +14,17 @@ interface Props {
   initialFaceId?: string
   onSave: (r: FaceResult) => Promise<void>
   onClose: () => void
+  onSent?: () => void
 }
 
-export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, onClose }: Props) {
+export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, onClose, onSent }: Props) {
   const [photo, setPhoto] = useState<ProcessedPhoto | null>(initialPhoto ?? null)
   const [current, setCurrent] = useState<string | null>(null)
   const [faceId, setFaceId] = useState(initialFaceId)
   const [faceErr, setFaceErr] = useState('')
   const [formErr, setFormErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [agree, setAgree] = useState(false)
 
   useEffect(() => {
     if (!member?.has_photo) return
@@ -41,6 +44,15 @@ export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, on
     setFormErr('')
     try {
       await onSave({ photo, faceId: id })
+      if (member && agree) {
+        try {
+          await api.post('/attendance/face-jobs', { member_id: member.id, consent: true })
+          onSent?.()
+        } catch (e) {
+          setFormErr('Đã lưu ảnh nhưng chưa gửi lên máy chấm công: ' + apiError(e).message)
+          return
+        }
+      }
       onClose()
     } catch (e) {
       const a = apiError(e)
@@ -76,6 +88,11 @@ export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, on
           <div className="hint-muted">Khách nhìn thẳng vào máy chấm công, đủ sáng, không đội nón hay đeo khẩu trang. Chỉ một người trong khung.</div>
         </div>
       </div>
+      {member && (
+        <label className="check" style={{ display: 'block', marginTop: 14 }}>
+          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> Khách đã đồng ý lưu khuôn mặt để vào cửa. Gửi khuôn mặt lên máy chấm công khi bấm Xong.
+        </label>
+      )}
       <div style={{ marginTop: 14 }}>
         <Field label="Face ID (đăng ký khuôn mặt)" htmlFor="face-id" hint="Mã khuôn mặt trên máy Hikvision. Có thể nhập sau." error={faceErr}>
           <Input id="face-id" maxLength={40} invalid={!!faceErr} value={faceId} onChange={(e) => setFaceId(e.target.value)} />
