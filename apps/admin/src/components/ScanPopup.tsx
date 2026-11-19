@@ -61,6 +61,7 @@ export default function ScanPopup() {
   const allowed = can('checkins.read')
   const since = useRef<string | null>(null)
   const [queue, setQueue] = useState<ScanItem[]>([])
+  const [bridgeOk, setBridgeOk] = useState<boolean | null>(null)
   const cur = queue[0]
 
   useEffect(() => {
@@ -73,9 +74,10 @@ export default function ScanPopup() {
         try {
           const params: Record<string, string | number> = { wait: 20 }
           if (since.current) params.since = since.current
-          const { data } = await api.get<{ data: { now: string; items: ScanItem[] } }>('/attendance/scans', { params, timeout: 35000 })
+          const { data } = await api.get<{ data: { now: string; items: ScanItem[]; bridge_ok: boolean | null } }>('/attendance/scans', { params, timeout: 35000 })
           if (!alive) return
           since.current = data.data.now
+          setBridgeOk(data.data.bridge_ok)
           if (data.data.items.length) setQueue((q) => [...q, ...data.data.items])
         } catch {
           await sleep(2000)
@@ -95,11 +97,14 @@ export default function ScanPopup() {
     return () => clearTimeout(t)
   }, [cur, next])
 
-  if (!cur) return null
+  const warn = bridgeOk === false ? <div className="scan-offline" role="alert">Cầu nối máy chấm công đang tắt. Khách quét mặt sẽ không hiện popup và không tự check-in. Hãy mở lại chay-quet.bat trên máy này.</div> : null
+  if (!cur) return warn
   const m = cur.member
   const v = verdict(cur)
   const days = m?.end_date ? daysLeftText(m.end_date) : ''
   return (
+    <>
+    {warn}
     <div className="scan-overlay" role="alertdialog" aria-live="assertive" aria-label="Khách vừa quét mặt">
       <div className={`scan-card scan-${v.tone}`}>
         <div className="scan-banner">{v.label}</div>
@@ -132,5 +137,6 @@ export default function ScanPopup() {
         {queue.length > 1 && <div className="scan-more">Còn {queue.length - 1} lượt quét nữa</div>}
       </div>
     </div>
+    </>
   )
 }
