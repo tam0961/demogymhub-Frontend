@@ -55,6 +55,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { title: 'Tài chính', items: [
     { to: '/packages', label: 'Gói dịch vụ', icon: 'packages', perm: ['packages.read'] },
     { to: '/debt', label: 'Công nợ', icon: 'debt', perm: ['contracts.read'] },
+    { to: '/tickets', label: 'Phiếu chờ duyệt', icon: 'contracts', perm: ['contracts.approve'] },
     { to: '/shift', label: 'Chốt ca', icon: 'shift', perm: ['shifts.open', 'shifts.close'], cashier: true },
     { to: '/reports/closing', label: 'Đối soát', icon: 'closing', perm: ['reports.view'] },
   ] },

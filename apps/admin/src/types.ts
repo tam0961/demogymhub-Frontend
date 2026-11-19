@@ -93,7 +93,7 @@ export interface ListResp<T> { data: T[]; meta: ListMeta }
 
 export type ContractStatus = 'draft' | 'signed' | 'active' | 'frozen' | 'expired' | 'cancelled'
 export interface ContractEvent { id: string; type: string; by_user: string | null; by_user_name?: string | null; reason: string | null; diff: unknown; created_at: string }
-export type PayMethod = 'cash' | 'transfer' | 'vietqr' | 'ewallet'
+export type PayMethod = 'cash' | 'transfer' | 'card' | 'vietqr' | 'ewallet'
 export type PayStatus = 'pending' | 'confirmed' | 'failed' | 'refunded'
 export interface Payment {
   id: string
@@ -274,3 +274,23 @@ export interface ExpiringRow {
   days_left: number
   branch: Branch
 }
+
+export interface Ticket {
+  id: string
+  contract_id: string
+  contract_code: string
+  member_name: string
+  member_code: string
+  type: 'upgrade' | 'downgrade' | 'convert' | 'transfer' | 'branch_change' | 'cancel'
+  status: 'applied' | 'pending' | 'rejected'
+  fee: number
+  payload: Record<string, unknown> | null
+  reason: string | null
+  requested_by: string | null
+  requested_by_name: string | null
+  decided_by: string | null
+  decided_by_name: string | null
+  decided_at: string | null
+  created_at: string
+}
+

@@ -13,6 +13,7 @@ import { SignaturePad } from '../components/SignaturePad'
 import { useToast } from '../components/Toast'
 import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, type Column } from '../components/ui'
 import { MemberAvatar } from '../components/MemberAvatar'
+import { TicketModal } from '../components/TicketModal'
 import type { Contract, Member, Payment } from '../types'
 
 export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | 'bundle_of_id'> }) {
@@ -44,7 +45,7 @@ export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | '
   )
 }
 
-type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
+type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
 
 export default function ContractDetail() {
   const { id } = useParams()
@@ -192,6 +193,7 @@ export default function ContractDetail() {
             {a.activateBlockedByDebt && <Button onClick={() => setDlg('activate')}>Kích hoạt (chưa đủ tiền)</Button>}
             {a.pay && <Button variant={variant('pay')} onClick={() => setDlg('pay')}>Thu tiền</Button>}
             {a.renew && <Button onClick={renew} disabled={busy}>Gia hạn</Button>}
+            {a.ticket && <Button onClick={() => setDlg('ticket')}>Lập phiếu</Button>}
             {a.freeze && <Button onClick={() => setDlg('freeze')}>Bảo lưu</Button>}
             {a.unfreeze && <Button onClick={() => run(() => post('unfreeze'), 'Đã kết thúc bảo lưu')}>Hủy bảo lưu</Button>}
             {a.pdf && <Button onClick={pdf}>Xem PDF</Button>}
@@ -266,6 +268,8 @@ export default function ContractDetail() {
           </div>
         </Modal>
       )}
+
+      {dlg === 'ticket' && <TicketModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
 
       {dlg === 'freeze' && (
         <FormDialog

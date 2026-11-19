@@ -82,7 +82,7 @@ export const PAY_STATUS: Record<PayStatus, { tone: Tone; label: string }> = {
   failed: { tone: 'bad', label: 'Thất bại' },
   refunded: { tone: undefined, label: 'Đã hoàn' },
 }
-export const METHOD_LABEL: Record<PayMethod, string> = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', vietqr: 'VietQR', ewallet: 'Ví điện tử' }
+export const METHOD_LABEL: Record<PayMethod, string> = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', card: 'Quẹt thẻ', vietqr: 'VietQR', ewallet: 'Ví điện tử' }
 export const METHODS = Object.keys(METHOD_LABEL) as PayMethod[]
 
 export const EVENT_LABEL: Record<string, string> = {
@@ -109,6 +109,7 @@ export interface ContractActions {
   activateBlockedByDebt: boolean
   activateWithDebt: boolean
   renew: boolean
+  ticket: boolean
   freeze: boolean
   unfreeze: boolean
   cancel: boolean
@@ -132,6 +133,7 @@ export function contractActions(c: Pick<Contract, 'status' | 'debt_amount'>, can
     activateBlockedByDebt: blocked,
     activateWithDebt,
     renew: (c.status === 'active' || c.status === 'expired') && can('contracts.create'),
+    ticket: (c.status === 'active' || c.status === 'frozen' || c.status === 'expired') && can('contracts.create'),
     freeze: c.status === 'active' && can('contracts.freeze'),
     unfreeze: c.status === 'frozen' && can('contracts.freeze'),
     cancel: live && can('contracts.cancel'),

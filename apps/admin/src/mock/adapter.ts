@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
 import { ptUsageDeadline } from '../lib/pt'
-import type { Lead, PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
+import type { Ticket, Lead, PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
 
 const branches = [
   { id: 'b-q2', code: 'Q2', name: 'Chi nhánh Quận 2' },
@@ -245,6 +245,35 @@ function memberOut(m: Member): Member {
     current_contract: c ? { id: c.id, code: c.code, status: c.status, package_name: c.package.name, package_type: c.package.type, start_date: c.start_date, end_date: c.end_date, sessions_left: c.sessions_left } : null,
     pt_contract: ptContract ? ptOut(ptContract) : null,
   }
+}
+const mockTickets: Ticket[] = []
+function mockTicketQuote(c: Contract, type: string, packageId: string, canApprove: boolean) {
+  const old = packages.find((x) => x.id === c.package_id)
+  const nw = packages.find((x) => x.id === packageId)
+  const r1000 = (n: number) => Math.round(n / 1000) * 1000
+  const ratio = c.sessions_total ? (c.sessions_left ?? 0) / c.sessions_total : 0.5
+  let fee = 0
+  let approval = false
+  let note: string | null = null
+  if (type === 'upgrade' || type === 'convert') {
+    if (!nw) return { type, fee: 0, requires_approval: false, new_end_date: null, new_sessions_total: null, new_sessions_left: null, refund: null, note: 'Chọn gói mới' }
+    fee = type === 'upgrade' ? Math.max(0, nw.price - (old?.price ?? 0)) : Math.max(0, nw.price - r1000((old?.price ?? 0) * ratio))
+  } else if (type === 'downgrade') {
+    approval = true
+    fee = nw ? -r1000(Math.max(0, (old?.price ?? 0) - nw.price) * ratio) : 0
+    note = 'Hạ cấp tính theo phần còn lại của gói cũ'
+  } else if (type === 'transfer') {
+    approval = true
+    fee = 500000
+    note = 'Phí chuyển nhượng cố định'
+  } else if (type === 'cancel') {
+    approval = true
+    fee = -r1000(c.paid_amount * ratio * 0.9)
+    note = 'Hoàn phần còn lại, trừ 10% phí'
+  }
+  const days = nw?.duration_days ?? null
+  const end = days ? new Date(Date.now() + days * 86400000).toISOString().slice(0, 10) : null
+  return { type, fee, requires_approval: approval && !canApprove, new_end_date: nw ? end : null, new_sessions_total: nw?.sessions ?? null, new_sessions_left: nw?.sessions ?? null, refund: fee < 0 ? -fee : null, note }
 }
 function contractOut(c: Contract): Contract {
   const last = payments.filter((p) => p.contract_id === c.id && p.status === 'confirmed').sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
@@ -630,6 +659,46 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   const myBranch = (id: string) => me.branches.some((b) => b.id === id) && (!branchFilter || branchFilter === id)
 
   if (url === '/me') return ok(me)
+  const tkq = /^\/contracts\/([^/]+)\/ticket-quote$/.exec(url)
+  if (tkq && method === 'get') {
+    const c = contracts.find((x) => x.id === tkq[1])
+    if (!c) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy hợp đồng')
+    return ok(mockTicketQuote(c as Contract, String(params.type), String(params.package_id ?? ''), me.permissions.includes('contracts.approve') || isSuper))
+  }
+  const tkc = /^\/contracts\/([^/]+)\/tickets$/.exec(url)
+  if (tkc && method === 'post') {
+    need('contracts.create')
+    const c = contracts.find((x) => x.id === tkc[1])
+    if (!c) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy hợp đồng')
+    const q = mockTicketQuote(c as Contract, String(body.type), String(body.package_id ?? ''), me.permissions.includes('contracts.approve') || isSuper)
+    const t: Ticket = {
+      id: nid('tk'), contract_id: c!.id, contract_code: c!.code, member_name: c!.member.name, member_code: c!.member.code,
+      type: body.type as Ticket['type'], status: q.requires_approval ? 'pending' : 'applied', fee: q.fee, payload: body,
+      reason: (body.reason as string) ?? null, requested_by: me.id, requested_by_name: me.name, decided_by: null, decided_by_name: null,
+      decided_at: null, created_at: new Date().toISOString(),
+    }
+    mockTickets.unshift(t)
+    log(me.email, 'ticket.' + t.type, c!.code)
+    return { ...ok({ ticket: t, contract: contractOut(c as Contract) }), status: 201 }
+  }
+  if (url === '/tickets' && method === 'get') {
+    need('contracts.approve')
+    const rows = mockTickets.filter((t) => !params.status || t.status === params.status)
+    return paged(rows)
+  }
+  const tka = /^\/tickets\/([^/]+)\/(approve|reject)$/.exec(url)
+  if (tka && method === 'post') {
+    need('contracts.approve')
+    const t = mockTickets.find((x) => x.id === tka[1])
+    if (!t) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy phiếu')
+    if (t!.status !== 'pending') fail(config, 409, 'INVALID_STATE', 'Phiếu đã được xử lý')
+    t!.status = tka[2] === 'approve' ? 'applied' : 'rejected'
+    t!.decided_by = me.id
+    t!.decided_by_name = me.name
+    t!.decided_at = new Date().toISOString()
+    if (tka[2] === 'reject') t!.reason = (body.reason as string) ?? t!.reason
+    return ok({ ticket: t, contract: contracts.find((x) => x.id === t!.contract_id) ? contractOut(contracts.find((x) => x.id === t!.contract_id) as Contract) : null })
+  }
 
   if (url === '/auth/change-password' && method === 'post') {
     if (body.current !== rec.pw) fail(config, 400, 'INVALID_CREDENTIALS', 'Mật khẩu hiện tại không đúng')
