@@ -294,3 +294,66 @@ export interface Ticket {
   created_at: string
 }
 
+
+export type PayrollPosition = 'pt_fulltime' | 'pt_parttime' | 'marketing' | 'sale' | 'other'
+export type PayrollTaxMode = 'progressive' | 'flat10' | 'none'
+export interface PayrollTier { upTo: number | null; rate: number }
+export interface PayrollSettings {
+  memberTiers: PayrollTier[]
+  ptTiers: PayrollTier[]
+  marketingTiers: PayrollTier[]
+  ptImmediateShare: number
+  ptSessionShare: number
+  classRate: number
+  insuranceRate: number
+  partTimeTaxRate: number
+  taxBrackets: PayrollTier[]
+  personalDeduction: number | null
+  dependentDeduction: number | null
+}
+export interface PayrollProfile {
+  position: PayrollPosition
+  base_salary: number
+  has_insurance: boolean
+  tax_mode: PayrollTaxMode
+  dependents: number
+  active: boolean
+}
+export interface PayrollStaff {
+  user_id: string
+  name: string
+  email: string
+  roles: string[]
+  branch_codes: string[]
+  profile: PayrollProfile | null
+}
+export interface PayrollRow {
+  user_id: string
+  name: string
+  position: PayrollPosition
+  base_salary: number
+  member_sales: number
+  member_commission: number
+  marketing_commission: number
+  pt_sales: number
+  pt_rate: number
+  pt_immediate: number
+  pt_session_pay: number
+  pt_sessions_taught: number
+  group_classes: number
+  group_pay: number
+  gross: number
+  insurance: number
+  tax: number
+  tax_pending: boolean
+  penalty: number
+  adjustment: number
+  net: number
+  note: string | null
+}
+export interface PayrollPreview {
+  month: string
+  status: 'open' | 'closed'
+  rows: PayrollRow[]
+  totals: Omit<PayrollRow, 'user_id' | 'name' | 'position' | 'tax_pending' | 'note' | 'pt_rate'> & Partial<Pick<PayrollRow, 'pt_rate'>>
+}

@@ -35,6 +35,7 @@ import Attendance from './pages/Attendance'
 import Devices from './pages/Devices'
 import Users from './pages/Users'
 import Tickets from './pages/Tickets'
+import Payroll from './pages/Payroll'
 import { usePermission } from './context/usePermission'
 
 const pageModules = import.meta.glob('./pages/{Access,Debt}.tsx') as Record<string, () => Promise<{ default: ComponentType }>>
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="pt/classes" element={<PermRoute permission="pt_sessions.read"><PtClasses /></PermRoute>} />
         <Route path="debt" element={<PermRoute permission="contracts.read"><Debt /></PermRoute>} />
         <Route path="tickets" element={<PermRoute permission="contracts.approve"><Tickets /></PermRoute>} />
+        <Route path="payroll" element={<PermRoute permission="payroll.read"><Payroll /></PermRoute>} />
         <Route path="members" element={<PermRoute permission="members.read"><Members /></PermRoute>} />
         <Route path="leads" element={<PermRoute permission="leads.read"><Leads /></PermRoute>} />
         <Route path="expiring" element={<PermRoute permission="reports.view"><Expiring /></PermRoute>} />

@@ -19,7 +19,7 @@ const P = {
   leads: ['leads.read', 'leads.create', 'leads.update'],
 }
 const MANAGER_EXTRA = ['contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
-const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage', 'devices.manage']
+const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage', 'devices.manage', 'payroll.read', 'payroll.manage']
 
 const ptTrainers = [{ id: 'pt1', name: 'PT Đạt', branches: [{ id: 'b-nb', name: 'Chi nhánh Nhà Bè' }] }, { id: 'pt2', name: 'PT Tuấn', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }, { id: 'pt3', name: 'PT Ánh', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }]
 const mockOffs: { trainer_id: string; date: string }[] = []
@@ -79,6 +79,74 @@ const attDevices = [{ id: 'dv1', name: 'Cổng chính', branch_id: 'b-nb', branc
 const attDay = (d: number, a: string, b: string | null) => {
   const day = new Date(Date.now() - d * 86400000).toISOString().slice(0, 10)
   return { date: day, first: `${day}T${a}:00+07:00`, last: `${day}T${b ?? a}:00+07:00`, count: b ? 2 : 1, hours: b ? Math.round(((Date.parse(`${day}T${b}:00+07:00`) - Date.parse(`${day}T${a}:00+07:00`)) / 3600000) * 100) / 100 : 0 }
+}
+
+const payrollTiers = (a: [number | null, number][]) => a.map(([upTo, rate]) => ({ upTo, rate }))
+const payrollSettings = {
+  memberTiers: payrollTiers([[15_000_000, 1.5], [25_000_000, 2.5], [35_000_000, 3.5], [null, 4.5]]),
+  ptTiers: payrollTiers([[30_000_000, 25], [50_000_000, 27], [65_000_000, 30], [null, 35]]),
+  marketingTiers: payrollTiers([[129_000_000, 1.5], [179_000_000, 3], [null, 4]]),
+  ptImmediateShare: 0.4,
+  ptSessionShare: 0.6,
+  classRate: 100000,
+  insuranceRate: 10.5,
+  partTimeTaxRate: 10,
+  taxBrackets: [] as { upTo: number | null; rate: number }[],
+  personalDeduction: null as number | null,
+  dependentDeduction: null as number | null,
+}
+const payrollStaff = [
+  { user_id: 'pr-khanh', name: 'Khánh', email: 'khanh@thgym.com', roles: ['trainer'], branch_codes: ['q7'], profile: { position: 'pt_fulltime', base_salary: 8_000_000, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: true } as Record<string, unknown> | null },
+  { user_id: 'pr-trang', name: 'Trang', email: 'trang@thgym.com', roles: ['trainer'], branch_codes: ['q7'], profile: { position: 'pt_fulltime', base_salary: 8_000_000, has_insurance: true, tax_mode: 'progressive', dependents: 1, active: true } as Record<string, unknown> | null },
+  { user_id: 'pr-thinh', name: 'Thịnh', email: 'thinh@thgym.com', roles: ['trainer'], branch_codes: ['q7'], profile: { position: 'pt_parttime', base_salary: 0, has_insurance: false, tax_mode: 'flat10', dependents: 0, active: true } as Record<string, unknown> | null },
+  { user_id: 'pr-tam', name: 'Trần Trí Tâm', email: 'tam@thgym.com', roles: ['sales'], branch_codes: ['q7'], profile: { position: 'marketing', base_salary: 12_000_000, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: true } as Record<string, unknown> | null },
+]
+const payrollAdj: Record<string, { penalty: number; adjustment: number; note: string | null }> = {}
+const payrollClosed = new Set<string>()
+const prTier = (v: number, tiers: { upTo: number | null; rate: number }[]) => {
+  let left = v
+  let from = 0
+  let sum = 0
+  for (const t of tiers) {
+    const top = t.upTo ?? Infinity
+    const part = Math.max(0, Math.min(left, top - from))
+    sum += (part * t.rate) / 100
+    left -= part
+    from = top
+    if (left <= 0) break
+  }
+  return Math.round(sum)
+}
+function payrollRows(month: string) {
+  const seed: Record<string, { member: number; pt: number; taught: number; classes: number }> = {
+    'pr-khanh': { member: 18_000_000, pt: 36_000_000, taught: 22, classes: 0 },
+    'pr-trang': { member: 9_000_000, pt: 22_000_000, taught: 16, classes: 8 },
+    'pr-thinh': { member: 4_000_000, pt: 0, taught: 6, classes: 20 },
+    'pr-tam': { member: 31_000_000, pt: 5_000_000, taught: 0, classes: 0 },
+  }
+  const s = payrollSettings
+  return payrollStaff.filter((u) => u.profile && u.profile.active).map((u) => {
+    const p = u.profile as { position: string; base_salary: number; has_insurance: boolean; tax_mode: string }
+    const d = seed[u.user_id]
+    const adj = payrollAdj[`${u.user_id}:${month}`] ?? { penalty: 0, adjustment: 0, note: null }
+    const ptRate = d.pt > 0 ? (s.ptTiers.find((t) => t.upTo == null || d.pt <= t.upTo) as { rate: number }).rate : 0
+    const marketing = p.position === 'marketing' ? prTier(120_000_000, s.marketingTiers) : 0
+    const memberCommission = prTier(d.member, s.memberTiers)
+    const ptImmediate = Math.round((d.pt * ptRate * s.ptImmediateShare) / 100)
+    const ptSession = p.position === 'marketing' ? 0 : Math.round(d.taught * 41_000)
+    const groupPay = p.position === 'marketing' ? 0 : d.classes * s.classRate
+    const gross = p.base_salary + memberCommission + marketing + ptImmediate + ptSession + groupPay
+    const insurance = p.has_insurance ? Math.round((p.base_salary * s.insuranceRate) / 100) : 0
+    const taxPending = p.tax_mode === 'progressive' && s.taxBrackets.length === 0
+    const tax = p.tax_mode === 'flat10' ? Math.round((gross * s.partTimeTaxRate) / 100) : 0
+    return {
+      user_id: u.user_id, name: u.name, position: p.position, base_salary: p.base_salary,
+      member_sales: d.member, member_commission: memberCommission, marketing_commission: marketing,
+      pt_sales: d.pt, pt_rate: ptRate, pt_immediate: ptImmediate, pt_session_pay: ptSession, pt_sessions_taught: d.taught,
+      group_classes: d.classes, group_pay: groupPay, gross, insurance, tax, tax_pending: taxPending,
+      penalty: adj.penalty, adjustment: adj.adjustment, net: gross - insurance - tax - adj.penalty + adj.adjustment, note: adj.note,
+    }
+  })
 }
 const attRows = [
   { user_id: 'u2', name: 'Lê Thu Hà', employee_no: '12', linked: true, days: [attDay(2, '08:02', '17:05'), attDay(1, '08:10', '17:00'), attDay(0, '07:58', null)] },
@@ -1369,6 +1437,37 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/contracts/sale-staff') return ok([{ id: 'u-sale1', name: 'Ngô Thị Huyền Trang' }, { id: 'u-sale2', name: 'Vũ Bảo Khánh' }])
   if (url === '/attendance/face-jobs' && method === 'get') return ok([{ id: 'fj1', device_name: 'Máy Q7', status: 'done', message: null, created_at: new Date().toISOString() }])
   if (url === '/attendance/face-jobs' && method === 'post') return ok([{ id: 'fj2', status: 'pending' }])
+  if (url.startsWith('/payroll')) {
+    if (method === 'get') need('payroll.read')
+    else need('payroll.manage')
+    if (url === '/payroll/settings' && method === 'get') return ok(payrollSettings)
+    if (url === '/payroll/settings' && method === 'put') { Object.assign(payrollSettings, body); return ok(payrollSettings) }
+    if (url === '/payroll/profiles' && method === 'get') return ok(payrollStaff)
+    const prm = /^\/payroll\/profiles\/([^/]+)$/.exec(url)
+    if (prm && method === 'put') {
+      const u = payrollStaff.find((x) => x.user_id === prm[1])
+      if (!u) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy nhân viên')
+      u!.profile = body as Record<string, unknown>
+      return ok(u!.profile)
+    }
+    if (url === '/payroll/preview' && method === 'get') {
+      const month = String(params.month ?? '')
+      const rows = payrollRows(month)
+      const keys = ['base_salary', 'member_sales', 'member_commission', 'marketing_commission', 'pt_sales', 'pt_immediate', 'pt_session_pay', 'pt_sessions_taught', 'group_classes', 'group_pay', 'gross', 'insurance', 'tax', 'penalty', 'adjustment', 'net'] as const
+      const totals: Record<string, number> = {}
+      for (const k of keys) totals[k] = rows.reduce((a, r) => a + (r[k] as number), 0)
+      return ok({ month, status: payrollClosed.has(month) ? 'closed' : 'open', rows, totals })
+    }
+    if (url === '/payroll/adjustments' && method === 'put') {
+      const b = body as { user_id: string; month: string; penalty: number; adjustment: number; note: string }
+      if (payrollClosed.has(b.month)) fail(config, 409, 'PERIOD_CLOSED', 'Tháng đã chốt, không sửa được')
+      payrollAdj[`${b.user_id}:${b.month}`] = { penalty: b.penalty, adjustment: b.adjustment, note: b.note || null }
+      return ok(b)
+    }
+    if (url === '/payroll/close' && method === 'post') { payrollClosed.add((body as { month: string }).month); return ok({ month: (body as { month: string }).month, status: 'closed', closed_at: new Date().toISOString() }) }
+    if (url === '/payroll/reopen' && method === 'post') { payrollClosed.delete((body as { month: string }).month); return ok({ month: (body as { month: string }).month, status: 'open' }) }
+    if (url === '/payroll/periods' && method === 'get') return ok([...payrollClosed].map((m) => ({ month: m, status: 'closed', closed_at: new Date().toISOString() })))
+  }
   if (url === '/attendance/scans') {
     const first = !scanDemoShown
     scanDemoShown = true

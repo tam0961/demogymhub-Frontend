@@ -66,6 +66,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { title: 'Nhân sự', items: [
     { to: '/staff', label: 'Nhân viên', icon: 'users', perm: ['roles.read'] },
     { to: '/attendance', label: 'Chấm công', icon: 'shift', perm: ['attendance.read'] },
+    { to: '/payroll', label: 'Lương nhân viên', icon: 'payments', perm: ['payroll.read'] },
   ] },
   { title: 'Thống kê', items: [
     { to: '/reports', label: 'Hiệu suất kinh doanh', icon: 'reports', perm: ['reports.view'] },
