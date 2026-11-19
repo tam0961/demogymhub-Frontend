@@ -57,6 +57,7 @@ const printDefaults: Record<string, { title: string; body: string }> = {
 const printTpls: Record<string, { title: string; body: string }> = JSON.parse(JSON.stringify(printDefaults))
 const printEdited = new Set<string>()
 const sheetsCfg = { leads: { name: '', url: '' }, payroll: { name: '', url: '' }, pt_group: { name: '', url: '' } }
+const mktAds = { facebook: { account_id: '', has_token: false }, google_ads: { account_id: '', has_token: false }, maps: { account_id: '', has_token: false } }
 const mktMetrics: { month: string; channel: string; spend: number; impressions: number; clicks: number; leads: number; note: string }[] = []
 const znsCfg = {
   app_id: '', oa_id: '', test_phone: '', has_secret_key: false, has_access_token: false, has_refresh_token: false,
@@ -1250,6 +1251,55 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const sum = (k: 'checkins_today' | 'denied_today' | 'inside_now') => list.reduce((t, x) => t + x[k], 0)
     return ok({ date: d, branches: list, totals: { checkins_today: sum('checkins_today'), denied_today: sum('denied_today'), inside_now: sum('inside_now') } })
   }
+  if (url === '/reports/business') {
+    need('reports.view')
+    const mode = (config.params?.mode as string) === 'year' ? 'year' : 'month'
+    const year = Number(config.params?.year ?? new Date().getFullYear())
+    const month = Number(config.params?.month ?? new Date().getMonth() + 1)
+    const n = mode === 'year' ? 12 : new Date(year, month, 0).getDate()
+    const mk = (k: number) => Array.from({ length: n }, (_, i) => ({ label: i + 1, member: ((i * 7 + k) % 5) * 900000, pt: ((i * 3 + k) % 4) * 1500000, group: i % 6 === 0 ? 800000 : 0 }))
+    const sum = (rows: { member: number; pt: number; group: number }[]) => rows.reduce((s, r) => s + r.member + r.pt + r.group, 0)
+    const rev = mk(1)
+    const col = mk(2)
+    const spark = (seed: number) => Array.from({ length: 14 }, (_, i) => ((i * seed) % 7) + 3)
+    const recent = contracts.slice(0, 6).map((c) => ({ id: c.id, code: c.code, status: c.status, total_amount: c.total_amount, created_at: c.created_at, package: c.package.name, member: { name: c.member.name, code: c.member.code }, branch: branches.find((b) => b.id === c.branch_id) ?? null }))
+    return ok({
+      mode, year, month,
+      revenue: { total: sum(rev), rows: rev },
+      collected: { total: sum(col), rows: col },
+      cards: {
+        member_active: { total: 55, by_branch: [{ branch: 'Chi nhánh Quận 7', code: 'q7', count: 34 }, { branch: 'Chi nhánh Nhà Bè', code: 'nb', count: 21 }], spark: spark(3) },
+        expiring_7: { total: 7, by_branch: [{ branch: 'Chi nhánh Quận 7', code: 'q7', count: 3 }, { branch: 'Chi nhánh Nhà Bè', code: 'nb', count: 4 }], spark: spark(5) },
+        pt_active: { total: 9, members: 9, by_branch: [{ branch: 'Chi nhánh Quận 7', code: 'q7', count: 4 }, { branch: 'Chi nhánh Nhà Bè', code: 'nb', count: 5 }], spark: spark(2) },
+      },
+      packages: { total: 55, rows: [{ name: 'Member 6 tháng', contracts: 12, share: 0.218 }, { name: 'Member 12 tháng', contracts: 11, share: 0.2 }, { name: 'Member 1 tháng', contracts: 10, share: 0.182 }, { name: 'PT 1:1 - 10 buổi', contracts: 9, share: 0.164 }] },
+      health: { score: 89, parts: [{ key: 'revenue', label: 'Doanh thu', score: 25 }, { key: 'members', label: 'Hội viên', score: 18 }, { key: 'collection', label: 'Thu tiền', score: 24 }, { key: 'attendance', label: 'Vận hành', score: 22 }] },
+      alerts: { expiring_30: { count: 20, impact: 53000000 }, unsigned: { count: 3, impact: 10000000 }, debt: { count: 4, impact: 5919000 }, refund_pending: { count: 1, impact: 2000000 }, renew_rate: 0.6 },
+      recent_contracts: recent,
+      expiring_list: contracts.slice(0, 5).map((c, i) => ({ id: c.id, member: { id: c.member.id, name: c.member.name }, package: c.package.name, end_date: c.end_date ?? '', days_left: i + 1, branch: branches.find((b) => b.id === c.branch_id) ?? null })),
+      activity: [
+        { type: 'checkin', at: new Date().toISOString(), text: 'Hà Quang Minh check-in tại Chi nhánh Nhà Bè' },
+        { type: 'payment', at: new Date(Date.now() - 3600000).toISOString(), text: 'Trần Thị Thu Hà thanh toán 700.000 ₫' },
+        { type: 'lead', at: new Date(Date.now() - 7200000).toISOString(), text: 'Khách tiềm năng mới: Phạm Hoa' },
+      ],
+    })
+  }
+  if (url === '/reports/revenue-services') {
+    need('reports.view')
+    const items = [
+      { name: 'Member 6 tháng', group: 'gym', contracts: 8, revenue: 31920000, average: 3990000, share: 0.353 },
+      { name: 'PT 1:1 - 10 buổi', group: 'pt', contracts: 5, revenue: 27495000, average: 5499000, share: 0.304 },
+      { name: 'Member 3 tháng', group: 'gym', contracts: 5, revenue: 9950000, average: 1990000, share: 0.11 },
+      { name: 'Member 1 tháng', group: 'gym', contracts: 10, revenue: 6790000, average: 679000, share: 0.075 },
+    ]
+    const total = items.reduce((s, i) => s + i.revenue, 0)
+    return ok({ days: Number(config.params?.days ?? 30), total, groups: [{ key: 'gym', revenue: items.filter((i) => i.group === 'gym').reduce((s, i) => s + i.revenue, 0) }, { key: 'pt', revenue: items.filter((i) => i.group === 'pt').reduce((s, i) => s + i.revenue, 0) }], items })
+  }
+  if (url === '/reports/contract-progress') {
+    need('reports.view')
+    const recent = contracts.slice(0, 12).map((c, i) => ({ id: c.id, code: c.code, status: c.status === 'active' ? 'active' : c.status === 'frozen' ? 'frozen' : c.status === 'signed' ? 'signed' : 'draft', created_at: c.created_at, package: c.package.name, member: { name: c.member.name, code: c.member.code }, progress: ((i * 17) % 100) / 100 }))
+    return ok({ summary: { total_value: 211200000, paid: 205200000, debt: 5900000, debt_contracts: 4, running: 58, average_progress: 0.33 }, buckets: [31, 10, 10, 7], recent })
+  }
   if (url === '/reports/dashboard') {
     need('reports.view')
     const t = day(0)
@@ -1329,6 +1379,13 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/settings/sheets') {
     if (method === 'put') Object.assign(sheetsCfg, body)
     return ok(sheetsCfg)
+  }
+  if (url === '/marketing/ads') {
+    if (method === 'put') {
+      const p = body.platform as keyof typeof mktAds
+      mktAds[p] = { account_id: body.account_id, has_token: mktAds[p].has_token || !!body.token }
+    }
+    return ok(mktAds)
   }
   if (url === '/marketing/metrics') {
     if (method === 'put') {

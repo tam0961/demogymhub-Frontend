@@ -48,7 +48,8 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/contracts', label: 'Hợp đồng', icon: 'contracts', perm: ['contracts.read'] },
     { to: '/payments', label: 'Phiếu thu', icon: 'payments', perm: ['payments.read'] },
   ] },
-  { title: 'Lịch PT', items: [
+  { title: 'Lịch PT và lớp', items: [
+    { to: '/pt/desk', label: 'PT check-in', icon: 'access', perm: ['pt_sessions.read'] },
     { to: '/pt/classes', label: 'Lịch lớp nhóm', icon: 'calendar', perm: ['pt_sessions.read'] },
     { to: '/pt/one', label: 'PT 1:1', icon: 'calendar', perm: ['pt_sessions.read'] },
   ] },
@@ -69,6 +70,8 @@ export const NAV_GROUPS: NavGroup[] = [
   ] },
   { title: 'Thống kê', items: [
     { to: '/reports', label: 'Hiệu suất kinh doanh', icon: 'reports', perm: ['reports.view'] },
+    { to: '/reports/services', label: 'Doanh thu theo dịch vụ', icon: 'reports', perm: ['reports.view'] },
+    { to: '/reports/progress', label: 'Tiến độ hợp đồng', icon: 'contracts', perm: ['reports.view'] },
   ] },
   { title: 'Thiết lập', items: [
     { to: '/users', label: 'Tài khoản và phân quyền', icon: 'users', perm: ['roles.read'] },
