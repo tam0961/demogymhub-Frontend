@@ -60,6 +60,8 @@ export default function Contracts() {
     { key: 'code', header: 'Mã HĐ', sortValue: (c) => c.code, render: (c) => <><div className="cell-main">{c.code}{c.bundle_of_id && <> <span className="hint-muted">Kèm PT</span></>}</div><div className="cell-sub">{c.branch?.name ?? ''}</div></> },
     { key: 'member', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><div className="cell-main">{c.member.name}</div><div className="cell-sub">{c.member.code}</div></> },
     { key: 'pkg', header: 'Dịch vụ', sortValue: (c) => c.package.name, render: (c) => c.package.name },
+    { key: 'sale', header: 'Sale', sortValue: (c) => c.sale?.name ?? '', render: (c) => c.sale?.name ?? <span className="hint-muted">-</span> },
+    { key: 'pt', header: 'PT phụ trách', sortValue: (c) => c.pt?.name ?? '', render: (c) => c.pt?.name ?? <span className="hint-muted">-</span> },
     { key: 'signed', header: 'Ngày ký', sortValue: (c) => c.signed_at ?? c.created_at, render: (c) => fmtDate(c.signed_at ?? c.created_at) },
     {
       key: 'end', header: 'Hết hạn', sortValue: (c) => c.end_date,

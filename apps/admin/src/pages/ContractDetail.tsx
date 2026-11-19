@@ -14,6 +14,7 @@ import { useToast } from '../components/Toast'
 import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, type Column } from '../components/ui'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { TicketModal } from '../components/TicketModal'
+import { StaffModal } from '../components/StaffModal'
 import type { Contract, Member, Payment } from '../types'
 
 export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | 'bundle_of_id'> }) {
@@ -182,8 +183,8 @@ export default function ContractDetail() {
             {hasHsd(c.package.category) && (<><dt>Hạn sử dụng gói PT</dt><dd>{c.usage_deadline ? fmtDate(c.usage_deadline) : '-'}<div className="cell-sub">{PT_RULE_HINT}</div></dd></>)}
             {c.frozen_until && (<><dt>Bảo lưu đến</dt><dd>{fmtDate(c.frozen_until)}</dd></>)}
             <dt>Giảm giá</dt><dd>{fmtMoney(c.discount)}</dd>
-            {c.sale?.name && (<><dt>Nhân viên Sale</dt><dd>{c.sale.name}</dd></>)}
-            {c.pt?.name && (<><dt>PT phụ trách</dt><dd>{c.pt.name}</dd></>)}
+            <dt>Nhân viên Sale</dt><dd>{c.sale?.name ?? <span className="hint-muted">Chưa gán</span>}</dd>
+            <dt>PT phụ trách</dt><dd>{c.pt?.name ?? <span className="hint-muted">Chưa gán</span>}{can('contracts.create') && c.status !== 'cancelled' && <> <Button small onClick={() => setDlg('staff')}>Đổi Sale, PT</Button></>}</dd>
             {c.note && (<><dt>Ghi chú</dt><dd>{c.note}</dd></>)}
           </dl>
           {pendingSum > 0 && <div className="pending-box" role="status" style={{ marginTop: 12 }}><Chip tone="warn">Chờ xác nhận</Chip> {fmtMoney(pendingSum)} chưa tính vào đã thu.</div>}
@@ -269,6 +270,7 @@ export default function ContractDetail() {
         </Modal>
       )}
 
+      {dlg === 'staff' && <StaffModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
       {dlg === 'ticket' && <TicketModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
 
       {dlg === 'freeze' && (
