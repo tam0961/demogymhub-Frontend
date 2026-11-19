@@ -8,6 +8,9 @@ import { Modal } from '../components/Modal'
 import { Avatar, Button, Chip, DataTable, Field, PageHeader, Select, useToast, type Column } from '../components/ui'
 import type { AdminUser, ListResp, RoleRow } from '../types'
 
+const LOGIN_ROLES = ['super_admin', 'owner', 'receptionist']
+const ROLE_NAME: Record<string, string> = { super_admin: 'Chủ phòng gym', owner: 'Chủ phòng gym', receptionist: 'Lễ tân' }
+
 export default function Users() {
   const { can } = usePermission()
   const [rows, setRows] = useState<AdminUser[]>([])
@@ -19,9 +22,9 @@ export default function Users() {
 
   const load = useCallback(async () => {
     try {
-      const [u, r] = await Promise.all([api.get<ListResp<AdminUser>>('/users', { params: { limit: 100 } }), api.get('/roles')])
+      const [u, r] = await Promise.all([api.get<ListResp<AdminUser>>('/users', { params: { limit: 100, scope: 'login' } }), api.get('/roles')])
       setRows(u.data.data)
-      setRoles(r.data.data)
+      setRoles((r.data.data as RoleRow[]).filter((x) => LOGIN_ROLES.includes(x.key ?? x.name)))
       setError('')
     } catch (e) {
       setError(apiError(e).message)
@@ -40,13 +43,13 @@ export default function Users() {
 
   const columns: Column<AdminUser>[] = [
     { key: 'name', header: 'Họ tên', sortValue: (u) => u.name, render: (u) => <div className="cell-person"><Avatar name={u.name} /><div><div className="cell-main">{u.name}</div><div className="cell-sub">{u.email}</div></div></div> },
-    { key: 'roles', header: 'Vai trò', render: (u) => <span className="chips">{u.roles.map((r) => <Chip key={r.id}>{r.role}</Chip>)}</span> },
+    { key: 'roles', header: 'Vai trò', render: (u) => <span className="chips">{u.roles.filter((r) => LOGIN_ROLES.includes(r.role)).map((r) => <Chip key={r.id}>{ROLE_NAME[r.role]}{r.branch_code ? ` - ${r.branch_code.toUpperCase()}` : ''}</Chip>)}</span> },
     { key: 'act', header: '', className: 'actions', render: (u) => can('roles.assign') && <Button small onClick={() => setEditing(u)}>Sửa vai trò</Button> },
   ]
 
   return (
     <>
-      <PageHeader title="Tài khoản đăng nhập" sub="Người dùng và vai trò được gán" />
+      <PageHeader title="Tài khoản đăng nhập" sub="Chủ phòng gym và lễ tân các chi nhánh" />
       <div className="toolbar">
         <input className="input" type="search" placeholder="Tìm tên hoặc tên đăng nhập" aria-label="Tìm tài khoản" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="grow"><span className="hint-muted">{filtered.length} tài khoản</span></div>
@@ -119,8 +122,8 @@ function RoleEditor({ user, roles, onClose, onSaved }: { user: AdminUser; roles:
           <>
             {roles.map((r) => (
               <label key={r.id} className="check role-opt">
-                <input type="checkbox" checked={after.includes(r.name)} onChange={() => toggle(r.name)} />
-                {r.name}{r.description ? ` - ${r.description}` : ''}
+                <input type="checkbox" checked={after.includes(r.key ?? r.name)} onChange={() => toggle(r.key ?? r.name)} />
+                {ROLE_NAME[r.key ?? r.name] ?? r.name}
               </label>
             ))}
             {diff.add.length > 0 && (

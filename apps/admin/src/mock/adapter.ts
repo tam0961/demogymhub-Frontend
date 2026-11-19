@@ -40,13 +40,24 @@ const users: Record<string, { pw: string; me: Me }> = {
 }
 
 const roleDefs: RoleRow[] = [
-  { id: 'r1', name: 'super_admin', description: 'Toàn quyền', permissions: ALL },
-  { id: 'r2', name: 'owner', description: 'Chủ phòng tập', permissions: ALL },
-  { id: 'r3', name: 'manager', description: 'Quản lý chi nhánh', permissions: [...Object.values(P).flat(), ...MANAGER_EXTRA] },
-  { id: 'r4', name: 'receptionist', description: 'Lễ tân', permissions: Object.values(P).flat() },
-  { id: 'r5', name: 'accountant', description: 'Kế toán', permissions: ['payments.read', 'payments.confirm', 'reports.view', 'reports.view_revenue', 'reports.export', 'contracts.read'] },
+  { id: 'r1', key: 'super_admin', name: 'super_admin', description: 'Toàn quyền', permissions: ALL },
+  { id: 'r2', key: 'owner', name: 'owner', description: 'Chủ phòng tập', permissions: ALL },
+  { id: 'r3', key: 'manager', name: 'manager', description: 'Quản lý chi nhánh', permissions: [...Object.values(P).flat(), ...MANAGER_EXTRA] },
+  { id: 'r4', key: 'receptionist', name: 'receptionist', description: 'Lễ tân', permissions: Object.values(P).flat() },
+  { id: 'r5', key: 'accountant', name: 'accountant', description: 'Kế toán', permissions: ['payments.read', 'payments.confirm', 'reports.view', 'reports.view_revenue', 'reports.export', 'contracts.read'] },
 ]
 let scanDemoShown = false
+const printDefaults: Record<string, { title: string; body: string }> = {
+  contract_member: { title: 'HỢP ĐỒNG HỘI VIÊN', body: 'TH GYM & FITNESS - {{chi_nhanh}}\n\nSố hợp đồng: {{ma_hop_dong}}\nHội viên: {{ten_hoi_vien}} - SĐT: {{sdt}}\nGói tập: {{goi_tap}}\nHiệu lực: {{ngay_bat_dau}} đến {{ngay_het_han}}\nCòn thiếu: {{con_thieu}}' },
+  contract_pt: { title: 'HỢP ĐỒNG HUẤN LUYỆN CÁ NHÂN (PT)', body: 'Số hợp đồng: {{ma_hop_dong}}\nHội viên: {{ten_hoi_vien}}\nGói PT: {{goi_tap}}\nPT phụ trách: {{pt_phu_trach}}' },
+  contract_deposit: { title: 'HỢP ĐỒNG ĐẶT CỌC', body: 'Số hợp đồng: {{ma_hop_dong}}\nHội viên: {{ten_hoi_vien}}\nĐã cọc: {{da_thanh_toan}} / {{tong_tien}}' },
+  freeze_form: { title: 'PHIẾU BẢO LƯU HỢP ĐỒNG', body: 'Hợp đồng: {{ma_hop_dong}}\nHội viên: {{ten_hoi_vien}}\nSố ngày bảo lưu: {{so_ngay_bao_luu}}\nLý do: {{ly_do}}' },
+  transfer_form: { title: 'PHIẾU CHUYỂN NHƯỢNG HỢP ĐỒNG', body: 'Người chuyển: {{ten_hoi_vien}}\nNgười nhận: {{nguoi_nhan}}\nHợp đồng: {{ma_hop_dong}}\nPhí: {{phi_chuyen_nhuong}}' },
+}
+const printTpls: Record<string, { title: string; body: string }> = JSON.parse(JSON.stringify(printDefaults))
+const printEdited = new Set<string>()
+const sheetsCfg = { leads: { name: '', url: '' }, payroll: { name: '', url: '' }, pt_group: { name: '', url: '' } }
+const mktMetrics: { month: string; channel: string; spend: number; impressions: number; clicks: number; leads: number; note: string }[] = []
 const znsCfg = {
   app_id: '', oa_id: '', test_phone: '', has_secret_key: false, has_access_token: false, has_refresh_token: false,
   events: {
@@ -1233,6 +1244,32 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     need('roles.read')
     return ok(roleDefs)
   }
+  if (url === '/roles/receptionist/permissions' && method === 'put') {
+    need('roles.assign')
+    const r = roleDefs.find((x) => x.key === 'receptionist')!
+    const toggles = ['contracts.freeze', 'contracts.approve', 'contracts.cancel', 'pt_sessions.complete', 'payments.refund_request', 'payments.confirm', 'packages.create', 'packages.update', 'reports.view']
+    r.permissions = [...r.permissions.map((p) => (typeof p === 'string' ? p : p.key)).filter((k) => !toggles.includes(k)), ...(body.permissions as string[])]
+    return ok({ permissions: r.permissions })
+  }
+  if (url.startsWith('/settings/print-templates')) {
+    const key = url.split('/')[3]
+    if (!key) return ok(Object.keys(printTpls).map((k) => ({ key: k, ...printTpls[k], is_default: !printEdited.has(k) })))
+    if (method === 'put') { printTpls[key] = { title: body.title, body: body.body }; printEdited.add(key); return ok({ key, ...printTpls[key], is_default: false }) }
+    if (method === 'delete') { printTpls[key] = { ...printDefaults[key] }; printEdited.delete(key); return ok({ key, ...printTpls[key], is_default: true }) }
+  }
+  if (url === '/settings/sheets') {
+    if (method === 'put') Object.assign(sheetsCfg, body)
+    return ok(sheetsCfg)
+  }
+  if (url === '/marketing/metrics') {
+    if (method === 'put') {
+      const i = mktMetrics.findIndex((m) => m.month === body.month && m.channel === body.channel)
+      if (i >= 0) mktMetrics[i] = body; else mktMetrics.push(body)
+      return ok(body)
+    }
+    const mo = config.params?.month as string | undefined
+    return ok(mo ? mktMetrics.filter((m) => m.month === mo) : mktMetrics)
+  }
   if (url === '/permissions') {
     need('roles.read')
     return ok(ALL.map((k) => ({ key: k })))
@@ -1289,7 +1326,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (stm) return ok({ user_id: stm[1], employee_no: (body as { employee_no: string | null }).employee_no })
   if (url === '/users' && method === 'get') {
     need('roles.read')
-    return paged(adminUsers)
+    return paged(config.params?.scope === 'login' ? adminUsers.filter((u) => u.roles.some((r) => ['super_admin', 'owner', 'receptionist'].includes(r.role))) : adminUsers)
   }
   const urm = url.match(/^\/users\/([^/]+)\/roles(?:\/(.+))?$/)
   if (urm) {

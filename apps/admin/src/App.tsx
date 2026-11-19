@@ -21,6 +21,9 @@ import PublicBooking from './pages/PublicBooking'
 import PtOne from './pages/PtOne'
 import ZnsSettings from './pages/ZnsSettings'
 import BankSettings from './pages/BankSettings'
+import SheetSettings from './pages/SheetSettings'
+import PrintTemplates from './pages/PrintTemplates'
+import MarketingStats from './pages/MarketingStats'
 import IpadPage from './pages/IpadPage'
 import Reports from './pages/Reports'
 import ResetPassword from './pages/ResetPassword'
@@ -58,7 +61,10 @@ export default function App() {
         <Route path="pt" element={<Navigate to="/pt/one" replace />} />
         <Route path="settings/bank" element={<PermRoute permission="roles.read"><BankSettings /></PermRoute>} />
         <Route path="settings/zns" element={<PermRoute permission="roles.read"><ZnsSettings /></PermRoute>} />
-        <Route path="pt/one" element={<PermRoute permission="pt_sessions.read"><PtOne /></PermRoute>} />
+        <Route path="settings/sheets" element={<PermRoute permission="roles.read"><SheetSettings /></PermRoute>} />
+        <Route path="settings/print" element={<PermRoute permission="roles.read"><PrintTemplates /></PermRoute>} />
+        <Route path="marketing/stats" element={<PermRoute permission="reports.view"><MarketingStats /></PermRoute>} />
+        <Route path="pt/one"element={<PermRoute permission="pt_sessions.read"><PtOne /></PermRoute>} />
         <Route path="pt/classes" element={<PermRoute permission="pt_sessions.read"><PtClasses /></PermRoute>} />
         <Route path="debt" element={<PermRoute permission="contracts.read"><Debt /></PermRoute>} />
         <Route path="members" element={<PermRoute permission="members.read"><Members /></PermRoute>} />

@@ -66,4 +66,13 @@ describe('navigation', () => {
     expect(items.find((i) => i.to === '/leads')).toMatchObject({ label: 'Khách tiềm năng', perm: ['leads.read'] })
     expect(NAV_GROUPS.flatMap((g) => g.items).find((i) => i.to === '/expiring')).toBeUndefined()
   })
+
+  it('puts Phiếu thu under Khách hàng and Marketing between Tài chính and Nhân sự', () => {
+    const titles = NAV_GROUPS.map((g) => g.title)
+    expect(NAV_GROUPS.find((g) => g.title === 'Khách hàng')!.items.map((i) => i.to)).toContain('/payments')
+    expect(NAV_GROUPS.find((g) => g.title === 'Tài chính')!.items.map((i) => i.to)).not.toContain('/payments')
+    expect(titles.indexOf('Marketing')).toBe(titles.indexOf('Tài chính') + 1)
+    expect(titles.indexOf('Nhân sự')).toBe(titles.indexOf('Marketing') + 1)
+    expect(NAV_GROUPS.find((g) => g.title === 'Marketing')!.items.map((i) => i.to)).toContain('/marketing/stats')
+  })
 })

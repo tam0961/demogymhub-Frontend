@@ -46,9 +46,7 @@ export const NAV_GROUPS: NavGroup[] = [
   { title: 'Khách hàng', items: [
     { to: '/members', label: 'Hội viên', icon: 'members', perm: ['members.read'] },
     { to: '/contracts', label: 'Hợp đồng', icon: 'contracts', perm: ['contracts.read'] },
-  ] },
-  { title: 'Marketing', items: [
-    { to: '/leads', label: 'Khách tiềm năng', icon: 'users', perm: ['leads.read'] },
+    { to: '/payments', label: 'Phiếu thu', icon: 'payments', perm: ['payments.read'] },
   ] },
   { title: 'Lịch PT', items: [
     { to: '/pt/classes', label: 'Lịch lớp nhóm', icon: 'calendar', perm: ['pt_sessions.read'] },
@@ -56,10 +54,13 @@ export const NAV_GROUPS: NavGroup[] = [
   ] },
   { title: 'Tài chính', items: [
     { to: '/packages', label: 'Gói dịch vụ', icon: 'packages', perm: ['packages.read'] },
-    { to: '/payments', label: 'Phiếu thu', icon: 'payments', perm: ['payments.read'] },
     { to: '/debt', label: 'Công nợ', icon: 'debt', perm: ['contracts.read'] },
     { to: '/shift', label: 'Chốt ca', icon: 'shift', perm: ['shifts.open', 'shifts.close'], cashier: true },
     { to: '/reports/closing', label: 'Đối soát', icon: 'closing', perm: ['reports.view'] },
+  ] },
+  { title: 'Marketing', items: [
+    { to: '/leads', label: 'Khách tiềm năng', icon: 'users', perm: ['leads.read'] },
+    { to: '/marketing/stats', label: 'Chỉ số marketing', icon: 'reports', perm: ['reports.view'] },
   ] },
   { title: 'Nhân sự', items: [
     { to: '/staff', label: 'Nhân viên', icon: 'users', perm: ['roles.read'] },
@@ -74,6 +75,8 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/settings/bank', label: 'Tài khoản ngân hàng', icon: 'payments', perm: ['roles.read'] },
     { to: '/settings/devices', label: 'Thiết bị', icon: 'shift', perm: ['devices.manage'] },
     { to: '/settings/zns', label: 'Marketing', icon: 'roles', perm: ['roles.read'] },
+    { to: '/settings/sheets', label: 'Google Sheet', icon: 'packages', perm: ['roles.read'] },
+    { to: '/settings/print', label: 'Mẫu in', icon: 'contracts', perm: ['roles.read'] },
     { to: '/audit', label: 'Nhật ký thao tác', icon: 'audit', perm: ['system.view_audit_log'] },
   ] },
 ]
