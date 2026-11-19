@@ -19,7 +19,7 @@ const P = {
   leads: ['leads.read', 'leads.create', 'leads.update'],
 }
 const MANAGER_EXTRA = ['contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
-const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log']
+const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage']
 
 const ptTrainers = [{ id: 'pt1', name: 'PT Đạt', branches: [{ id: 'b-nb', name: 'Chi nhánh Nhà Bè' }] }, { id: 'pt2', name: 'PT Tuấn', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }, { id: 'pt3', name: 'PT Ánh', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }]
 const mockOffs: { trainer_id: string; date: string }[] = []
@@ -46,6 +46,33 @@ const roleDefs: RoleRow[] = [
   { id: 'r4', name: 'receptionist', description: 'Lễ tân', permissions: Object.values(P).flat() },
   { id: 'r5', name: 'accountant', description: 'Kế toán', permissions: ['payments.read', 'payments.confirm', 'reports.view', 'reports.view_revenue', 'reports.export', 'contracts.read'] },
 ]
+const znsCfg = {
+  app_id: '', oa_id: '', test_phone: '', has_secret_key: false, has_access_token: false, has_refresh_token: false,
+  events: {
+    new_contract: { enabled: false, template_id: '', days: [] as number[], params: {} as Record<string, string> },
+    renewal: { enabled: false, template_id: '', days: [] as number[], params: {} as Record<string, string> },
+    expiring: { enabled: true, template_id: '123456', days: [30, 14, 7], params: { ten_khach: 'customer_name', ngay_het_han: 'end_date' } as Record<string, string> },
+    pt_signed: { enabled: false, template_id: '', days: [] as number[], params: {} as Record<string, string> },
+  },
+}
+const znsLogs = [
+  { id: 'zl1', event: 'expiring', phone: '84903000111', status: 'sent', error: null as string | null, created_at: new Date(Date.now() - 3600_000).toISOString() },
+  { id: 'zl2', event: 'new_contract', phone: '84903000222', status: 'failed', error: '-118 user not found' as string | null, created_at: new Date(Date.now() - 7200_000).toISOString() },
+]
+const botCfg = {
+  enabled: false, has_token: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: 'Thịnh', group_windows: '06:30-07:45, 20:00-21:15',
+  state: { lastPollAt: null as string | null, lastError: null as string | null, lastItemAt: null as string | null, chats: [{ id: 'zgr-demo1', type: 'GROUP', name: 'Nhóm PT TH Gym', at: new Date().toISOString() }] },
+}
+const attDevices = [{ id: 'dv1', name: 'Cổng chính', branch_id: 'b-nb', branch_name: 'Chi nhánh Nhà Bè', device_key: 'a1b2c3d4e5f60718293a4b5c6d7e8f90', last_seen_at: null as string | null }]
+const attDay = (d: number, a: string, b: string | null) => {
+  const day = new Date(Date.now() - d * 86400000).toISOString().slice(0, 10)
+  return { date: day, first: `${day}T${a}:00+07:00`, last: `${day}T${b ?? a}:00+07:00`, count: b ? 2 : 1, hours: b ? Math.round(((Date.parse(`${day}T${b}:00+07:00`) - Date.parse(`${day}T${a}:00+07:00`)) / 3600000) * 100) / 100 : 0 }
+}
+const attRows = [
+  { user_id: 'u2', name: 'Lê Thu Hà', employee_no: '12', linked: true, days: [attDay(2, '08:02', '17:05'), attDay(1, '08:10', '17:00'), attDay(0, '07:58', null)] },
+  { user_id: 'u3', name: 'Phạm Minh Quân', employee_no: '15', linked: true, days: [attDay(1, '09:00', '18:10')] },
+  { user_id: null, name: 'Chưa gán (mã 21)', employee_no: '21', linked: false, days: [attDay(0, '10:00', '12:00')] },
+].map((r) => ({ ...r, total_days: r.days.length, total_hours: Math.round(r.days.reduce((a, d) => a + d.hours, 0) * 100) / 100 }))
 const adminUsers = [
   { id: 'u1', email: 'admin@gymhub.vn', name: 'Chủ phòng', roles: [{ id: 'ur1', role: 'super_admin', branch_id: null as string | null }] },
   { id: 'u3', email: 'quanly@gymhub.vn', name: 'Phạm Minh Quân', roles: [{ id: 'ur3', role: 'manager', branch_id: 'b-nb' as string | null }] },
@@ -1209,6 +1236,47 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     need('roles.read')
     return ok(ALL.map((k) => ({ key: k })))
   }
+  if (url === '/zalo/config' && method === 'get') return ok(znsCfg)
+  if (url === '/zalo/config' && method === 'put') {
+    const b = body as { app_id: string; oa_id: string; test_phone: string; secret_key?: string; access_token?: string; refresh_token?: string; events: typeof znsCfg.events }
+    Object.assign(znsCfg, { app_id: b.app_id, oa_id: b.oa_id, test_phone: b.test_phone, events: b.events })
+    if (b.secret_key) znsCfg.has_secret_key = true
+    if (b.access_token) znsCfg.has_access_token = true
+    if (b.refresh_token) znsCfg.has_refresh_token = true
+    return ok(znsCfg)
+  }
+  if (url === '/zalo/logs') return ok(znsLogs)
+  if (url === '/zalo/test') return ok({ status: znsCfg.has_access_token ? 'sent' : 'skipped', error: znsCfg.has_access_token ? undefined : 'not configured' })
+  if (url === '/zalo/run-reminders') return ok({ sent: 2 })
+  if (url === '/zalo/bot/config' && method === 'get') return ok(botCfg)
+  if (url === '/zalo/bot/config' && method === 'put') {
+    const b = body as { enabled: boolean; token?: string; bot_name: string; pt_group: string; branch_id: string; group_trainer: string; group_windows: string }
+    if (b.enabled && ((!botCfg.has_token && !b.token) || !b.pt_group || !b.branch_id)) fail(config, 400, 'BOT_INCOMPLETE', 'Cần token, nhóm PT và chi nhánh để bật bot')
+    if (b.token) botCfg.has_token = true
+    Object.assign(botCfg, { enabled: b.enabled, bot_name: b.bot_name, pt_group: b.pt_group, branch_id: b.branch_id, group_trainer: b.group_trainer, group_windows: b.group_windows })
+    if (b.enabled) botCfg.state.lastPollAt = new Date().toISOString()
+    return ok(botCfg)
+  }
+  if (url === '/zalo/bot/check' || url === '/zalo/bot/send-test') return ok({ ok: true, message: 'ok' })
+  if (url === '/attendance/summary') return ok(attRows)
+  if (url === '/attendance/devices' && method === 'get') return ok(attDevices)
+  if (url === '/attendance/devices' && method === 'post') {
+    const b = body as { name: string; branch_id?: string }
+    const bid = b.branch_id ?? 'b-nb'
+    const d = { id: nid('dv'), name: b.name, branch_id: bid, branch_name: branches.find((x) => x.id === bid)?.name ?? '', device_key: Math.random().toString(16).slice(2).padEnd(32, '0'), last_seen_at: null as string | null }
+    attDevices.push(d)
+    return ok(d)
+  }
+  const dvm = url.match(/^\/attendance\/devices\/([^/]+)$/)
+  if (dvm && method === 'delete') {
+    const i = attDevices.findIndex((d) => d.id === dvm[1])
+    if (i >= 0) attDevices.splice(i, 1)
+    return ok({ ok: true })
+  }
+  if (url === '/attendance/punches' && method === 'get') return ok([{ id: 'p1', punched_at: new Date().toISOString(), source: 'device' }])
+  if (url.startsWith('/attendance/punches')) return ok({ ok: true })
+  const stm = url.match(/^\/attendance\/staff\/([^/]+)$/)
+  if (stm) return ok({ user_id: stm[1], employee_no: (body as { employee_no: string | null }).employee_no })
   if (url === '/users' && method === 'get') {
     need('roles.read')
     return paged(adminUsers)

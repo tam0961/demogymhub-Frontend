@@ -6,6 +6,7 @@ import { useBranch } from '../context/BranchContext'
 import { useAuth } from '../context/AuthContext'
 import { usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
+import { ConfirmDialog } from '../components/Dialogs'
 import { MemberProfile } from './Members'
 import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
 import type { GroupClass, Contract, GroupReg, GroupRegStatus, GroupStats, GroupTemplate, ListResp, Member } from '../types'
@@ -299,6 +300,8 @@ function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: 
   const { can } = usePermission()
   const { user } = useAuth()
   const locked = Date.now() >= cancelLockAt(cls.start_at) && !user?.roles.some((r) => LOCK_OVERRIDE_ROLES.includes(r))
+  const [confirming, setConfirming] = useState<GroupReg | null>(null)
+  const rows = regs.filter((r) => r.status !== 'cancelled')
   const cols: Column<GroupReg>[] = [
     { key: 'name', header: 'Khách hàng', sortValue: (r) => r.name, render: (r) => <><span className="cell-main">{r.name}</span><div className="cell-sub">{r.phone}</div></> },
     { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => <Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip> },
@@ -315,13 +318,15 @@ function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: 
             </>
           )}
           {(r.status === 'booked' || r.status === 'waitlist') && can('pt_sessions.cancel') && (
-            <Button small variant="danger" disabled={locked} title={locked ? 'Chỉ hủy được trước 21:00 ngày hôm trước' : undefined} onClick={() => act(`/pt/classes/registrations/${r.id}/cancel`, r.status === 'waitlist' ? 'Đã bỏ khỏi danh sách chờ' : 'Đã hủy đăng ký, đã trả buổi cho khách')}>Hủy</Button>
+            <Button small variant="danger" disabled={locked} title={locked ? 'Chỉ hủy được trước 21:00 ngày hôm trước' : undefined} onClick={() => setConfirming(r)}>Hủy</Button>
           )}
         </span>
       ),
     },
   ]
   const open = cls.status === 'scheduled'
+  const vnDay = (d: Date) => new Date(d.getTime() + 7 * 3600000).toISOString().slice(0, 10)
+  const future = vnDay(new Date(cls.start_at)) > vnDay(new Date())
   return (
     <Modal
       title={`${classTitle(cls.title)}${cls.muscle_group ? ` - ${cls.muscle_group}` : ''} | ${ptName(cls.trainer)}`}
@@ -329,8 +334,7 @@ function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: 
       onClose={onClose}
       footer={open ? (
         <>
-          {can('pt_sessions.cancel') && <Button variant="danger" onClick={() => { act(`/pt/classes/${cls.id}/cancel`, 'Đã hủy lớp, đã trả buổi cho khách'); onClose() }}>Hủy lớp</Button>}
-          {can('pt_sessions.complete') && cls.trainer && <Button variant="primary" onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Hoàn thành</Button>}
+          {can('pt_sessions.complete') && cls.trainer && <Button variant="primary" disabled={future} title={future ? 'Chỉ hoàn thành được buổi dạy trong ngày' : undefined} onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Hoàn thành</Button>}
         </>
       ) : undefined}
     >
@@ -338,12 +342,26 @@ function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: 
         <table className="table">
           <thead><tr>{cols.map((c) => <th key={c.key} className={c.numeric ? 'num' : ''}>{c.header}</th>)}</tr></thead>
           <tbody>
-            {regs.length === 0
+            {rows.length === 0
               ? <tr><td colSpan={cols.length}><div className="empty">Chưa có khách đăng ký</div></td></tr>
-              : regs.map((r) => <tr key={r.id}>{cols.map((c) => <td key={c.key} className={c.numeric ? 'num' : ''}>{c.render(r)}</td>)}</tr>)}
+              : rows.map((r) => <tr key={r.id}>{cols.map((c) => <td key={c.key} className={c.numeric ? 'num' : ''}>{c.render(r)}</td>)}</tr>)}
           </tbody>
         </table>
       </div>
+      {confirming && (
+        <ConfirmDialog
+          title="Hủy chỗ của hội viên"
+          danger
+          confirmLabel="Xác nhận hủy"
+          message={confirming.status === 'waitlist' ? `Bỏ ${confirming.name} khỏi danh sách chờ của lớp này?` : `Hủy chỗ của ${confirming.name} trong lớp này? Buổi đã tạm trừ sẽ được trả lại cho khách.`}
+          onClose={() => setConfirming(null)}
+          onConfirm={() => {
+            const r = confirming
+            setConfirming(null)
+            act(`/pt/classes/registrations/${r.id}/cancel`, r.status === 'waitlist' ? 'Đã bỏ khỏi danh sách chờ' : 'Đã hủy chỗ, đã trả buổi cho khách')
+          }}
+        />
+      )}
     </Modal>
   )
 }

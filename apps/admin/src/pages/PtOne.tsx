@@ -227,7 +227,7 @@ export default function PtOne() {
               {picked.status === 'scheduled' && picked.member && (can('pt_sessions.complete') || can('pt_sessions.cancel')) && <Button onClick={() => act(picked, 'no-show')}>Vắng mặt</Button>}
               {picked.status === 'scheduled' && can('pt_sessions.create') && <Button onClick={() => { setEditing(picked); setPicked(null) }}>Sửa lịch</Button>}
               {picked.status === 'scheduled' && !picked.member && (can('pt_sessions.create') || can('pt_sessions.complete')) && <Button onClick={() => { setAssigning(picked); setPicked(null) }}>Gán khách</Button>}
-              {picked.status === 'scheduled' && picked.member && can('pt_sessions.complete') && <Button variant="primary" onClick={() => setSigning(picked)}>Hoàn thành</Button>}
+              {picked.status === 'scheduled' && picked.member && can('pt_sessions.complete') && <Button variant="primary" disabled={new Date(Date.parse(picked.start_at) + 7 * 3600000).toISOString().slice(0, 10) > new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10)} title="Chỉ hoàn thành được buổi dạy trong ngày" onClick={() => setSigning(picked)}>Hoàn thành</Button>}
             </>
           }
         >

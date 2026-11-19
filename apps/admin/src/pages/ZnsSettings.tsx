@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { fmtDateTime } from '../lib/format'
+import ZaloBotPanel from './ZaloBotPanel'
 import { Button, Chip, Field, Input, PageHeader, Panel, Textarea, useToast } from '../components/ui'
 
 type EventKey = 'new_contract' | 'renewal' | 'expiring' | 'pt_signed'
 
 interface EventDef { key: EventKey; label: string; hint: string; vars: string[]; hasDays?: boolean }
-const VAR_LABEL: Record<string, string> = {
-  customer_name: 'tên khách', contract_code: 'mã hợp đồng', package_name: 'tên gói', end_date: 'ngày hết hạn',
-  days_left: 'số ngày còn lại', pt_name: 'tên PT', session_time: 'giờ buổi tập', gym_name: 'tên phòng gym',
-}
 const EVENTS: EventDef[] = [
   { key: 'new_contract', label: 'Đăng ký gói mới', hint: 'Gửi ngay khi hợp đồng mới được kích hoạt.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'gym_name'] },
   { key: 'renewal', label: 'Gia hạn', hint: 'Gửi ngay khi hợp đồng gia hạn được kích hoạt.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'gym_name'] },
@@ -88,8 +85,7 @@ export default function ZnsSettings() {
     return ''
   }
 
-  const save = async (ev: FormEvent) => {
-    ev.preventDefault()
+  const save = async () => {
     const bad = validate()
     setErr(bad)
     if (bad) return
@@ -131,66 +127,68 @@ export default function ZnsSettings() {
 
   return (
     <>
-      <PageHeader title="Marketing" sub="Thiết lập Zalo ZNS. Cấu hình lưu trên máy chủ, điền một lần, hệ thống tự gửi tin." />
-      <form onSubmit={save}>
-        {err && <div className="form-error" role="alert">{err}</div>}
-        <Panel title="Zalo: kết nối Official Account">
+      <PageHeader title="Marketing" sub="Thiết lập Zalo. Cấu hình lưu trên máy chủ, điền một lần, hệ thống tự gửi tin." />
+      {err && <div className="form-error" role="alert">{err}</div>}
+      <div className="zalo-top">
+        <Panel title="Zalo OA">
           <div className="form-grid">
             <Field label="OA ID" htmlFor="z-oa"><Input id="z-oa" value={form.oaId} onChange={(e) => setTop('oaId', e.target.value)} /></Field>
             <Field label="App ID" htmlFor="z-app"><Input id="z-app" value={form.appId} onChange={(e) => setTop('appId', e.target.value)} /></Field>
-            <Field label="Secret key" htmlFor="z-secret" hint={has.secret ? 'Đã lưu. Để trống để giữ nguyên.' : 'Dùng để tự làm mới token.'}>
+            <Field label="Secret key" htmlFor="z-secret" hint={has.secret ? 'Đã lưu, để trống để giữ nguyên.' : 'Để tự làm mới token.'}>
               <Input id="z-secret" type="password" autoComplete="off" value={form.secretKey} onChange={(e) => setTop('secretKey', e.target.value)} />
             </Field>
-            <Field label="Access token OA" htmlFor="z-token" hint={has.access ? 'Đã lưu. Để trống để giữ nguyên.' : undefined}>
+            <Field label="Số điện thoại gửi thử" htmlFor="z-test"><Input id="z-test" inputMode="tel" placeholder="0903123456" value={form.testPhone} onChange={(e) => setTop('testPhone', e.target.value)} /></Field>
+            <Field label="Access token" htmlFor="z-token" hint={has.access ? 'Đã lưu, để trống để giữ nguyên.' : undefined}>
               <Input id="z-token" type="password" autoComplete="off" value={form.accessToken} onChange={(e) => setTop('accessToken', e.target.value)} />
             </Field>
-            <Field label="Refresh token OA" htmlFor="z-refresh" hint={has.refresh ? 'Đã lưu. Hệ thống tự làm mới access token khi hết hạn.' : 'Cần để tự làm mới access token.'}>
+            <Field label="Refresh token" htmlFor="z-refresh" hint={has.refresh ? 'Đã lưu, tự làm mới access token.' : 'Để tự làm mới access token.'}>
               <Input id="z-refresh" type="password" autoComplete="off" value={form.refreshToken} onChange={(e) => setTop('refreshToken', e.target.value)} />
             </Field>
-            <Field label="Số điện thoại gửi thử" htmlFor="z-test"><Input id="z-test" inputMode="tel" placeholder="0903123456" value={form.testPhone} onChange={(e) => setTop('testPhone', e.target.value)} /></Field>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <Button variant="primary" disabled={busy} onClick={() => save()}>{busy ? 'Đang lưu...' : 'Lưu Zalo OA'}</Button>
           </div>
         </Panel>
+        <ZaloBotPanel />
+      </div>
 
-        <div style={{ height: 16 }} />
-        <Panel title="Zalo: sự kiện gửi tin">
-          <div className="zns-events">
-            {EVENTS.map((d) => {
-              const ev = form.events[d.key]
-              return (
-                <div key={d.key} className="zns-event">
-                  <label className="zns-head">
-                    <input type="checkbox" checked={ev.enabled} onChange={(e) => setEv(d.key, { enabled: e.target.checked })} />
-                    <span className="cell-main">{d.label}</span>
-                  </label>
-                  <div className="cell-sub">{d.hint}</div>
-                  <div className="zns-fields">
-                    <Field label="Mã mẫu tin (Template ID)" htmlFor={`z-tpl-${d.key}`}>
-                      <Input id={`z-tpl-${d.key}`} value={ev.templateId} onChange={(e) => setEv(d.key, { templateId: e.target.value })} />
+      <Panel title="Tin nhắn ZNS">
+        <div className="zns-grid">
+          {EVENTS.map((d) => {
+            const ev = form.events[d.key]
+            return (
+              <div key={d.key} className="zns-card">
+                <label className="zns-head">
+                  <input type="checkbox" checked={ev.enabled} onChange={(e) => setEv(d.key, { enabled: e.target.checked })} />
+                  <span className="cell-main">{d.label}</span>
+                </label>
+                <div className="cell-sub">{d.hint}</div>
+                <div className="zns-row">
+                  <Field label="Mã mẫu tin" htmlFor={`z-tpl-${d.key}`}>
+                    <Input id={`z-tpl-${d.key}`} value={ev.templateId} onChange={(e) => setEv(d.key, { templateId: e.target.value })} />
+                  </Field>
+                  {d.hasDays && (
+                    <Field label="Gửi trước (ngày)" htmlFor={`z-days-${d.key}`}>
+                      <Input id={`z-days-${d.key}`} placeholder="30, 14, 7" value={ev.days} onChange={(e) => setEv(d.key, { days: e.target.value })} />
                     </Field>
-                    {d.hasDays && (
-                      <Field label="Gửi trước (ngày)" htmlFor={`z-days-${d.key}`} hint="Nhiều mốc cách nhau bằng dấu phẩy, ví dụ 30, 14, 7.">
-                        <Input id={`z-days-${d.key}`} value={ev.days} onChange={(e) => setEv(d.key, { days: e.target.value })} />
-                      </Field>
-                    )}
-                    <Field label="Tham số mẫu" htmlFor={`z-par-${d.key}`} full hint={`Mỗi dòng: tên_tham_số_trong_mẫu=biến. Biến dùng được: ${d.vars.map((v) => `${v} (${VAR_LABEL[v]})`).join(', ')}.`}>
-                      <Textarea id={`z-par-${d.key}`} rows={3} placeholder={'customer_name=customer_name\nend_date=end_date'} value={ev.params} onChange={(e) => setEv(d.key, { params: e.target.value })} />
-                    </Field>
-                    <div><Button small type="button" onClick={() => test(d.key)}>Lưu và gửi thử</Button></div>
-                  </div>
+                  )}
                 </div>
-              )
-            })}
-          </div>
-        </Panel>
-
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-          <Button type="button" onClick={runReminders}>Chạy nhắc hết hạn ngay</Button>
-          <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu cấu hình'}</Button>
+                <Field label="Tham số mẫu" htmlFor={`z-par-${d.key}`} hint={`Mỗi dòng tên_tham_số=biến. Biến: ${d.vars.join(', ')}.`}>
+                  <Textarea id={`z-par-${d.key}`} rows={2} placeholder="customer_name=customer_name" value={ev.params} onChange={(e) => setEv(d.key, { params: e.target.value })} />
+                </Field>
+                <div><Button small type="button" onClick={() => test(d.key)}>Lưu và gửi thử</Button></div>
+              </div>
+            )
+          })}
         </div>
-      </form>
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 10 }}>
+          <Button onClick={runReminders}>Chạy nhắc hết hạn ngay</Button>
+          <Button variant="primary" disabled={busy} onClick={() => save()}>{busy ? 'Đang lưu...' : 'Lưu tin nhắn'}</Button>
+        </div>
+      </Panel>
 
       <div style={{ height: 16 }} />
-      <Panel title="Zalo: lịch sử gửi gần đây" count={`${logs.length} tin`}>
+      <Panel title="Lịch sử gửi gần đây" count={`${logs.length} tin`}>
         {logs.length === 0 ? <p className="cell-sub">Chưa gửi tin nào.</p> : (
           <div className="table-wrap">
             <table className="table">

@@ -151,7 +151,7 @@ function Shell() {
       <div className={`scrim ${open ? 'open' : ''}`} onClick={() => setOpen(false)} />
       <div className="main">
         <Topbar onMenu={() => setOpen(true)} />
-        <main className="content" key={loc.pathname}>
+        <main className={`content${/^\/(settings|users|roles|audit)/.test(loc.pathname) ? ' compact' : ''}`} key={loc.pathname}>
           <Outlet />
         </main>
       </div>

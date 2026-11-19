@@ -409,3 +409,25 @@ button.prof-row-click:hover { background: var(--brand-soft); }
 table.table thead th { background: var(--brand); color: var(--brand-ink); border-bottom: 1px solid var(--brand-deep); }
 table.table thead th .th-sort, table.table thead th .th-arrow { color: inherit; }
 table.table thead th[aria-sort] { background: var(--brand); }
+
+@media (min-width: 769px) {
+  .content.compact { font-size: 13px; }
+  .content.compact .input, .content.compact .select { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+  .content.compact .btn { min-height: 30px; padding: 0 12px; font-size: 13px; }
+  .content.compact .field > label { font-size: 12px; }
+  .content.compact .field-hint, .content.compact .cell-sub { font-size: 12px; }
+  .content.compact .form-grid { gap: 10px; }
+  .content.compact .panel-body { padding: 12px 14px; }
+  .content.compact .panel-head { padding: 10px 14px; }
+  .content.compact .page-head { margin-bottom: 12px; }
+  .content.compact .table th, .content.compact .table td { padding: 7px 10px; }
+  .content.compact .zns-event { padding: 10px 12px; }
+  .content.compact .zns-fields { gap: 8px; margin-top: 6px; }
+}
+
+.zalo-top { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; margin-bottom: 16px; }
+.zalo-top .form-grid { gap: 8px 10px; }
+.zns-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; max-width: 900px; }
+.zns-card { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); }
+.zns-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+@media (max-width: 1000px) { .zalo-top, .zns-grid { grid-template-columns: 1fr; } }

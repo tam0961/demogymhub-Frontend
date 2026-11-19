@@ -19,5 +19,5 @@ export function leadErrorText(e: { status: number; code: string; message: string
 
 export function reminderText(r: Pick<ExpiringRow, 'name' | 'package_name' | 'end_date' | 'days_left'>): string {
   const when = r.days_left <= 0 ? 'hôm nay' : `ngày ${fmtDate(r.end_date)} (còn ${r.days_left} ngày)`
-  return `Chào ${r.name}, gói ${r.package_name} của bạn tại GymHub sẽ hết hạn ${when}. Bạn vui lòng liên hệ quầy lễ tân để gia hạn và tiếp tục tập luyện nhé. Cảm ơn bạn!`
+  return `Chào ${r.name}, gói ${r.package_name} của bạn tại DemoGym sẽ hết hạn ${when}. Bạn vui lòng liên hệ quầy lễ tân để gia hạn và tiếp tục tập luyện nhé. Cảm ơn bạn!`
 }
