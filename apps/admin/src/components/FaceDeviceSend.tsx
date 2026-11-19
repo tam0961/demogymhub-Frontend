@@ -37,6 +37,8 @@ export function FaceJobsLine({ jobs }: { jobs: Job[] }) {
         <span key={j.id} style={{ marginRight: 10 }}>
           {j.device_name} <Chip tone={TONE[j.status]}>{LABEL[j.status]}</Chip> {fmtDateTime(j.created_at)}
           {j.status === 'failed' && j.message ? ` - ${j.message}` : ''}
+          {j.status === 'done' && j.message ? ` - ${j.message}` : ''}
+          {j.status === 'pending' && Date.now() - Date.parse(j.created_at) > 80000 ? ' - Chưa thấy cầu nối nhận việc, kiểm tra cầu nối ở quầy đang chạy' : ''}
         </span>
       ))}
     </div>
