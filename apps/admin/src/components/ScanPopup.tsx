@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtDate, fmtMoney } from '../lib/format'
+import { daysLeftText, fmtDate, fmtMoney } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { usePermission } from '../context/usePermission'
 import { MemberAvatar } from './MemberAvatar'
-import { Button, Chip } from './ui'
+import { Button } from './ui'
 
 interface ScanMember {
   id: string; code: string; name: string; phone: string; has_photo: boolean; photo_version: number | null
@@ -15,11 +15,31 @@ interface ScanMember {
 interface ScanItem { id: string; employee_no: string; scanned_at: string; member: ScanMember | null }
 
 const STATE: Record<ScanMember['state'], { label: string; tone: 'ok' | 'warn' | 'bad' }> = {
-  ok: { label: 'Còn hạn', tone: 'ok' },
-  expired: { label: 'Hết hạn', tone: 'bad' },
-  frozen: { label: 'Đang bảo lưu', tone: 'warn' },
-  not_started: { label: 'Chưa bắt đầu', tone: 'warn' },
-  no_package: { label: 'Chưa có gói', tone: 'bad' },
+  ok: { label: 'CÒN HẠN', tone: 'ok' },
+  expired: { label: 'HẾT HẠN', tone: 'bad' },
+  frozen: { label: 'ĐANG BẢO LƯU', tone: 'warn' },
+  not_started: { label: 'CHƯA BẮT ĐẦU', tone: 'warn' },
+  no_package: { label: 'CHƯA CÓ GÓI', tone: 'bad' },
+}
+
+function beep(ok: boolean) {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+    const ctx = new Ctx()
+    const tone = (freq: number, at: number) => {
+      const o = ctx.createOscillator()
+      const g = ctx.createGain()
+      o.frequency.value = freq
+      g.gain.value = 0.15
+      o.connect(g)
+      g.connect(ctx.destination)
+      o.start(ctx.currentTime + at)
+      o.stop(ctx.currentTime + at + 0.14)
+    }
+    if (ok) tone(880, 0)
+    else { tone(330, 0); tone(330, 0.2) }
+    setTimeout(() => ctx.close(), 800)
+  } catch { /* trình duyệt chặn âm thanh: bỏ qua */ }
 }
 
 export default function ScanPopup() {
@@ -45,7 +65,7 @@ export default function ScanPopup() {
       } catch { /* mạng chập chờn: lần hỏi sau tự thử lại */ }
     }
     tick()
-    const t = setInterval(tick, 3000)
+    const t = setInterval(tick, 1500)
     return () => { alive = false; clearInterval(t) }
   }, [allowed])
 
@@ -53,7 +73,8 @@ export default function ScanPopup() {
 
   useEffect(() => {
     if (!cur) return
-    const t = setTimeout(next, 20000)
+    beep(!!cur.member && cur.member.state === 'ok')
+    const t = setTimeout(next, 30000)
     return () => clearTimeout(t)
   }, [cur, next])
 
@@ -70,37 +91,42 @@ export default function ScanPopup() {
     }
   }
 
+  const tone = m ? STATE[m.state].tone : 'bad'
+  const days = m?.end_date ? daysLeftText(m.end_date) : ''
   return (
-    <div className="scan-pop" role="alertdialog" aria-live="assertive" aria-label="Khách vừa quét mặt">
-      {m ? (
-        <>
-          <div className="scan-head">
-            <MemberAvatar member={{ id: m.id, name: m.name, has_photo: m.has_photo, photo_version: m.photo_version }} size={56} />
-            <div>
-              <b>{m.name}</b>
-              <div className="cell-sub">{m.code} · {m.phone}</div>
+    <div className="scan-overlay" role="alertdialog" aria-live="assertive" aria-label="Khách vừa quét mặt">
+      <div className={`scan-card scan-${tone}`}>
+        <div className="scan-banner">{m ? STATE[m.state].label : 'KHÔNG NHẬN RA KHÁCH'}</div>
+        {m ? (
+          <>
+            <div className="scan-person">
+              <MemberAvatar member={{ id: m.id, name: m.name, has_photo: m.has_photo, photo_version: m.photo_version }} size={96} />
+              <div>
+                <div className="scan-name">{m.name}</div>
+                <div className="scan-sub">{m.code} · {m.phone}</div>
+                <div className="scan-sub">Quét lúc {new Date(cur.scanned_at).toLocaleTimeString('vi-VN')}</div>
+              </div>
             </div>
-            <Chip tone={STATE[m.state].tone}>{STATE[m.state].label}</Chip>
-          </div>
-          <div className="scan-body">
-            <div>{m.package_name ?? 'Chưa có gói member'}{m.end_date ? `, đến ${fmtDate(m.end_date)}` : ''}</div>
-            {m.sessions_left != null && <div className="cell-sub">Còn {m.sessions_left} buổi</div>}
-            {m.debt > 0 && <div className="scan-debt">Còn nợ {fmtMoney(m.debt)}</div>}
+            <dl className="scan-info">
+              <dt>Gói</dt><dd>{m.package_name ?? 'Chưa có gói member'}</dd>
+              {m.end_date && (<><dt>Hạn đến</dt><dd>{fmtDate(m.end_date)}{days ? ` (${days})` : ''}</dd></>)}
+              {m.sessions_left != null && (<><dt>Còn lại</dt><dd>{m.sessions_left} buổi</dd></>)}
+            </dl>
+            {m.debt > 0 && <div className="scan-debt-bar">Còn nợ {fmtMoney(m.debt)}</div>}
             {msg && <div className="form-error" role="alert">{msg}</div>}
-          </div>
-          <div className="scan-foot">
-            {canCheckin && <Button variant="primary" onClick={checkin}>Check-in</Button>}
-            <Button onClick={next}>Đóng</Button>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="scan-head"><div><b>Không nhận ra khách</b><div className="cell-sub">Mã trên máy: {cur.employee_no}</div></div></div>
-          <div className="scan-body cell-sub">Mã này chưa khớp Face ID, mã hội viên hay số điện thoại nào.</div>
-          <div className="scan-foot"><Button onClick={next}>Đóng</Button></div>
-        </>
-      )}
-      {queue.length > 1 && <div className="cell-sub scan-more">Còn {queue.length - 1} lượt quét nữa</div>}
+            <div className="scan-foot">
+              {canCheckin && <Button variant="primary" className="scan-btn" onClick={checkin}>Check-in</Button>}
+              <Button className="scan-btn" onClick={next}>Đóng</Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="scan-info-plain">Mã trên máy: <b>{cur.employee_no}</b><br />Mã này chưa khớp Face ID, mã hội viên hay số điện thoại nào.</div>
+            <div className="scan-foot"><Button className="scan-btn" onClick={next}>Đóng</Button></div>
+          </>
+        )}
+        {queue.length > 1 && <div className="scan-more">Còn {queue.length - 1} lượt quét nữa</div>}
+      </div>
     </div>
   )
 }
