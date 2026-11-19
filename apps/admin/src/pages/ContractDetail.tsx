@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, downloadBlob, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
+import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
 import { PT_RULE_HINT, hasHsd } from '../lib/pt'
+import { contractValues, renderDocHtml, templateKeyOf } from '../lib/printDoc'
 import { usePermission } from '../context/usePermission'
 import { FormDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
@@ -105,10 +106,16 @@ export default function ContractDetail() {
   const variant = (k: 'sign' | 'activate' | 'pay') => (a.primary === k ? 'primary' : 'secondary')
 
   const pdf = async () => {
+    const w = window.open('', '_blank')
+    if (!w) { toast('Trình duyệt đang chặn cửa sổ mới, hãy cho phép rồi thử lại', true); return }
     try {
-      const r = await api.get(`/contracts/${c.id}/pdf`, { responseType: 'blob' })
-      downloadBlob(r.data as Blob, `${c.code}.pdf`)
+      const { data } = await api.get<{ data: { key: string; title: string; body: string }[] }>('/settings/print-templates')
+      const tpl = data.data.find((t) => t.key === templateKeyOf(c.package.category))
+      if (!tpl) throw new Error('Chưa có mẫu in')
+      w.document.write(renderDocHtml(tpl.title, tpl.body, contractValues(c)))
+      w.document.close()
     } catch (e) {
+      w.close()
       toast(apiError(e).message, true)
     }
   }
@@ -187,7 +194,7 @@ export default function ContractDetail() {
             {a.renew && <Button onClick={renew} disabled={busy}>Gia hạn</Button>}
             {a.freeze && <Button onClick={() => setDlg('freeze')}>Bảo lưu</Button>}
             {a.unfreeze && <Button onClick={() => run(() => post('unfreeze'), 'Đã kết thúc bảo lưu')}>Hủy bảo lưu</Button>}
-            {a.pdf && <Button onClick={pdf}>Tải PDF</Button>}
+            {a.pdf && <Button onClick={pdf}>Xem PDF</Button>}
             {a.cancel && <Button variant="danger" onClick={() => setDlg('cancel')}>Hủy hợp đồng</Button>}
           </div>
         </Panel>

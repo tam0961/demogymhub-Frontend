@@ -11,7 +11,7 @@ export function contractValues(c: Contract & { branch?: { name: string } | null 
     chi_nhanh: c.branch?.name ?? '', ten_hoi_vien: c.member.name, ma_hoi_vien: c.member.code, sdt: c.member.phone,
     ma_hop_dong: c.code, goi_tap: c.package.name, ngay_bat_dau: c.start_date ? fmtDate(c.start_date) : '-', ngay_het_han: c.end_date ? fmtDate(c.end_date) : '-',
     tong_tien: fmtMoney(c.total_amount), da_thanh_toan: fmtMoney(c.paid_amount), con_thieu: fmtMoney(c.debt_amount),
-    nhan_vien_sale: c.sale_name ?? '-', pt_phu_trach: c.trainer_name ?? '-', ngay_in: fmtDate(todayISO()),
+    nhan_vien_sale: c.sale?.name ?? '-', pt_phu_trach: c.pt?.name ?? '-', ngay_in: fmtDate(todayISO()),
     so_ngay_bao_luu: '-', ly_do: '-', nguoi_nhan: '-', sdt_nguoi_nhan: '-', phi_chuyen_nhuong: '-',
   }
 }

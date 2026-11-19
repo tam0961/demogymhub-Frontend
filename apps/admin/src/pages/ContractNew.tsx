@@ -108,6 +108,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   }, [effBranch])
 
   const pkg = pkgs.find((p) => p.id === pkgId)
+  const needsPt = pkg?.category === 'pt_1on1' || pkg?.category === 'pt_1on2'
   const cur = existing ? member?.current_contract : null
   const runningEnd = cur && cur.status === 'active' && cur.end_date && cur.end_date >= todayISO() ? cur.end_date : null
   useEffect(() => {
@@ -128,7 +129,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const qt = quote(pkg, promo, paidTouched ? parseMoney(paid) : defaultPaid, start)
   const nextPayDate = nextPay || addDays(todayISO(), 25)
   const memberOk = existing ? !!member : name.trim().length > 1 && phone.trim().length >= 8
-  const canNext = memberOk && !!pkg && !!start && !promoErr
+  const canNext = memberOk && !!pkg && !!start && !promoErr && (!!saleId || sales.length === 0) && (!needsPt || !!ptId || pts.length === 0)
   const who = existing ? member?.name ?? '' : name.trim()
   const promoLabel = PROMO_OPTIONS.find((o) => o.value === promoType)
   const photoThumb = existing
@@ -177,7 +178,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
           photo: !existing && photo ? { content_type: photo.content_type, image_base64: photo.image_base64 } : null,
           faceId: !existing ? faceId.trim() || null : null,
           sale_user_id: saleId || null,
-          pt_user_id: ptId || null,
+          pt_user_id: needsPt ? ptId || null : null,
           note, signature: withSignature ? sig : null, paid: withSignature ? qt.paid : 0, method,
           canApprove: can('contracts.approve'), startDate: start,
         },
@@ -216,7 +217,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
       const rows: [string, string][] = [
         ['Họ và tên', who], ['Gói tập', pkg.name],
         ['Thời hạn', `${fmtDate(start)}${qt.endDate ? ` đến ${fmtDate(qt.endDate)}` : `, ${qt.sessions ?? 0} buổi`}`],
-        ['Giá trị', fmtMoney(qt.total)], ['Đã thanh toán', fmtMoney(qt.paid)], ['Công nợ', fmtMoney(qt.remain)],
+        ['Giá trị', fmtMoney(qt.total)], ['Đã thanh toán', fmtMoney(qt.paid)], ['Còn thiếu', fmtMoney(qt.remain)],
       ]
       setIpadSigned(false)
       setIpadStage(ipadToken, 'sign', { title: 'Hợp đồng thành viên', rows }).catch(() => {})
@@ -325,25 +326,11 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                   })}
                 </Select>
               </Field>
-              {pkg && isPtCategory(pkg.category) && <BundleInfo pkg={pkg} runningEnd={runningEnd} />}
               <Field label="Ngày bắt đầu" htmlFor="cn-start"><Input id="cn-start" type="date" value={start} onChange={(e) => { setStart(e.target.value); setStartTouched(true) }} /></Field>
               <Field label="Ngày hết hạn" htmlFor="cn-end">
                 <Input id="cn-end" readOnly value={pkg ? (qt.endDate ? fmtDate(qt.endDate) : 'Tính khi kích hoạt') : ''} />
               </Field>
-              <Field label="Thu ngay (đồng)" htmlFor="cn-paid" hint={`Thành tiền ${fmtMoney(qt.total)}`}>
-                <MoneyInput id="cn-paid" placeholder="0 ₫" value={paidTouched ? paid : defaultPaid ? String(defaultPaid) : ''} onValueChange={(v) => { setPaidTouched(true); setPaid(v) }} />
-              </Field>
-              <Field label="Ngày thanh toán" htmlFor="cn-pdate"><Input id="cn-pdate" type="date" readOnly value={todayISO()} /></Field>
-              <Field label="Hình thức thanh toán" htmlFor="cn-method">
-                <Select id="cn-method" value={method} onChange={(e) => setMethod(e.target.value as PayMethod)}>
-                  {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
-                </Select>
-              </Field>
-              <Field label="Công nợ" htmlFor="cn-remain"><Input id="cn-remain" readOnly value={pkg && qt.remain === 0 ? 'Đã thu đủ' : fmtMoney(qt.remain)} /></Field>
-              {qt.remain > 0 && (
-                <Field label="Ngày thanh toán tiếp theo" htmlFor="cn-next"><Input id="cn-next" type="date" min={todayISO()} value={nextPayDate} onChange={(e) => setNextPay(e.target.value)} /></Field>
-              )}
-              <div className="full cn-break" aria-hidden="true" />
+              {pkg && isPtCategory(pkg.category) && <BundleInfo pkg={pkg} runningEnd={runningEnd} />}
               <Field label="Khuyến mãi" htmlFor="cn-promo">
                 <Select id="cn-promo" value={promoType} onChange={(e) => { setPromoType(e.target.value as '' | PromoType); setPromoValue('') }}>
                   {PROMO_OPTIONS.map((o) => <option key={o.value} value={o.value} disabled={!promoAllowed(o.value, pkg?.type)}>{o.label}</option>)}
@@ -356,19 +343,36 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                     : <Input id="cn-promo-val" inputMode="numeric" invalid={!!promoErr} placeholder="0" value={promoValue} onChange={(e) => setPromoValue(e.target.value)} />}
                 </Field>
               )}
-              {pkg && <p className="full hint-muted" id="cn-hint">{priceHint(pkg, qt)}</p>}
-              <Field label="Nhân viên Sale" htmlFor="cn-sale" hint="Người tư vấn bán hợp đồng này.">
+              <div className="full cn-break" aria-hidden="true" />
+              <Field label="Nhân viên sale" htmlFor="cn-sale">
                 <Select id="cn-sale" value={saleId} onChange={(e) => setSaleId(e.target.value)}>
-                  <option value="">Không chọn</option>
+                  <option value="">Chọn nhân viên sale</option>
                   {sales.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </Select>
               </Field>
-              <Field label="PT phụ trách" htmlFor="cn-pt" hint="PT theo dõi khách của hợp đồng này.">
-                <Select id="cn-pt" value={ptId} onChange={(e) => setPtId(e.target.value)}>
-                  <option value="">Không chọn</option>
-                  {pts.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              {needsPt && (
+                <Field label="Nhân viên PT phụ trách" htmlFor="cn-pt">
+                  <Select id="cn-pt" value={ptId} onChange={(e) => setPtId(e.target.value)}>
+                    <option value="">Chọn PT phụ trách</option>
+                    {pts.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  </Select>
+                </Field>
+              )}
+              <div className="full cn-break" aria-hidden="true" />
+              <Field label="Thu ngay (đồng)" htmlFor="cn-paid" hint={`Thành tiền ${fmtMoney(qt.total)}`}>
+                <MoneyInput id="cn-paid" placeholder="0 ₫" value={paidTouched ? paid : defaultPaid ? String(defaultPaid) : ''} onValueChange={(v) => { setPaidTouched(true); setPaid(v) }} />
+              </Field>
+              <Field label="Ngày thanh toán" htmlFor="cn-pdate"><Input id="cn-pdate" type="date" readOnly value={todayISO()} /></Field>
+              <Field label="Hình thức thanh toán" htmlFor="cn-method">
+                <Select id="cn-method" value={method} onChange={(e) => setMethod(e.target.value as PayMethod)}>
+                  {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
                 </Select>
               </Field>
+              <Field label="Còn thiếu" htmlFor="cn-remain"><Input id="cn-remain" readOnly value={pkg && qt.remain === 0 ? 'Đã thu đủ' : fmtMoney(qt.remain)} /></Field>
+              {qt.remain > 0 && (
+                <Field label="Ngày đóng tiếp theo" htmlFor="cn-next" hint={nextPay ? undefined : 'Tự tính: hôm nay + 25 ngày. Khách thanh toán đủ thì không có ngày này.'}><Input id="cn-next" type="date" min={todayISO()} value={nextPayDate} onChange={(e) => setNextPay(e.target.value)} /></Field>
+              )}
+              {pkg && <p className="full hint-muted" id="cn-hint">{priceHint(pkg, qt)}</p>}
               <Field label="Ghi chú" htmlFor="cn-note" full><Textarea id="cn-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
             </>
           )}
@@ -409,8 +413,8 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
               <dt>Giá trị</dt><dd>{fmtMoney(qt.total)}{qt.discount > 0 ? ` (đã giảm ${fmtMoney(qt.discount)})` : ''}</dd>
               {promo && <><dt>Khuyến mãi</dt><dd>{promoLabel?.label}: {promoNum.toLocaleString('vi-VN')}</dd></>}
               <dt>Đã thanh toán</dt><dd>{fmtMoney(qt.paid)}{qt.paid > 0 ? `, ${METHOD_LABEL[method]}` : ''}</dd>
-              <dt>Công nợ</dt><dd>{fmtMoney(qt.remain)}</dd>
-              {qt.remain > 0 && <><dt>Thanh toán tiếp theo</dt><dd>{fmtDate(nextPayDate)}</dd></>}
+              <dt>Còn thiếu</dt><dd>{fmtMoney(qt.remain)}</dd>
+              {qt.remain > 0 && <><dt>Ngày đóng tiếp theo</dt><dd>{fmtDate(nextPayDate)}</dd></>}
             </dl>
           </div>
           {ipadPanel}
