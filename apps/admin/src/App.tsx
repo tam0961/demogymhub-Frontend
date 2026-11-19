@@ -73,7 +73,7 @@ export default function App() {
         <Route path="reports" element={<PermRoute permission="reports.view"><Reports /></PermRoute>} />
         <Route path="reports/closing" element={<PermRoute permission="reports.view"><Closing /></PermRoute>} />
         <Route path="staff" element={<PermRoute permission="roles.read"><Staff /></PermRoute>} />
-        <Route path="settings/devices" element={<PermRoute permission="attendance.manage"><Devices /></PermRoute>} />
+        <Route path="settings/devices" element={<PermRoute permission="devices.manage"><Devices /></PermRoute>} />
         <Route path="attendance" element={<PermRoute permission="attendance.read"><Attendance /></PermRoute>} />
         <Route path="users" element={<PermRoute permission="roles.read"><Users /></PermRoute>} />
         <Route path="roles" element={<PermRoute permission="roles.read"><Roles /></PermRoute>} />
