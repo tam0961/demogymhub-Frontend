@@ -431,3 +431,10 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .zns-card { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-md); }
 .zns-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 @media (max-width: 1000px) { .zalo-top, .zns-grid { grid-template-columns: 1fr; } }
+
+.scan-pop { position: fixed; top: 72px; right: 16px; width: min(360px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25); padding: 14px; z-index: 70; display: flex; flex-direction: column; gap: 10px; }
+.scan-head { display: flex; align-items: center; gap: 12px; }
+.scan-head > div { flex: 1; min-width: 0; }
+.scan-debt { color: var(--bad); font-weight: 600; }
+.scan-foot { display: flex; gap: 8px; justify-content: flex-end; }
+.scan-more { text-align: right; }

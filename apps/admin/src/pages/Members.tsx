@@ -12,6 +12,7 @@ import { PayModal } from '../components/PayModal'
 import { QRImage } from '../components/QRImage'
 import { FaceModal, type FaceResult } from '../components/FaceModal'
 import { MemberAvatar } from '../components/MemberAvatar'
+import { FaceDeviceSend, FaceJobsLine, useFaceJobs } from '../components/FaceDeviceSend'
 import { BranchTag, Button, Chip, DataTable, Field, Icon, Input, Segmented, Select, useToast, type Column } from '../components/ui'
 import type { Branch, CheckinItem, Contract, Gender, ListResp, Me, Member, MemberStatus, Payment, PtEligibility } from '../types'
 
@@ -418,6 +419,7 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
     if ((member.face_id ?? null) !== nf) onUpdated({ ...m, ...(await api.patch(`/members/${member.id}`, { face_id: nf })).data.data })
   }
 
+  const faceJobs = useFaceJobs(member.id, can('members.update'))
   const pkgOf = (c: Contract) => `${c.code}, ${c.package.name}`
   return (
     <>
@@ -427,7 +429,8 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
       footer={
         <div className="profile-foot">
           <div className="profile-foot-row">
-            {canEdit && <Button onClick={() => setFaceOpen(true)}>Đăng ký khuôn mặt lên máy</Button>}
+            {canEdit && <Button onClick={() => setFaceOpen(true)}>Ảnh khuôn mặt</Button>}
+            {canEdit && <FaceDeviceSend memberId={member.id} memberName={member.name} hasPhoto={!!member.has_photo} onSent={faceJobs.reload} />}
             {canEdit && <Button onClick={onEdit}>Sửa thông tin</Button>}
           </div>
           {can('contracts.create') && <Button variant="primary" onClick={() => nav(`/contracts/new?member_id=${member.id}`)}>Tạo HĐ mới</Button>}
@@ -447,6 +450,7 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
           {member.email && <><dt>Email</dt><dd>{member.email}</dd></>}
         </dl>
       </div>
+      <FaceJobsLine jobs={faceJobs.jobs} />
       {error && <div className="form-error" role="alert">{error}</div>}
       {!data && !error && <div className="hint-muted">Đang tải...</div>}
       {data && (

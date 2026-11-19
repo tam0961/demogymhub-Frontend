@@ -46,6 +46,7 @@ const roleDefs: RoleRow[] = [
   { id: 'r4', name: 'receptionist', description: 'Lễ tân', permissions: Object.values(P).flat() },
   { id: 'r5', name: 'accountant', description: 'Kế toán', permissions: ['payments.read', 'payments.confirm', 'reports.view', 'reports.view_revenue', 'reports.export', 'contracts.read'] },
 ]
+let scanDemoShown = false
 const znsCfg = {
   app_id: '', oa_id: '', test_phone: '', has_secret_key: false, has_access_token: false, has_refresh_token: false,
   events: {
@@ -1258,6 +1259,13 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return ok(botCfg)
   }
   if (url === '/zalo/bot/check' || url === '/zalo/bot/send-test') return ok({ ok: true, message: 'ok' })
+  if (url === '/attendance/face-jobs' && method === 'get') return ok([{ id: 'fj1', device_name: 'Máy Q7', status: 'done', message: null, created_at: new Date().toISOString() }])
+  if (url === '/attendance/face-jobs' && method === 'post') return ok([{ id: 'fj2', status: 'pending' }])
+  if (url === '/attendance/scans') {
+    const first = !scanDemoShown
+    scanDemoShown = true
+    return ok({ now: new Date().toISOString(), items: first ? [{ id: 'sc1', employee_no: 'HV0389', scanned_at: new Date().toISOString(), member: { id: 'm1', code: 'HV0389', name: 'Lê Thị Ngọc Trang', phone: '0907557550', has_photo: false, photo_version: null, package_name: 'MEMBER 3 THÁNG + 1', end_date: '2027-01-05', state: 'ok', sessions_left: null, debt: 400000 } }] : [] })
+  }
   if (url === '/attendance/summary') return ok(attRows)
   if (url === '/attendance/devices' && method === 'get') return ok(attDevices)
   if (url === '/attendance/devices' && method === 'post') {

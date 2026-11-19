@@ -6,6 +6,7 @@ import { usePermission } from '../context/usePermission'
 import { useShift, ShiftProvider } from '../context/ShiftContext'
 import { useConnected } from '../lib/connection'
 import { activeBranches } from '../lib/branches'
+import ScanPopup from './ScanPopup'
 import { Avatar, BranchTag, Icon, Segmented, branchColor } from './ui'
 import type { Me } from '../types'
 import type { IconName } from './icons'
@@ -149,6 +150,7 @@ function Shell() {
         </div>
       </aside>
       <div className={`scrim ${open ? 'open' : ''}`} onClick={() => setOpen(false)} />
+      <ScanPopup />
       <div className="main">
         <Topbar onMenu={() => setOpen(true)} />
         <main className={`content${/^\/(settings|users|roles|audit)/.test(loc.pathname) ? ' compact' : ''}`} key={loc.pathname}>
