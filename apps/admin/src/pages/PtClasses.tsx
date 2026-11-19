@@ -201,7 +201,7 @@ export default function PtClasses() {
                 </div>
               ))}
               {slots.map((slot) => (
-                <GridRow key={slot} slot={slot} days={days} today={today} items={shown.filter((c) => fmtTime(c.start_at) === slot)} regs={regs} fillTone={fillTone} onOpen={setDetailId} onComplete={(c) => act(`/pt/classes/${c.id}/complete`, 'Đã xác nhận dạy xong lớp')} />
+                <GridRow key={slot} slot={slot} days={days} today={today} items={shown.filter((c) => fmtTime(c.start_at) === slot)} regs={regs} fillTone={fillTone} onOpen={setDetailId} />
               ))}
               {!loading && slots.length === 0 && <div className="empty" style={{ gridColumn: '1 / -1' }}>Chưa có lớp nào có người đăng ký trong tuần</div>}
             </div>
@@ -254,8 +254,7 @@ export default function PtClasses() {
   )
 }
 
-function GridRow({ slot, days, today, items, regs, fillTone, onOpen, onComplete }: { slot: string; days: string[]; today: string; items: GroupClass[]; regs: GroupReg[]; fillTone: (c: GroupClass) => string; onOpen: (id: string) => void; onComplete: (c: GroupClass) => void }) {
-  const { can } = usePermission()
+function GridRow({ slot, days, today, items, regs, fillTone, onOpen }: { slot: string; days: string[]; today: string; items: GroupClass[]; regs: GroupReg[]; fillTone: (c: GroupClass) => string; onOpen: (id: string) => void }) {
   return (
     <>
       <div className="gcal-time"><span>{hm(items[0]?.start_at, slot)}</span><span>- {hm(items[0]?.end_at)}</span></div>
@@ -275,7 +274,6 @@ function GridRow({ slot, days, today, items, regs, fillTone, onOpen, onComplete 
                   <span className="gcal-bar">{Array.from({ length: Math.max(1, c.capacity) }, (_, k) => <span key={k} className={k < c.registered ? 'on' : ''} />)}</span>
                   <span className="gcal-chips">{mine.map((r) => <span key={r.id} className={`gcal-chip${r.status === 'absent' ? ' bad' : ''}`}>{r.name}</span>)}</span>
                   </button>
-                  {c.status === 'scheduled' && c.trainer && c.registered > 0 && can('pt_sessions.complete') && <Button small variant="primary" onClick={() => onComplete(c)}>Hoàn thành</Button>}
                 </div>
               )
             })}
