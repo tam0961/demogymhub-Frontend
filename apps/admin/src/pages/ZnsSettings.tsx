@@ -43,7 +43,7 @@ const fromServer = (c: ServerCfg): Form => ({
 })
 const parseDays = (t: string) => t.split(/[,\s]+/).filter(Boolean).map(Number)
 
-export default function ZnsSettings() {
+export default function ZnsSettings({ embedded = false }: { embedded?: boolean }) {
   const toast = useToast()
   const [form, setForm] = useState<Form | null>(null)
   const [has, setHas] = useState({ secret: false, access: false, refresh: false })
@@ -127,7 +127,7 @@ export default function ZnsSettings() {
 
   return (
     <>
-      <PageHeader title="Marketing" sub="Thiết lập Zalo. Cấu hình lưu trên máy chủ, điền một lần, hệ thống tự gửi tin." />
+      {!embedded && <PageHeader title="Marketing" sub="Thiết lập Zalo. Cấu hình lưu trên máy chủ, điền một lần, hệ thống tự gửi tin." />}
       {err && <div className="form-error" role="alert">{err}</div>}
       <div className="zalo-top">
         <Panel title="Zalo OA">

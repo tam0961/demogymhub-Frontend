@@ -1,24 +1,73 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtMoney } from '../lib/format'
+import { fmtDateTime, fmtMoney } from '../lib/format'
+import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
-import { Button, Field, Input, Kpi, KpiRow, MoneyInput, PageHeader, Panel, useToast } from '../components/ui'
+import { Button, Chip, Field, Input, MoneyInput, PageHeader, Panel, Select, Tabs, useToast } from '../components/ui'
+import ZnsSettings from './ZnsSettings'
 import type { Lead, ListResp } from '../types'
 
 type Channel = 'facebook_ads' | 'google_ads' | 'google_maps'
+type Platform = 'facebook' | 'google_ads' | 'maps'
+type Tab = 'overview' | 'ads' | 'zalo' | 'api'
+type AdsTab = Platform | 'general'
 interface Metric { month: string; channel: Channel; spend: number; impressions: number; clicks: number; leads: number; note: string }
+type AdsCfg = Record<Platform, { account_id: string; has_token: boolean }>
+interface ZnsLog { id: string; event: string; phone: string; status: string; error: string | null; created_at: string }
 
 const CHANNELS: { key: Channel; label: string }[] = [
   { key: 'facebook_ads', label: 'Facebook Ads' },
   { key: 'google_ads', label: 'Google Ads' },
   { key: 'google_maps', label: 'Google Maps' },
 ]
+const PLATFORMS: Record<Platform, { title: string; idLabel: string; idHint: string; tokenLabel: string; tokenHint: string; guide: string[] }> = {
+  facebook: {
+    title: 'Facebook Ads', idLabel: 'ID tài khoản quảng cáo', idHint: 'act_1234567890', tokenLabel: 'Mã truy cập (token)', tokenHint: 'Dán token đọc quảng cáo',
+    guide: ['Vào Meta Business Suite, tạo ứng dụng và bật quyền ads_read.', 'Tạo mã truy cập dài hạn cho tài khoản quảng cáo.', 'Dán ID tài khoản (bắt đầu bằng act_) và token vào hai ô trên.'],
+  },
+  google_ads: {
+    title: 'Google Ads (gồm Google Maps)', idLabel: 'ID khách hàng Google Ads', idHint: '123-456-7890', tokenLabel: 'Mã nhà phát triển (developer token)', tokenHint: 'Dán developer token',
+    guide: ['Vào Google Ads, mục Trung tâm API, xin developer token.', 'Lấy ID khách hàng (10 chữ số) ở góc trên bên phải.', 'Dán hai giá trị vào các ô trên.'],
+  },
+  maps: {
+    title: 'Hồ sơ Google Maps', idLabel: 'Place ID của phòng gym', idHint: 'ChIJ...', tokenLabel: 'Khóa API', tokenHint: 'Dán khóa API Business Profile',
+    guide: ['Cần Google duyệt quyền Business Profile API trước, có thể mất vài ngày.', 'Lấy Place ID bằng công cụ Place ID Finder của Google.', 'Dán Place ID và khóa API vào các ô trên.'],
+  },
+}
+const CHANNEL_OF: Record<Platform, Channel> = { facebook: 'facebook_ads', google_ads: 'google_ads', maps: 'google_maps' }
+const BRANCH_COLOR: Record<string, string> = { nb: 'var(--nb)', q7: 'var(--q7)', q2: 'var(--q2)' }
+
 const thisMonth = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7)
+const monthOptions = () => {
+  const [y, m] = thisMonth().split('-').map(Number)
+  return Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(y, m - 1 - i, 1)
+    const v = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    return { v, label: `Tháng ${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}${i === 0 ? ' (tháng này)' : ''}` }
+  })
+}
 const blank = (month: string, channel: Channel): Metric => ({ month, channel, spend: 0, impressions: 0, clicks: 0, leads: 0, note: '' })
 const num = (v: string) => Math.max(0, parseInt(v.replace(/\D/g, ''), 10) || 0)
 const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '-')
+const k = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n))
+const ZNS_EVENT: Record<string, string> = { new_contract: 'Đăng ký gói mới', renewal: 'Gia hạn', expiring: 'Nhắc hết hạn', pt_signed: 'Xác nhận buổi PT' }
+
+function Dot({ code }: { code: string }) {
+  return <span aria-hidden="true" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 999, background: BRANCH_COLOR[code] ?? 'var(--brand)', marginRight: 6 }} />
+}
+
+function StatCard({ label, value, lines, foot }: { label: string; value: ReactNode; lines: { code: string; text: string }[]; foot?: string }) {
+  return (
+    <div className="kpi2">
+      <div className="kpi2-label">{label}</div>
+      <div className="kpi2-value">{value}</div>
+      {lines.map((l) => <div key={l.code} className="kpi2-note"><Dot code={l.code} />{l.text}</div>)}
+      {foot && <div className="kpi2-note">{foot}</div>}
+    </div>
+  )
+}
 
 function ChannelForm({ value, canEdit, onSave }: { value: Metric; canEdit: boolean; onSave: (m: Metric) => Promise<void> }) {
   const [m, setM] = useState(value)
@@ -40,38 +89,141 @@ function ChannelForm({ value, canEdit, onSave }: { value: Metric; canEdit: boole
   )
 }
 
+function ConnectForm({ platform, cfg, canEdit, onSaved }: { platform: Platform; cfg: AdsCfg[Platform]; canEdit: boolean; onSaved: (c: AdsCfg) => void }) {
+  const toast = useToast()
+  const def = PLATFORMS[platform]
+  const [accountId, setAccountId] = useState(cfg.account_id)
+  const [token, setToken] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  useEffect(() => setAccountId(cfg.account_id), [cfg.account_id])
+  const connected = !!cfg.account_id && cfg.has_token
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setErr('')
+    try {
+      const { data } = await api.put<{ data: AdsCfg }>('/marketing/ads', { platform, account_id: accountId.trim(), token: token.trim() || undefined })
+      setToken('')
+      onSaved(data.data)
+      toast('Đã lưu thông tin kết nối. Hệ thống chưa kéo số liệu tự động, hãy nhập số liệu ở mục Chung.')
+    } catch (e2) {
+      setErr(apiError(e2).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <>
+      <Panel title={def.title} note={<Chip tone={connected ? 'ok' : 'neutral'}>{connected ? 'Đã lưu thông tin' : 'Chưa kết nối'}</Chip>}>
+        <form onSubmit={submit} style={{ maxWidth: 560, display: 'grid', gap: 12 }}>
+          <Field label={def.idLabel} htmlFor={`ad-${platform}-id`}><Input id={`ad-${platform}-id`} disabled={!canEdit} placeholder={def.idHint} value={accountId} onChange={(e) => setAccountId(e.target.value)} /></Field>
+          <Field label={def.tokenLabel} htmlFor={`ad-${platform}-tk`} hint={cfg.has_token ? 'Đã lưu trên máy chủ, để trống để giữ nguyên.' : undefined}>
+            <Input id={`ad-${platform}-tk`} type="password" autoComplete="off" disabled={!canEdit} placeholder={def.tokenHint} value={token} onChange={(e) => setToken(e.target.value)} />
+          </Field>
+          {err && <div className="form-error" role="alert">{err}</div>}
+          <div><Button type="submit" variant="primary" disabled={!canEdit || busy || !accountId.trim()}>{busy ? 'Đang lưu...' : 'Lưu và kéo số liệu'}</Button></div>
+          <p className="hint-muted">Hiện hệ thống chỉ lưu thông tin kết nối. Việc kéo số liệu tự động từ nền tảng chưa được nối; số liệu tháng nhập tay ở mục Chung.</p>
+          <details>
+            <summary>Cách lấy token (khoảng 10 phút)</summary>
+            <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>{def.guide.map((g) => <li key={g}>{g}</li>)}</ol>
+          </details>
+        </form>
+      </Panel>
+      <div style={{ height: 16 }} />
+      <Panel title={platform === 'facebook' ? 'Chiến dịch Facebook' : platform === 'google_ads' ? 'Chiến dịch Google Ads' : 'Chỉ số hồ sơ Google Maps'} note="30 ngày qua" flush>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Nền tảng</th><th>Chiến dịch</th><th>Chi nhánh</th><th>Trạng thái</th><th className="num">Chi tiêu</th><th className="num">Hiển thị</th><th className="num">Nhấp</th><th className="num">CTR</th><th className="num">Kết quả</th><th className="num">Chi phí mỗi kết quả</th></tr></thead>
+            <tbody><tr><td colSpan={10}>Chưa có chiến dịch nào. Số liệu chiến dịch sẽ hiện khi hệ thống được nối tự động với nền tảng.</td></tr></tbody>
+          </table>
+        </div>
+      </Panel>
+    </>
+  )
+}
+
+function ZaloCampaign({ onOpenApi }: { onOpenApi: () => void }) {
+  const [logs, setLogs] = useState<ZnsLog[] | null>(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    api.get<{ data: ZnsLog[] }>('/zalo/logs').then((r) => setLogs(r.data.data)).catch((e) => setErr(apiError(e).message))
+  }, [])
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
+  const sentToday = (logs ?? []).filter((l) => l.created_at.slice(0, 10) === today).length
+  const sent = (logs ?? []).filter((l) => l.status === 'sent').length
+  const failed = (logs ?? []).filter((l) => l.status === 'failed').length
+  if (err) return <div className="form-error" role="alert">{err}</div>
+  return (
+    <>
+      <div className="kpi-row">
+        <div className="kpi2"><div className="kpi2-label">Gửi hôm nay</div><div className="kpi2-value">{sentToday}</div><div className="kpi2-note">Mọi trạng thái</div></div>
+        <div className="kpi2"><div className="kpi2-label">Đã gửi thành công</div><div className="kpi2-value">{sent}</div><div className="kpi2-note">Trong 100 tin gần nhất</div></div>
+        <div className="kpi2"><div className="kpi2-label">Lỗi</div><div className="kpi2-value">{failed}</div><div className="kpi2-note">Kiểm tra mẫu tin hoặc token</div></div>
+      </div>
+      <Panel title="Nhật ký gửi tin" note={<Button small onClick={onOpenApi}>Cấu hình Zalo API</Button>} flush>
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Thời gian</th><th>Sự kiện</th><th>Số điện thoại</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
+            <tbody>
+              {(logs ?? []).map((l) => (
+                <tr key={l.id}>
+                  <td>{fmtDateTime(l.created_at)}</td>
+                  <td>{ZNS_EVENT[l.event] ?? l.event}</td>
+                  <td>{l.phone}</td>
+                  <td><Chip tone={l.status === 'sent' ? 'ok' : l.status === 'failed' ? 'bad' : 'warn'}>{l.status === 'sent' ? 'Đã gửi' : l.status === 'failed' ? 'Lỗi' : 'Bỏ qua'}</Chip></td>
+                  <td>{l.error ?? ''}</td>
+                </tr>
+              ))}
+              {logs && logs.length === 0 && <tr><td colSpan={5}>Chưa gửi tin nào.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
+    </>
+  )
+}
+
 export default function MarketingStats() {
+  const { user } = useAuth()
   const { branchId } = useBranch()
   const { can } = usePermission()
   const toast = useToast()
+  const [tab, setTab] = useState<Tab>('overview')
+  const [adsTab, setAdsTab] = useState<AdsTab>('facebook')
   const [month, setMonth] = useState(thisMonth)
   const [metrics, setMetrics] = useState<Metric[]>([])
   const [leads, setLeads] = useState<Lead[]>([])
+  const [ads, setAds] = useState<AdsCfg>({ facebook: { account_id: '', has_token: false }, google_ads: { account_id: '', has_token: false }, maps: { account_id: '', has_token: false } })
   const [error, setError] = useState('')
+  const canEdit = can('system.manage_settings')
 
   const load = useCallback(async () => {
     setError('')
     try {
-      const [m, l] = await Promise.all([
+      const [m, l, a] = await Promise.all([
         api.get<{ data: Metric[] }>('/marketing/metrics', { params: { month } }),
         api.get<ListResp<Lead>>('/leads', { params: { limit: 200, branch_id: branchId ?? undefined } }),
+        api.get<{ data: AdsCfg }>('/marketing/ads'),
       ])
       setMetrics(m.data.data)
       setLeads(l.data.data)
+      setAds(a.data.data)
     } catch (e) {
       setError(apiError(e).message)
     }
   }, [month, branchId])
   useEffect(() => { load() }, [load])
 
+  const branches = useMemo(() => (user?.branches ?? []).filter((b) => !branchId || b.id === branchId), [user, branchId])
   const inMonth = useMemo(() => leads.filter((l) => l.created_at.slice(0, 7) === month), [leads, month])
-  const converted = inMonth.filter((l) => l.status === 'converted').length
-  const bySource = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const l of inMonth) { const k = l.source?.trim() || 'Chưa rõ'; map.set(k, (map.get(k) ?? 0) + 1) }
-    return [...map.entries()].sort((a, b) => b[1] - a[1])
-  }, [inMonth])
-  const spend = metrics.reduce((s, r) => s + r.spend, 0)
+  const signed = inMonth.filter((l) => l.status === 'converted')
+  const spendOf = (c: Channel) => metrics.find((x) => x.channel === c)?.spend ?? 0
+  const totalSpend = metrics.reduce((s, r) => s + r.spend, 0)
+  const byBranch = (rows: Lead[]) => branches.map((b) => ({ code: b.code, text: `${b.name} ${rows.filter((l) => l.branch_id === b.id).length}` }))
+  const monthLabel = `${month.slice(5)}/${month.slice(0, 4)}`
 
   const save = async (m: Metric) => {
     try {
@@ -82,28 +234,67 @@ export default function MarketingStats() {
       toast(apiError(e).message)
     }
   }
+  const platformStatus = (p: Platform) => {
+    if (ads[p].account_id && ads[p].has_token) return 'Đã lưu thông tin'
+    return metrics.some((m) => m.channel === CHANNEL_OF[p] && (m.spend > 0 || m.clicks > 0 || m.leads > 0)) ? 'Đã nhập tay' : 'Chưa kết nối'
+  }
+  const goConnect = (p: Platform) => { setAdsTab(p); setTab('ads') }
+
+  const section = (p: Platform, title: string, text: string, button: string) => (
+    <section style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <h2 style={{ fontSize: 18, margin: '0 0 8px' }}>{title}</h2>
+        <span className="hint-muted">{platformStatus(p)}</span>
+      </div>
+      <div className="panel" style={{ padding: 16 }}>
+        <p style={{ margin: '0 0 12px' }}>{text}</p>
+        <Button variant="primary" onClick={() => goConnect(p)}>{button}</Button>
+      </div>
+    </section>
+  )
 
   return (
     <>
-      <PageHeader title="Chỉ số marketing" action={<Input aria-label="Tháng" type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />} />
-      {error && <p className="form-error" role="alert">{error}</p>}
-      <KpiRow>
-        <Kpi value={inMonth.length} label="Khách tiềm năng trong tháng" />
-        <Kpi value={converted} label="Đã chuyển hội viên" note={`Tỷ lệ ${pct(converted, inMonth.length)}`} />
-        <Kpi value={fmtMoney(spend)} label="Tổng chi phí quảng cáo" />
-        <Kpi value={inMonth.length > 0 && spend > 0 ? fmtMoney(spend / inMonth.length) : '-'} label="Chi phí mỗi khách tiềm năng" />
-      </KpiRow>
-      <Panel title="Khách tiềm năng theo nguồn" count={inMonth.length}>
-        {bySource.length === 0 ? <p className="muted">Chưa có khách tiềm năng trong tháng này.</p> : (
-          <ul className="plain-list">
-            {bySource.map(([s, n]) => <li key={s}><span>{s}</span> <strong>{n}</strong></li>)}
-          </ul>
-        )}
-      </Panel>
-      <p className="muted">Chỉ số quảng cáo và Google Maps nhập tay theo tháng cho đến khi có kết nối tự động.</p>
-      {CHANNELS.map((c) => (
-        <ChannelForm key={`${month}-${c.key}`} value={metrics.find((r) => r.channel === c.key) ?? blank(month, c.key)} canEdit={can('system.manage_settings')} onSave={save} />
-      ))}
+      <PageHeader
+        title={`Quảng cáo tháng ${monthLabel}`}
+        sub={`Từ ngày 1 đến hôm nay. Tất cả chi nhánh: ${(user?.branches ?? []).map((b) => b.name).join(', ')}`}
+        action={<Select aria-label="Tháng" value={month} onChange={(e) => setMonth(e.target.value)}>{monthOptions().map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}</Select>}
+      />
+      {error && <div className="form-error" role="alert">{error}</div>}
+      <Tabs<Tab> tabs={[{ value: 'overview', label: 'Tổng quan' }, { value: 'ads', label: 'Cài đặt quảng cáo' }, { value: 'zalo', label: 'Chiến dịch Zalo' }, { value: 'api', label: 'Zalo API' }]} value={tab} onChange={setTab} />
+      <div style={{ height: 12 }} />
+
+      {tab === 'overview' && (
+        <>
+          <div className="kpi-row">
+            <StatCard label="Đã chi quảng cáo" value={fmtMoney(totalSpend)} lines={[]} foot={`Facebook ${k(spendOf('facebook_ads'))}, Google ${k(spendOf('google_ads'))}`} />
+            <StatCard label="Khách quan tâm" value={inMonth.length} lines={byBranch(inMonth)} foot={inMonth.length === 0 ? 'Chưa có khách' : undefined} />
+            <StatCard label="Khách đã ký hợp đồng" value={signed.length} lines={byBranch(signed)} foot={signed.length === 0 ? 'Chưa có hợp đồng' : undefined} />
+            <StatCard label="Doanh thu từ quảng cáo" value={fmtMoney(0)} lines={[]} foot="Chưa nối doanh thu với nguồn quảng cáo" />
+          </div>
+          {section('facebook', 'Facebook', platformStatus('facebook') === 'Chưa kết nối' ? 'Chưa có số liệu Facebook. Kết nối hoặc nhập tay để xem chi tiêu và kết quả.' : 'Đã có thông tin Facebook cho tháng này. Mở cài đặt để xem hoặc sửa.', 'Kết nối Facebook')}
+          {section('google_ads', 'Google Ads (gồm Google Maps)', platformStatus('google_ads') === 'Chưa kết nối' ? 'Chưa có số liệu Google Ads. Kết nối hoặc nhập tay để xem chi tiêu và kết quả.' : 'Đã có thông tin Google Ads cho tháng này. Mở cài đặt để xem hoặc sửa.', 'Kết nối Google Ads')}
+          {section('maps', 'Hồ sơ Google Maps', 'Chưa có số liệu hồ sơ Google Maps (lượt xem, cuộc gọi, chỉ đường, đánh giá). Cần Google duyệt quyền API trước, có thể mất vài ngày.', 'Xem hướng dẫn')}
+          <p className="hint-muted">Số chi tiêu và kết quả hiện nhập tay theo tháng ở Cài đặt quảng cáo, mục Chung. Khách quan tâm và khách đã ký lấy từ mục Khách tiềm năng của hệ thống.</p>
+        </>
+      )}
+
+      {tab === 'ads' && (
+        <>
+          <Tabs<AdsTab> tabs={[{ value: 'facebook', label: 'Facebook' }, { value: 'google_ads', label: 'Google Ads' }, { value: 'maps', label: 'Hồ sơ Google Maps' }, { value: 'general', label: 'Chung' }]} value={adsTab} onChange={setAdsTab} />
+          <div style={{ height: 12 }} />
+          {adsTab !== 'general' && <ConnectForm key={adsTab} platform={adsTab} cfg={ads[adsTab]} canEdit={canEdit} onSaved={setAds} />}
+          {adsTab === 'general' && (
+            <>
+              <p className="hint-muted" style={{ marginTop: 0 }}>Nhập số liệu quảng cáo tháng {monthLabel} theo từng kênh cho đến khi có kết nối tự động.</p>
+              {CHANNELS.map((c) => <ChannelForm key={`${month}-${c.key}`} value={metrics.find((r) => r.channel === c.key) ?? blank(month, c.key)} canEdit={canEdit} onSave={save} />)}
+            </>
+          )}
+        </>
+      )}
+
+      {tab === 'zalo' && <ZaloCampaign onOpenApi={() => setTab('api')} />}
+      {tab === 'api' && <ZnsSettings embedded />}
     </>
   )
 }
