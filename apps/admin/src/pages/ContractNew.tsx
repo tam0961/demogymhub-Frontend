@@ -54,6 +54,10 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const [promoType, setPromoType] = useState<'' | PromoType>('')
   const [promoValue, setPromoValue] = useState('')
   const [note, setNote] = useState('')
+  const [saleId, setSaleId] = useState('')
+  const [sales, setSales] = useState<{ id: string; name: string }[]>([])
+  const [ptId, setPtId] = useState('')
+  const [pts, setPts] = useState<{ id: string; name: string }[]>([])
   const [paid, setPaid] = useState('')
   const [paidTouched, setPaidTouched] = useState(false)
   const [nextPay, setNextPay] = useState('')
@@ -146,6 +150,18 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     if ((member.face_id ?? null) !== nf) merge((await api.patch(`/members/${member.id}`, { face_id: nf })).data.data)
   }
 
+  useEffect(() => {
+    if (!effBranch) return
+    let alive = true
+    api.get<{ data: { id: string; name: string }[] }>('/contracts/sale-staff', { params: { branch_id: effBranch } })
+      .then((r) => { if (alive) setSales(r.data.data) })
+      .catch(() => { if (alive) setSales([]) })
+    api.get<{ data: { id: string; name: string }[] }>('/contracts/pt-staff', { params: { branch_id: effBranch } })
+      .then((r) => { if (alive) setPts(r.data.data) })
+      .catch(() => { if (alive) setPts([]) })
+    return () => { alive = false }
+  }, [effBranch])
+
   const finish = async (withSignature: boolean) => {
     if (!pkg) return
     setBusy(true)
@@ -160,6 +176,8 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
           renewed_from_id: existing ? renewedFromId(member) : null,
           photo: !existing && photo ? { content_type: photo.content_type, image_base64: photo.image_base64 } : null,
           faceId: !existing ? faceId.trim() || null : null,
+          sale_user_id: saleId || null,
+          pt_user_id: ptId || null,
           note, signature: withSignature ? sig : null, paid: withSignature ? qt.paid : 0, method,
           canApprove: can('contracts.approve'), startDate: start,
         },
@@ -339,6 +357,18 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                 </Field>
               )}
               {pkg && <p className="full hint-muted" id="cn-hint">{priceHint(pkg, qt)}</p>}
+              <Field label="Nhân viên Sale" htmlFor="cn-sale" hint="Người tư vấn bán hợp đồng này.">
+                <Select id="cn-sale" value={saleId} onChange={(e) => setSaleId(e.target.value)}>
+                  <option value="">Không chọn</option>
+                  {sales.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </Select>
+              </Field>
+              <Field label="PT phụ trách" htmlFor="cn-pt" hint="PT theo dõi khách của hợp đồng này.">
+                <Select id="cn-pt" value={ptId} onChange={(e) => setPtId(e.target.value)}>
+                  <option value="">Không chọn</option>
+                  {pts.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </Select>
+              </Field>
               <Field label="Ghi chú" htmlFor="cn-note" full><Textarea id="cn-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
             </>
           )}

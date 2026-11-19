@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { api } from '../lib/api'
 import { fetchAll } from '../lib/fetchAll'
 import { apiError } from '../lib/errors'
 import { CONTRACT_STATUS_OPTIONS, contractStatusLabel, contractsToCSV } from '../lib/contracts'
@@ -19,6 +20,8 @@ export default function Contracts() {
   const creating = loc.pathname === '/contracts/new'
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
+  const [ptId, setPtId] = useState('')
+  const [pts, setPts] = useState<{ id: string; name: string }[]>([])
   const [rows, setRows] = useState<Contract[]>([])
   const [selected, setSelected] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -28,16 +31,19 @@ export default function Contracts() {
     setLoading(true)
     setError('')
     try {
-      setRows(await fetchAll<Contract>('/contracts', { branch_id: branchId ?? undefined }))
+      setRows(await fetchAll<Contract>('/contracts', { branch_id: branchId ?? undefined, pt_user_id: ptId || undefined }))
     } catch (e) {
       setError(apiError(e).message)
     } finally {
       setLoading(false)
     }
-  }, [branchId])
+  }, [branchId, ptId])
   useEffect(() => {
     load()
   }, [load])
+  useEffect(() => {
+    api.get<{ data: { id: string; name: string }[] }>('/contracts/pt-staff', { params: { branch_id: branchId ?? undefined } }).then((r) => setPts(r.data.data)).catch(() => setPts([]))
+  }, [branchId])
 
   const filtered = useMemo(() => {
     const k = q.trim().toLowerCase()
@@ -84,6 +90,10 @@ export default function Contracts() {
           <Select aria-label="Lọc trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">Mọi trạng thái</option>
             {CONTRACT_STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+          <Select aria-label="Lọc PT phụ trách" value={ptId} onChange={(e) => setPtId(e.target.value)}>
+            <option value="">Tất cả PT</option>
+            {pts.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </Select>
         </div>
         <div className="page-action">

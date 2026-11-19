@@ -1259,6 +1259,8 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return ok(botCfg)
   }
   if (url === '/zalo/bot/check' || url === '/zalo/bot/send-test') return ok({ ok: true, message: 'ok' })
+  if (url === '/contracts/pt-staff') return ok([{ id: 'u-pt1', name: 'Vũ Bảo Khánh' }, { id: 'u-pt2', name: 'Ngô Thị Huyền Trang' }, { id: 'u-pt3', name: 'Thịnh' }])
+  if (url === '/contracts/sale-staff') return ok([{ id: 'u-sale1', name: 'Ngô Thị Huyền Trang' }, { id: 'u-sale2', name: 'Vũ Bảo Khánh' }])
   if (url === '/attendance/face-jobs' && method === 'get') return ok([{ id: 'fj1', device_name: 'Máy Q7', status: 'done', message: null, created_at: new Date().toISOString() }])
   if (url === '/attendance/face-jobs' && method === 'post') return ok([{ id: 'fj2', status: 'pending' }])
   if (url === '/attendance/scans') {

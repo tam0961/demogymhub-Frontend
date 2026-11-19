@@ -29,6 +29,8 @@ export interface CreateInput {
   package_id: string
   promo?: Promo | null
   renewed_from_id?: string | null
+  sale_user_id?: string | null
+  pt_user_id?: string | null
   photo?: { content_type: string; image_base64: string } | null
   faceId?: string | null
   note: string
@@ -80,7 +82,7 @@ export async function runCreateContract(post: Post, input: CreateInput, errText:
   }
   const promo = input.promo && input.promo.value > 0 ? { type: input.promo.type, value: Math.floor(input.promo.value) } : undefined
   const created = await run('contract', () => post('/contracts', {
-    member_id: memberId, package_id: input.package_id, promo, renewed_from_id: input.renewed_from_id || undefined, note: input.note.trim() || undefined,
+    member_id: memberId, package_id: input.package_id, promo, renewed_from_id: input.renewed_from_id || undefined, sale_user_id: input.sale_user_id || undefined, pt_user_id: input.pt_user_id || undefined, note: input.note.trim() || undefined,
   }))
   const contract = created.data.data
   out.contractId = contract.id

@@ -174,6 +174,8 @@ export default function ContractDetail() {
             {hasHsd(c.package.category) && (<><dt>Hạn sử dụng gói PT</dt><dd>{c.usage_deadline ? fmtDate(c.usage_deadline) : '-'}<div className="cell-sub">{PT_RULE_HINT}</div></dd></>)}
             {c.frozen_until && (<><dt>Bảo lưu đến</dt><dd>{fmtDate(c.frozen_until)}</dd></>)}
             <dt>Giảm giá</dt><dd>{fmtMoney(c.discount)}</dd>
+            {c.sale?.name && (<><dt>Nhân viên Sale</dt><dd>{c.sale.name}</dd></>)}
+            {c.pt?.name && (<><dt>PT phụ trách</dt><dd>{c.pt.name}</dd></>)}
             {c.note && (<><dt>Ghi chú</dt><dd>{c.note}</dd></>)}
           </dl>
           {pendingSum > 0 && <div className="pending-box" role="status" style={{ marginTop: 12 }}><Chip tone="warn">Chờ xác nhận</Chip> {fmtMoney(pendingSum)} chưa tính vào đã thu.</div>}

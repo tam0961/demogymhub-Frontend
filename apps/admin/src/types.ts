@@ -136,6 +136,8 @@ export interface Contract {
   package: { id: string; name: string; type: PackageType; category: PackageCategory }
   usage_deadline?: string | null
   bundle_of_id?: string | null
+  sale?: { id: string | null; name: string | null } | null
+  pt?: { id: string | null; name: string | null } | null
   bundled_contracts?: BundledContract[]
   last_payment_method?: PayMethod | null
   last_paid_at?: string | null

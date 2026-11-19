@@ -267,6 +267,8 @@ export default function Members() {
   const urlQ = params.get('q') ?? ''
   const [q, setQ] = useState(urlQ)
   const [status, setStatus] = useState('')
+  const [ptId, setPtId] = useState('')
+  const [pts, setPts] = useState<{ id: string; name: string }[]>([])
   const [filters, setFilters] = useState<MemberFilters>(NO_FILTERS)
   const [filterOpen, setFilterOpen] = useState(false)
   const [rows, setRows] = useState<Member[]>([])
@@ -290,13 +292,16 @@ export default function Members() {
     setLoading(true)
     setError('')
     try {
-      setRows(await fetchAll<Member>('/members', { q: urlQ || undefined, branch_id: branchId ?? undefined }))
+      setRows(await fetchAll<Member>('/members', { q: urlQ || undefined, branch_id: branchId ?? undefined, pt_user_id: ptId || undefined }))
     } catch (e) {
       setError(apiError(e).message)
     } finally {
       setLoading(false)
     }
-  }, [urlQ, branchId])
+  }, [urlQ, branchId, ptId])
+  useEffect(() => {
+    api.get<{ data: { id: string; name: string }[] }>('/contracts/pt-staff', { params: { branch_id: branchId ?? undefined } }).then((r) => setPts(r.data.data)).catch(() => setPts([]))
+  }, [branchId])
 
   useEffect(() => {
     load()
@@ -323,6 +328,10 @@ export default function Members() {
           <Select aria-label="Lọc trạng thái" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">Mọi trạng thái</option>
             {STATUS_OPTIONS.map((s) => <option key={s} value={s}>{s}</option>)}
+          </Select>
+          <Select aria-label="Lọc PT phụ trách" value={ptId} onChange={(e) => setPtId(e.target.value)}>
+            <option value="">Tất cả PT</option>
+            {pts.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </Select>
           <Button onClick={() => setFilterOpen(true)}>Bộ lọc{activeFilters ? ` (${activeFilters})` : ''}</Button>
         </div>
