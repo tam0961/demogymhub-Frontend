@@ -46,7 +46,7 @@ export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | '
   )
 }
 
-type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
+type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | 'staff' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
 
 export default function ContractDetail() {
   const { id } = useParams()
