@@ -66,18 +66,24 @@ export default function ScanPopup() {
   useEffect(() => {
     if (!allowed) return
     let alive = true
-    const tick = async () => {
-      if (document.hidden) return
-      try {
-        const { data } = await api.get<{ data: { now: string; items: ScanItem[] } }>('/attendance/scans', { params: since.current ? { since: since.current } : {} })
-        if (!alive) return
-        since.current = data.data.now
-        if (data.data.items.length) setQueue((q) => [...q, ...data.data.items])
-      } catch { /* mạng chập chờn: lần hỏi sau tự thử lại */ }
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+    const loop = async () => {
+      while (alive) {
+        if (document.hidden) { await sleep(1500); continue }
+        try {
+          const params: Record<string, string | number> = { wait: 20 }
+          if (since.current) params.since = since.current
+          const { data } = await api.get<{ data: { now: string; items: ScanItem[] } }>('/attendance/scans', { params, timeout: 35000 })
+          if (!alive) return
+          since.current = data.data.now
+          if (data.data.items.length) setQueue((q) => [...q, ...data.data.items])
+        } catch {
+          await sleep(2000)
+        }
+      }
     }
-    tick()
-    const t = setInterval(tick, 1500)
-    return () => { alive = false; clearInterval(t) }
+    loop()
+    return () => { alive = false }
   }, [allowed])
 
   const next = useCallback(() => { setQueue((q) => q.slice(1)) }, [])
