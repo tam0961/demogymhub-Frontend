@@ -451,3 +451,8 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .scan-more { text-align: center; padding: 0 32px 24px; color: var(--muted); font-size: 28px; }
 
 @media (max-width: 900px) { .scan-banner { font-size: 28px; padding: 16px; } .scan-name { font-size: 30px; } .scan-sub { font-size: 18px; } .scan-info { font-size: 22px; grid-template-columns: 110px 1fr; padding: 12px 18px; } .scan-person { gap: 16px; padding: 16px 18px 6px; flex-direction: column; align-items: flex-start; } .scan-debt-bar { font-size: 24px; margin: 8px 18px; } .scan-btn { min-height: 64px; font-size: 24px; } .scan-foot { padding: 16px 18px 20px; } .scan-info-plain { font-size: 22px; padding: 18px; } }
+
+.devcam { display: flex; flex-direction: column; gap: 8px; }
+.devcam-box { position: relative; background: #101214; border-radius: var(--r-md); overflow: hidden; aspect-ratio: 16 / 9; }
+.devcam-box canvas { width: 100%; height: 100%; display: block; object-fit: contain; }
+.devcam-ph { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #c9ccd1; font-size: 15px; text-align: center; padding: 12px; }

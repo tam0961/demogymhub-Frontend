@@ -3,6 +3,7 @@ import { apiError } from '../lib/errors'
 import { processPhoto, type ProcessedPhoto } from '../lib/photo'
 import { Button, Field, Input, Modal } from './ui'
 import { loadPhoto, type PhotoRef } from './MemberAvatar'
+import { DeviceCam } from './DeviceCam'
 
 export interface FaceResult { photo: ProcessedPhoto | null; faceId: string }
 
@@ -136,14 +137,16 @@ export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, on
           <div className="hint-muted">Ảnh hồ sơ</div>
         </div>
         <div className="face-main">
+          <DeviceCam onPhoto={(p) => { setPhoto(p); setPhotoErr('') }} />
+          <div className="hint-muted" style={{ marginTop: 10 }}>Hoặc dùng webcam máy tính hay tải ảnh:</div>
           <div className="face-cam">
             <video ref={video} autoPlay playsInline muted aria-label="Hình trực tiếp từ camera" style={{ display: stream ? 'block' : 'none' }} />
             {!stream && <span>Chưa kết nối camera</span>}
           </div>
-          <div className="hint-muted">Bấm Kết nối camera để xem trực tiếp từ camera.</div>
+          
           {camErr && <div className="field-error" role="alert">{camErr}</div>}
           <div className="face-actions">
-            <Button onClick={connect} disabled={!!stream}>Kết nối camera</Button>
+            <Button onClick={connect} disabled={!!stream}>Dùng webcam máy tính</Button>
             <Button onClick={capture} disabled={!stream}>Chụp ảnh</Button>
             <label className="btn face-upload">
               Hoặc tải ảnh từ máy
