@@ -6,7 +6,7 @@ import { fmtDateTime, fmtTime, reasonText } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
-import { BranchTag, Button, Chip, DataTable, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, Select, useToast, type Column } from '../components/ui'
+import { BranchTag, Button, Chip, DataTable, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, Select, type Column } from '../components/ui'
 import type { CheckinItem, CheckinResult, CheckinStats } from '../types'
 
 const REFRESH_MS = 30000
@@ -16,7 +16,6 @@ export default function Access() {
   const { branchId } = useBranch()
   const { can } = usePermission()
   const canCheckin = !!user?.can_checkin && can('checkins.create')
-  const toast = useToast()
   const inputRef = useRef<HTMLInputElement>(null)
   const branches = useMemo(() => user?.branches ?? [], [user])
   const [live, setLive] = useState<CheckinItem[]>([])
@@ -69,15 +68,8 @@ export default function Access() {
     setBusy(true)
     setErr('')
     try {
-      const inside = live.find((i) => i.member.code.toLowerCase() === v.toLowerCase())
-      if (inside) {
-        await api.post(`/checkins/${inside.id}/checkout`)
-        setRes(null)
-        toast(`Đã check-out ${inside.member.name}`)
-      } else {
-        const { data } = await api.post('/checkins', { member_code: v, direction: 'in' })
-        setRes(data.data)
-      }
+      const { data } = await api.post('/checkins', { member_code: v, direction: 'in' })
+      setRes(data.data)
       load()
     } catch (x) {
       setRes(null)
@@ -90,31 +82,21 @@ export default function Access() {
     }
   }
 
-  const checkout = async (id: string) => {
-    try {
-      await api.post(`/checkins/${id}/checkout`)
-      load()
-    } catch (x) {
-      toast(apiError(x).message, true)
-    }
-  }
-
   const maxHour = Math.max(1, ...(stats?.branches.flatMap((b) => b.by_hour.map((h) => h.count)) ?? [1]))
   const columns: Column<CheckinItem>[] = [
     { key: 'at', header: 'Giờ vào', sortValue: (c) => c.checked_in_at ?? c.created_at, render: (c) => fmtDateTime(c.checked_in_at ?? c.created_at) },
     { key: 'member', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><div className="cell-main">{c.member.name}</div><div className="cell-sub">{c.member.code}</div></> },
     { key: 'result', header: 'Kết quả', sortValue: (c) => c.result, render: (c) => <Chip tone={c.result === 'allowed' ? 'ok' : 'bad'}>{c.result === 'allowed' ? 'Cho vào' : 'Từ chối'}</Chip> },
     { key: 'reason', header: 'Lý do', render: (c) => (c.result === 'denied' ? reasonText(c.reason) : <span className="hint-muted">-</span>) },
-    { key: 'out', header: 'Giờ ra', render: (c) => (c.result === 'allowed' ? (c.checked_out_at ? fmtTime(c.checked_out_at) : <Chip tone="warn">Đang tập</Chip>) : <span className="hint-muted">-</span>) },
   ]
 
   return (
     <>
-      <PageHeader title="Kiểm soát ra vào" sub="Lượt vào ra theo thời gian thực, tự làm mới mỗi 30 giây" />
+      <PageHeader title="Kiểm soát ra vào" sub="Lượt check-in theo thời gian thực, tự làm mới mỗi 30 giây" />
       <KpiRow>
         <Kpi value={todayCounts.allowed} label="Lượt vào hôm nay" />
         <Kpi value={<span className={todayCounts.denied ? 'text-bad' : ''}>{todayCounts.denied}</span>} label="Từ chối hôm nay" />
-        <Kpi value={live.length} label="Đang trong phòng tập" />
+        <Kpi value={live.length} label="Khách đã check-in hôm nay" />
       </KpiRow>
 
       {!canCheckin && <div className="view-note" role="note">Tài khoản quản trị chỉ xem thống kê</div>}
@@ -146,11 +128,11 @@ export default function Access() {
       )}
 
       {canCheckin && (
-        <Panel title="Check-in, check-out thủ công" note="Nhập mã hội viên hoặc số điện thoại">
+        <Panel title="Check-in thủ công" note="Nhập mã hội viên hoặc số điện thoại">
           <form className="inline-form" onSubmit={submit}>
             <label className="sr-only" htmlFor="ac-code">Mã hội viên hoặc số điện thoại</label>
             <input id="ac-code" ref={inputRef} className="input" placeholder="Mã hội viên hoặc số điện thoại" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
-            <Button variant="primary" type="submit" disabled={busy}><Icon name="checkin" size={16} />{busy ? 'Đang kiểm tra...' : 'Vào / Ra'}</Button>
+            <Button variant="primary" type="submit" disabled={busy}><Icon name="checkin" size={16} />{busy ? 'Đang kiểm tra...' : 'Check-in'}</Button>
           </form>
           {err && <div className="form-error" role="alert" style={{ marginTop: 10 }}>{err}</div>}
           {res && (
@@ -164,8 +146,8 @@ export default function Access() {
       )}
 
       <div style={{ marginTop: 16 }}>
-        <Panel title="Đang trong phòng tập" count={`${live.length} người`} flush>
-          {live.length === 0 && <EmptyState title="Chưa có ai trong phòng tập" />}
+        <Panel title="Đã check-in hôm nay" count={`${live.length} người`} flush>
+          {live.length === 0 && <EmptyState title="Chưa có ai check-in hôm nay" />}
           {live.map((r) => (
             <div key={r.id} className="recent is-live">
               <span className="recent-time">{fmtTime(r.checked_in_at ?? r.created_at)}</span>
@@ -173,7 +155,6 @@ export default function Access() {
                 <div className="cell-main">{r.member.name}</div>
                 <div className="cell-sub">{r.member.code}</div>
               </div>
-              {canCheckin && <Button small onClick={() => checkout(r.id)}>Check-out</Button>}
             </div>
           ))}
         </Panel>

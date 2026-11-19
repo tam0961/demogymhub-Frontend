@@ -100,7 +100,7 @@ export default function ScanPopup() {
         {m ? (
           <>
             <div className="scan-person">
-              <MemberAvatar member={{ id: m.id, name: m.name, has_photo: m.has_photo, photo_version: m.photo_version }} size={96} />
+              <MemberAvatar member={{ id: m.id, name: m.name, has_photo: m.has_photo, photo_version: m.photo_version }} size={192} />
               <div>
                 <div className="scan-name">{m.name}</div>
                 <div className="scan-sub">{m.code} · {m.phone}</div>

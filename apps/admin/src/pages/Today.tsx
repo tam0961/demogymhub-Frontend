@@ -64,15 +64,8 @@ export default function Today() {
     setBusy(true)
     setErr('')
     try {
-      const inside = live.items.find((i) => i.member.code.toLowerCase() === v.toLowerCase())
-      if (inside) {
-        await api.post(`/checkins/${inside.id}/checkout`)
-        setRes(null)
-        toast(`Đã check-out ${inside.member.name}`)
-      } else {
-        const { data } = await api.post('/checkins', { member_code: v, direction: 'in' })
-        setRes(data.data)
-      }
+      const { data } = await api.post('/checkins', { member_code: v, direction: 'in' })
+      setRes(data.data)
       load()
     } catch (x) {
       setRes(null)
@@ -99,15 +92,6 @@ export default function Today() {
     }
   }
 
-  const checkout = async (id: string) => {
-    try {
-      await api.post(`/checkins/${id}/checkout`)
-      load()
-    } catch (x) {
-      toast(apiError(x).message, true)
-    }
-  }
-
   const now = new Date()
   const scope = branchId || branches.length === 1 ? (branches.find((b) => b.id === branchId) ?? branches[0])?.name : `Tất cả chi nhánh: ${branches.map((b) => b.name).join(', ')}`
   const sub = `${WEEKDAYS[now.getDay()]}, ${fmtDate(now.toISOString())}. ${scope ?? ''}`
@@ -125,7 +109,7 @@ export default function Today() {
           <form className="checkin-box" onSubmit={submit}>
             <label className="checkin-label" htmlFor="checkin-code"><Icon name="checkin" size={22} />Check-in</label>
             <input id="checkin-code" ref={inputRef} className="input" placeholder="Nhập số điện thoại hoặc mã hội viên" autoFocus autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
-            <button type="submit" className="go" disabled={busy}>{busy ? 'Đang kiểm tra...' : 'Vào / Ra'}</button>
+            <button type="submit" className="go" disabled={busy}>{busy ? 'Đang kiểm tra...' : 'Check-in'}</button>
           </form>
           {user?.checkin_branch && (
             <div className="checkin-at-static">
@@ -161,7 +145,7 @@ export default function Today() {
           <KpiRow>
             <Kpi value={stats.totals.checkins_today} label="Lượt vào hôm nay" />
             <Kpi value={stats.totals.denied_today} label="Từ chối hôm nay" />
-            <Kpi value={stats.totals.inside_now} label="Đang trong phòng tập" />
+            <Kpi value={stats.totals.inside_now} label="Khách đã check-in hôm nay" />
           </KpiRow>
           <div className="branch-panels">
             {stats.branches.map((b, i) => <BranchStat key={b.branch.id} s={b} color={`var(--c${(i % 6) + 1})`} />)}
@@ -170,7 +154,7 @@ export default function Today() {
       ) : (
       <KpiRow>
         <Kpi value={canDash ? dash?.checkins_today ?? '-' : recent.filter((r) => r.result === 'allowed').length} label="Lượt vào hôm nay" />
-        <Kpi value={canRead ? live.count : '-'} label="Đang trong phòng tập" />
+        <Kpi value={canRead ? live.count : '-'} label="Khách đã check-in hôm nay" />
         <Kpi value={canDash && dash ? fmtMoney(dash.revenue_today) : '-'} label="Thu hôm nay" />
         <Kpi value={canDash ? dash?.new_contracts_today ?? '-' : '-'} label="Hợp đồng mới hôm nay" />
       </KpiRow>
@@ -204,8 +188,7 @@ export default function Today() {
                     <div className="cell-main">{r.member.name}</div>
                     <div className="cell-sub">{r.member.code}{r.result === 'denied' ? ` - ${reasonText(r.reason)}` : ''}</div>
                   </div>
-                  {inside ? <Chip tone="warn">Đang tập</Chip> : r.result === 'denied' ? <Chip tone="bad">Từ chối</Chip> : <Chip tone="ok">Đã ra</Chip>}
-                  {inside && canCheckin && <Button small onClick={() => checkout(r.id)}>Check-out</Button>}
+                  {r.result === 'denied' ? <Chip tone="bad">Từ chối</Chip> : <Chip tone="ok">Đã check-in</Chip>}
                 </div>
               )
             })}
