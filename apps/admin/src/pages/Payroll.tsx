@@ -368,6 +368,8 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
     <>
       {err && <div className="form-error" role="alert">{err}</div>}
 
+      <div className="settings-top">
+        <div className="settings-staff">
       <Panel title="Nhân sự" note="Chọn vị trí: PT Fulltime và Marketing có bảo hiểm, PT Parttime chịu thuế 10%" flush>
         <div className="table-wrap">
           <table className="table">
@@ -401,10 +403,10 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
           </table>
         </div>
       </Panel>
+        </div>
 
       {settings && (
-        <>
-          <div style={{ height: 16 }} />
+        <div className="settings-rates">
           <Panel title="Bảng tỷ lệ" note="Hoa hồng lũy tiến từng phần theo doanh số thực thu trong tháng">
             <div className="tier-grid">
             <TierEditor title="Bảng 1: Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
@@ -421,13 +423,14 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               <Field label="Thuế PT Parttime (% tổng thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
             </div>
           </Panel>
+        </div>
+      )}
+      </div>
 
-          {canManage && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-              <Button variant="primary" onClick={saveSettings} disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu cài đặt'}</Button>
-            </div>
-          )}
-        </>
+      {settings && canManage && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+          <Button variant="primary" onClick={saveSettings} disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu cài đặt'}</Button>
+        </div>
       )}
     </>
   )

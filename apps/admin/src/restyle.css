@@ -385,3 +385,9 @@
 .tier-grid .table th, .tier-grid .table td { white-space: nowrap; }
 .compact-form { grid-template-columns: repeat(auto-fill, minmax(200px, 240px)); }
 .compact-form .input { max-width: 200px; }
+
+.settings-top { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+.settings-staff { flex: 0 0 auto; max-width: 100%; }
+.settings-rates { flex: 1 1 520px; min-width: 0; }
+.settings-staff .table td:nth-child(2) select { width: 140px; min-width: 0; }
+.settings-staff .table td:nth-child(3) input { width: 120px; }
