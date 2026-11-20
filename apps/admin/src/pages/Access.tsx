@@ -6,12 +6,13 @@ import { fmtDateTime, fmtTime, reasonText } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
-import { BranchTag, Button, Chip, DataTable, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, Select, type Column } from '../components/ui'
+import { BranchTag, Button, Chip, DataTable, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, Select, Tabs, type Column } from '../components/ui'
+import DayTickets from './DayTickets'
 import type { CheckinItem, CheckinResult, CheckinStats } from '../types'
 
 const REFRESH_MS = 30000
 
-export default function Access() {
+function AccessLog() {
   const { user } = useAuth()
   const { branchId } = useBranch()
   const { can } = usePermission()
@@ -179,6 +180,18 @@ export default function Access() {
       <div className="card">
         <DataTable columns={columns} rows={rows} rowKey={(c) => c.id} defaultSort={{ key: 'at', dir: 'desc' }} loading={loading} error={error} emptyText="Không có lượt ra vào" itemLabel="lượt" />
       </div>
+    </>
+  )
+}
+
+export default function Access() {
+  const { can } = usePermission()
+  const [tab, setTab] = useState<'log' | 'tickets'>('log')
+  if (!can('day_tickets.read')) return <AccessLog />
+  return (
+    <>
+      <Tabs tabs={[{ value: 'log', label: 'Lượt ra vào' }, { value: 'tickets', label: 'Vé lẻ' }]} value={tab} onChange={setTab} />
+      {tab === 'log' ? <AccessLog /> : <DayTickets embedded />}
     </>
   )
 }

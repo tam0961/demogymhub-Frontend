@@ -432,25 +432,34 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .zns-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 @media (max-width: 1000px) { .zalo-top, .zns-grid { grid-template-columns: 1fr; } }
 
-.scan-overlay { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-start; justify-content: center; padding: 72px 16px 16px; background: rgba(20, 23, 26, 0.35); }
-.scan-card { width: min(920px, 100%); background: var(--surface); border-radius: var(--r-lg); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35); overflow: hidden; display: flex; flex-direction: column; }
-.scan-banner { padding: 24px 28px; font-size: 44px; font-weight: 800; letter-spacing: 0.04em; text-align: center; color: #fff; }
+.scan-overlay { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(20, 23, 26, 0.45); overflow-y: auto; }
+.scan-card { width: min(800px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--surface); border-radius: var(--r-lg); box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35); }
+.scan-banner { display: flex; align-items: center; gap: 12px; padding: 0 20px; min-height: 60px; color: #fff; }
+.scan-title { flex: 1; font-size: 20px; font-weight: 800; }
+.scan-meta { font-size: 15px; opacity: 0.95; }
+.scan-x { background: none; border: 0; color: #fff; font-size: 26px; line-height: 1; cursor: pointer; padding: 4px 6px; }
 .scan-ok .scan-banner { background: var(--ok); }
 .scan-warn .scan-banner { background: var(--warn); }
 .scan-bad .scan-banner { background: var(--bad); }
-.scan-person { display: flex; align-items: center; gap: 32px; padding: 28px 32px 12px; }
-.scan-name { font-size: 48px; font-weight: 800; line-height: 1.2; }
-.scan-sub { color: var(--muted); font-size: 28px; margin-top: 4px; }
-.scan-info { display: grid; grid-template-columns: 168px 1fr; gap: 12px 24px; padding: 18px 32px; margin: 0; font-size: 34px; }
-.scan-info dt { color: var(--muted); }
-.scan-info dd { margin: 0; font-weight: 600; }
-.scan-info-plain { padding: 32px; font-size: 34px; line-height: 1.5; }
-.scan-debt-bar { margin: 8px 32px; padding: 18px 28px; border-radius: var(--r-md); background: var(--bad-soft); color: var(--bad); font-size: 36px; font-weight: 700; text-align: center; }
-.scan-foot { display: flex; gap: 20px; padding: 24px 32px 32px; }
-.scan-btn { flex: 1; min-height: 104px; font-size: 36px; font-weight: 700; }
-.scan-more { text-align: center; padding: 0 32px 24px; color: var(--muted); font-size: 28px; }
+.scan-person { display: flex; align-items: center; gap: 24px; padding: 18px 20px; }
+.scan-name { font-size: 32px; font-weight: 800; line-height: 1.2; }
+.scan-sub { color: var(--ink); font-size: 18px; margin-top: 4px; }
+.scan-rows { margin: 0; padding: 0 20px; }
+.scan-row { display: grid; grid-template-columns: 110px 1fr; gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); font-size: 17px; align-items: start; }
+.scan-row dt { color: var(--muted); }
+.scan-row dd { margin: 0; }
+.scan-hint { color: var(--muted); font-size: 15px; margin-top: 2px; }
+.scan-chip { display: inline-block; margin-left: 6px; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+.scan-chip.ok { background: var(--ok-soft); color: var(--ok); }
+.scan-chip.warn { background: var(--warn-soft); color: var(--warn); }
+.scan-chip.bad { background: var(--bad-soft); color: var(--bad); }
+.scan-debt { color: var(--bad); font-weight: 800; }
+.scan-plain { padding: 24px 20px 8px; font-size: 18px; }
+.scan-plain .scan-hint { margin-top: 12px; }
+.scan-foot { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px 20px 20px; }
+.scan-more { text-align: center; padding: 0 20px 14px; color: var(--muted); font-size: 14px; }
+@media (max-width: 600px) { .scan-person { flex-direction: column; align-items: flex-start; } .scan-name { font-size: 24px; } .scan-row { grid-template-columns: 90px 1fr; font-size: 16px; } }
 
-@media (max-width: 900px) { .scan-banner { font-size: 28px; padding: 16px; } .scan-name { font-size: 30px; } .scan-sub { font-size: 18px; } .scan-info { font-size: 22px; grid-template-columns: 110px 1fr; padding: 12px 18px; } .scan-person { gap: 16px; padding: 16px 18px 6px; flex-direction: column; align-items: flex-start; } .scan-debt-bar { font-size: 24px; margin: 8px 18px; } .scan-btn { min-height: 64px; font-size: 24px; } .scan-foot { padding: 16px 18px 20px; } .scan-info-plain { font-size: 22px; padding: 18px; } }
 
 .devcam { display: flex; flex-direction: column; gap: 8px; }
 .devcam-box { position: relative; background: #101214; border-radius: var(--r-md); overflow: hidden; aspect-ratio: 16 / 9; }

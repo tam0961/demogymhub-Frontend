@@ -20,10 +20,8 @@ describe('day ticket helpers', () => {
     expect(saleBody({ name: ' An ', phone: '0903 123 456', method: 'momo' }, 'b1')).toEqual({ name: 'An', phone: '0903123456', method: 'momo', branch_id: 'b1' })
     expect(saleBody({ name: 'An', phone: '0903123456', method: 'cash' }, '')).toEqual({ name: 'An', phone: '0903123456', method: 'cash' })
   })
-  it('has a menu entry for receptionists', () => {
-    const item = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.to === '/day-tickets')
-    expect(item?.label).toBe('Vé lẻ')
-    expect(item?.perm).toEqual(['day_tickets.read'])
+  it('lives inside the access page, with no separate menu entry', () => {
+    expect(NAV_GROUPS.flatMap((g) => g.items).some((i) => i.to === '/day-tickets')).toBe(false)
   })
 })
 

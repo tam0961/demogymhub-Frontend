@@ -10,7 +10,7 @@ import { useToast } from '../components/Toast'
 import { Button, Chip, DataTable, Field, Input, KpiRow, Kpi, PageHeader, Panel, Select, type Column } from '../components/ui'
 import type { DayTicket, DayTicketList, DayTicketMethod } from '../types'
 
-export default function DayTickets() {
+export default function DayTickets({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth()
   const { branchId } = useBranch()
   const { can } = usePermission()
@@ -84,7 +84,7 @@ export default function DayTickets() {
 
   return (
     <>
-      <PageHeader title="Vé lẻ" sub={`Vé tập 1 ngày, ${fmtMoney(meta.price)} một vé, không cần hợp đồng`} />
+      {embedded ? <h2 className="sec">{`Vé lẻ - ${fmtMoney(meta.price)} một vé, không cần hợp đồng`}</h2> : <PageHeader title="Vé lẻ" sub={`Vé tập 1 ngày, ${fmtMoney(meta.price)} một vé, không cần hợp đồng`} />}
       {canSell && (
         <Panel title="Bán vé lẻ">
           <form className="form-grid" onSubmit={submit} aria-label="Bán vé lẻ">
