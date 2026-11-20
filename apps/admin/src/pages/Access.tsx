@@ -71,6 +71,13 @@ function AccessLog() {
     try {
       const { data } = await api.post('/checkins', { member_code: v, direction: 'in' })
       setRes(data.data)
+      const r: CheckinResult = data.data
+      if (r.member) {
+        try {
+          const pv = await api.get('/attendance/scan-preview', { params: { member_id: r.member.id } })
+          window.dispatchEvent(new CustomEvent('gh-scan-popup', { detail: { id: `manual-${Date.now()}`, employee_no: r.member.code, scanned_at: new Date().toISOString(), result: r.result, reason: r.reason, member: pv.data.data.member } }))
+        } catch { /* popup là phần phụ: bỏ qua nếu lỗi */ }
+      }
       load()
     } catch (x) {
       setRes(null)

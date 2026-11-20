@@ -103,6 +103,12 @@ export default function ScanPopup() {
     return () => { alive = false }
   }, [allowed])
 
+  useEffect(() => {
+    const on = (e: Event) => setQueue((q) => [...q, (e as CustomEvent<ScanItem>).detail])
+    window.addEventListener('gh-scan-popup', on)
+    return () => window.removeEventListener('gh-scan-popup', on)
+  }, [])
+
   const next = useCallback(() => { setQueue((q) => q.slice(1)) }, [])
 
   useEffect(() => {

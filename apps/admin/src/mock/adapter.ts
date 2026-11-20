@@ -1661,6 +1661,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     scanDemoShown = true
     return ok({ now: new Date().toISOString(), items: first ? [{ id: 'sc1', employee_no: 'HV0389', scanned_at: new Date().toISOString(), result: 'allowed', reason: null, member: { id: 'm1', code: 'HV0389', name: 'Lê Thị Ngọc Trang', phone: '0907557550', has_photo: false, photo_version: null, package_name: 'MEMBER 3 THÁNG + 1', end_date: '2027-01-05', state: 'ok', sessions_left: null, debt: 400000 } }] : [] })
   }
+  if (url === '/attendance/scan-preview') return ok({ member: { id: 'm1', code: 'HV0389', name: 'Lê Thị Ngọc Trang', phone: '0907557550', has_photo: false, photo_version: null, package_name: 'MEMBER 3 THÁNG + 1', end_date: '2027-01-05', state: 'ok', sessions_left: null, debt: 0, branch: { code: 'q7', name: 'Quận 7' } } })
   if (url === '/attendance/summary') return ok(attRows)
   const devPause = url.match(/^\/attendance\/devices\/([^/]+)\/pause$/)
   if (devPause && method === 'put') {
