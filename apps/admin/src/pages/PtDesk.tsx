@@ -5,6 +5,7 @@ import { fmtTime } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
+import { PtSignModal } from '../components/PtSignModal'
 import { PtAddModal, PtBookModal } from '../components/PtBookModal'
 import { Button, Chip, EmptyState, Input, PageHeader, Select, useToast, type ChipTone } from '../components/ui'
 import type { PtSession, PtStatus } from '../types'
@@ -114,19 +115,11 @@ export default function PtDesk() {
         </div>
       )}
       <p className="ptg-note" style={{ marginTop: 16 }}>
-        Khách tập PT không cần check-in. PT báo ca trong nhóm Zalo, gán khách cho ca, rồi bấm Hoàn thành buổi: trừ 1 buổi và khách ký xác nhận.
+        Khách tập PT không cần check-in. PT báo ca trong nhóm Zalo, gán khách cho ca, rồi bấm Hoàn thành buổi: khách ký xác nhận trên iPad thì mới trừ 1 buổi.
         Khách không đến thì bấm Vắng mặt: vẫn trừ 1 buổi. Khách hủy thì phải hủy trước giờ dạy ít nhất 90 phút. Chỉ hoàn thành được buổi trong ngày dạy.
       </p>
 
-      {signing && (
-        <Modal title="Khách ký xác nhận" onClose={() => setSigning(null)} footer={<><Button onClick={() => setSigning(null)}>Hủy</Button><Button variant="primary" onClick={() => { const s = signing; setSigning(null); act(s, 'complete') }}>Khách đã ký, hoàn thành</Button></>}>
-          <div className="sign-wait">
-            <div className="sign-ico" aria-hidden="true">✍</div>
-            <h3>Chuyển iPad cho khách ký tên</h3>
-            <p>Khách ký xác nhận đã tập xong buổi PT, sau đó bấm "Khách đã ký, hoàn thành".</p>
-          </div>
-        </Modal>
-      )}
+      {signing && <PtSignModal session={signing} onClose={() => setSigning(null)} onConfirmed={(x) => act(x, 'complete')} />}
       {detail && (
         <Modal title={detail.member?.name ?? 'Ca chưa có khách'} onClose={() => setDetail(null)} footer={<Button onClick={() => setDetail(null)}>Đóng</Button>}>
           <dl className="kv">

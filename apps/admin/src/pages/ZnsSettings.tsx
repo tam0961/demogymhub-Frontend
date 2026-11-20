@@ -12,7 +12,7 @@ const EVENTS: EventDef[] = [
   { key: 'new_contract', label: 'Đăng ký gói mới', hint: 'Gửi ngay khi hợp đồng mới được kích hoạt.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'gym_name'] },
   { key: 'renewal', label: 'Gia hạn', hint: 'Gửi ngay khi hợp đồng gia hạn được kích hoạt.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'gym_name'] },
   { key: 'expiring', label: 'Nhắc hết hạn', hint: 'Gửi mỗi ngày từ 9h cho hợp đồng sắp hết hạn, mỗi mốc gửi một lần. Bỏ qua khách đã gia hạn.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'days_left', 'gym_name'], hasDays: true },
-  { key: 'pt_signed', label: 'Khách ký xác nhận buổi PT', hint: 'Gửi ngay sau khi PT hoàn thành buổi tập 1:1.', vars: ['customer_name', 'pt_name', 'session_time', 'gym_name'] },
+  { key: 'pt_signed', label: 'Khách ký xác nhận buổi PT', hint: 'Gửi ngay sau khi khách ký xác nhận buổi tập 1:1, kèm số buổi còn lại.', vars: ['customer_name', 'pt_name', 'session_time', 'sessions_left', 'gym_name'] },
 ]
 const EVENT_LABEL: Record<string, string> = Object.fromEntries(EVENTS.map((e) => [e.key, e.label]))
 

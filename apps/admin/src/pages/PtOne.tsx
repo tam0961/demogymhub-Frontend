@@ -5,6 +5,7 @@ import { fmtTime } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
+import { PtSignModal } from '../components/PtSignModal'
 import { PtAddModal, PtBookModal, PtFreeSlotModal } from '../components/PtBookModal'
 import { Button, Input, Kpi, KpiRow, Segmented, useToast } from '../components/ui'
 import { isLateCancel } from '../lib/pt'
@@ -234,25 +235,7 @@ export default function PtOne() {
           <PtMemberInfo session={picked} />
         </Modal>
       )}
-      {signing && (
-        <Modal
-          title="Khách ký xác nhận"
-          onClose={() => setSigning(null)}
-          footer={<><Button onClick={() => setSigning(null)}>Hủy</Button><Button variant="primary" onClick={() => { const s = signing; setSigning(null); act(s, 'complete') }}>Khách đã ký, hoàn thành</Button></>}
-        >
-          <div className="sign-wait">
-            <div className="sign-ico" aria-hidden="true">✍</div>
-            <h3>Chuyển iPad cho khách ký tên</h3>
-            <p>Khách ký xác nhận đã tập xong buổi PT, sau đó bấm "Khách đã ký, hoàn thành".</p>
-          </div>
-          <dl className="kv">
-            <dt>Khách</dt><dd>{signing.member?.name ?? '-'}</dd>
-            <dt>PT</dt><dd>{signing.trainer.name}</dd>
-            <dt>Giờ</dt><dd>{dayText(dayOf(signing.start_at))} {fmtTime(signing.start_at)} - {fmtTime(signing.end_at)}</dd>
-          </dl>
-          <p className="cell-sub" style={{ marginTop: 12 }}>Sau khi khách ký, khách sẽ nhận tin Zalo ZNS xác nhận buổi tập (cấu hình trong Thiết lập, mục Marketing).</p>
-        </Modal>
-      )}
+      {signing && <PtSignModal session={signing} onClose={() => setSigning(null)} onConfirmed={(x) => act(x, 'complete')} />}
       {cancelling && (
         <Modal
           title="Hủy buổi PT"
