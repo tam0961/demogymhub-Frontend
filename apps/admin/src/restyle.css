@@ -514,3 +514,7 @@
 @media (max-width: 800px) { .set-grid { grid-template-columns: minmax(0, 1fr); } }
 .set-grid .flow-card table.table { width: 100%; }
 .set-grid .flow-card .table-wrap { width: 100%; }
+
+.set-inline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.set-inline label { font-weight: 600; color: var(--muted); }
+.set-inline .input { width: 160px; max-width: 160px; }

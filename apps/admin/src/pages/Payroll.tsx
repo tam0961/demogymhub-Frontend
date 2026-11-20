@@ -438,8 +438,10 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
             <div className="flow-card">
               <b>Hoa hồng lớp nhóm</b>
               <p className="hint-muted">Tính theo số buổi đứng lớp thực tế.</p>
-              <Field label="Đơn giá mỗi buổi" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
-              <p className="hint-muted">Ví dụ: dạy 10 buổi nhận {fmtMoney(10 * settings.classRate)}.</p>
+              <div className="set-inline">
+                <label htmlFor="ps-class">Đơn giá mỗi buổi</label>
+                <MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} />
+              </div>
             </div>
             <div className="flow-card">
               <b>Bảo hiểm NLĐ</b>
