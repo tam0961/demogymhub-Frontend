@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { fmtMoney } from '../lib/format'
-import { POSITIONS, POSITION_LABEL, type SimPosition, TAX_MODES, TAX_MODE_LABEL, currentMonth, pct, ptSplit, tierLine } from '../lib/payroll'
+import { POSITIONS, POSITION_LABEL, type SimPosition, currentMonth, pct, ptSplit, tierLine } from '../lib/payroll'
 import { usePermission } from '../context/usePermission'
 import { useBranch } from '../context/BranchContext'
 import { ConfirmDialog } from '../components/Dialogs'
@@ -10,7 +10,7 @@ import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, MoneyInput, PageHeader, Panel, Segmented, Select, Textarea, type Column } from '../components/ui'
 import { PayrollSimulator, type PayrollFilter } from './PayrollStructure'
-import type { PayrollPosition, PayrollPreview, PayrollProfile, PayrollRow, PayrollSettings, PayrollStaff, PayrollTaxMode, PayrollTier } from '../types'
+import type { PayrollPosition, PayrollPreview, PayrollProfile, PayrollRow, PayrollSettings, PayrollStaff, PayrollTier } from '../types'
 
 const DEFAULT_PROFILE: PayrollProfile = { position: 'other', base_salary: 0, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: false }
 
@@ -26,6 +26,13 @@ function NumInput({ id, value, onChange, label }: { id?: string; value: number; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
   return <Input id={id} aria-label={label} inputMode="decimal" value={text} onChange={(e) => { setText(e.target.value); onChange(parseNum(e.target.value)) }} />
+}
+
+const positionDefaults = (position: PayrollPosition): Partial<PayrollProfile> => {
+  if (position === 'pt_parttime') return { position, has_insurance: false, tax_mode: 'flat10', dependents: 0, active: true }
+  if (position === 'pt_fulltime' || position === 'marketing') return { position, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: true }
+  if (position === 'sale') return { position, has_insurance: false, tax_mode: 'none', dependents: 0, active: true }
+  return { position, has_insurance: false, tax_mode: 'none', dependents: 0, active: false }
 }
 
 type PayrollTab = 'sheet' | 'sim' | 'settings'
@@ -357,7 +364,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
     <>
       {err && <div className="form-error" role="alert">{err}</div>}
 
-      <Panel title="Nhân sự" note="Vị trí tính lương tách khỏi vai trò đăng nhập" flush>
+      <Panel title="Nhân sự" note="Chọn vị trí: PT Fulltime và Marketing có bảo hiểm, PT Parttime chịu thuế 10%" flush>
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -365,15 +372,11 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
                 <th>Nhân viên</th>
                 <th>Vị trí</th>
                 <th className="num">Lương cơ bản trọn gói</th>
-                <th>Bảo hiểm</th>
-                <th>Kiểu thuế</th>
-                <th className="num">Người phụ thuộc</th>
-                <th>Đang tính lương</th>
                 <th />
               </tr>
             </thead>
             <tbody>
-              {staff.length === 0 && <tr><td colSpan={8} className="hint-muted">Chưa có nhân viên</td></tr>}
+              {staff.length === 0 && <tr><td colSpan={4} className="hint-muted">Chưa có nhân viên</td></tr>}
               {staff.map((u) => {
                 const p = profileOf(u)
                 const dirty = !!edits[u.user_id]
@@ -381,19 +384,11 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
                   <tr key={u.user_id}>
                     <td><span className="cell-main">{u.name}</span><div className="cell-sub">{u.email}{u.branch_codes.length ? ` - ${u.branch_codes.join(', ')}` : ''}</div></td>
                     <td>
-                      <Select aria-label={`Vị trí ${u.name}`} disabled={disabled} value={p.position} onChange={(e) => patchProfile(u, { position: e.target.value as PayrollPosition })}>
+                      <Select aria-label={`Vị trí ${u.name}`} disabled={disabled} value={p.position} onChange={(e) => patchProfile(u, positionDefaults(e.target.value as PayrollPosition))}>
                         {POSITIONS.map((k) => <option key={k} value={k}>{POSITION_LABEL[k]}</option>)}
                       </Select>
                     </td>
                     <td className="num"><MoneyInput aria-label={`Lương cơ bản ${u.name}`} disabled={disabled} value={p.base_salary || ''} onValueChange={(d) => patchProfile(u, { base_salary: Number(d) || 0 })} placeholder="0 ₫" /></td>
-                    <td><label className="check"><input type="checkbox" disabled={disabled} checked={p.has_insurance} onChange={(e) => patchProfile(u, { has_insurance: e.target.checked })} /> Đóng bảo hiểm</label></td>
-                    <td>
-                      <Select aria-label={`Kiểu thuế ${u.name}`} disabled={disabled} value={p.tax_mode} onChange={(e) => patchProfile(u, { tax_mode: e.target.value as PayrollTaxMode })}>
-                        {TAX_MODES.map((k) => <option key={k} value={k}>{TAX_MODE_LABEL[k]}</option>)}
-                      </Select>
-                    </td>
-                    <td className="num"><Input aria-label={`Người phụ thuộc ${u.name}`} disabled={disabled} inputMode="numeric" value={String(p.dependents)} onChange={(e) => patchProfile(u, { dependents: Number(e.target.value.replace(/\D/g, '')) || 0 })} /></td>
-                    <td><label className="check"><input type="checkbox" disabled={disabled} checked={p.active} onChange={(e) => patchProfile(u, { active: e.target.checked })} /> Tính lương</label></td>
                     <td><Button small variant={dirty ? 'primary' : 'secondary'} disabled={disabled || !dirty || savingRow === u.user_id} onClick={() => saveRow(u)}>{savingRow === u.user_id ? 'Đang lưu...' : 'Lưu'}</Button></td>
                   </tr>
                 )
