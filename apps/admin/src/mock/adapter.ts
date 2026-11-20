@@ -1440,7 +1440,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
         pt_active: { total: 9, members: 9, by_branch: [{ branch: 'Chi nhánh Quận 7', code: 'q7', count: 4 }, { branch: 'Chi nhánh Nhà Bè', code: 'nb', count: 5 }], spark: spark(2) },
       },
       packages: { total: 55, rows: [{ name: 'Member 6 tháng', contracts: 12, share: 0.218 }, { name: 'Member 12 tháng', contracts: 11, share: 0.2 }, { name: 'Member 1 tháng', contracts: 10, share: 0.182 }, { name: 'PT 1:1 - 10 buổi', contracts: 9, share: 0.164 }] },
-      health: { score: 89, parts: [{ key: 'revenue', label: 'Doanh thu', score: 25 }, { key: 'members', label: 'Hội viên', score: 18 }, { key: 'collection', label: 'Thu tiền', score: 24 }, { key: 'attendance', label: 'Vận hành', score: 22 }] },
+      health: { score: 89, grade: 'Rất tốt', parts: [{ key: 'revenue', label: 'Doanh thu', score: 25 }, { key: 'members', label: 'Hội viên', score: 18 }, { key: 'collection', label: 'Thu tiền', score: 24 }, { key: 'operations', label: 'Vận hành', score: 22 }] },
       alerts: { expiring_30: { count: 20, impact: 53000000 }, unsigned: { count: 3, impact: 10000000 }, debt: { count: 4, impact: 5919000 }, refund_pending: { count: 1, impact: 2000000 }, renew_rate: 0.6 },
       recent_contracts: recent,
       expiring_list: contracts.slice(0, 5).map((c, i) => ({ id: c.id, member: { id: c.member.id, name: c.member.name }, package: c.package.name, end_date: c.end_date ?? '', days_left: i + 1, branch: branches.find((b) => b.id === c.branch_id) ?? null })),
