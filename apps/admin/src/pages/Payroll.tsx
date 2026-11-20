@@ -9,6 +9,7 @@ import { ConfirmDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, MoneyInput, PageHeader, Panel, Segmented, Select, Textarea, type Column } from '../components/ui'
+import { PtStatsSection } from './PtStats'
 import { PayrollSimulator, type PayrollFilter } from './PayrollStructure'
 import type { PayrollPosition, PayrollPreview, PayrollProfile, PayrollRow, PayrollSettings, PayrollStaff, PayrollTier } from '../types'
 
@@ -180,6 +181,8 @@ function SheetTab({ canManage }: { canManage: boolean }) {
           </div>
         )}
       </Panel>
+
+      <PtStatsSection month={month} branchId={branchId} />
 
       {detail && <DetailModal row={detail} month={month} locked={closed} canManage={canManage} onClose={() => setDetail(null)} onSaved={async () => { setDetail(null); await load() }} />}
       {closing && (

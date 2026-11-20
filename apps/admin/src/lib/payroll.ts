@@ -182,3 +182,12 @@ export function insuranceParts(base: number, totalRate: number) {
   const k = totalRate / 10.5
   return INSURANCE_SHARES.map((p) => ({ key: p.key, rate: p.rate * k, amount: Math.round((base * p.rate * k) / 100) }))
 }
+
+/** Tổng doanh số thực thu của một PT trong tháng (gói member + gói PT), cùng cách tính với bảng lương. */
+export const ptSalesTotal = (r: { member_sales: number; pt_sales: number }) => r.member_sales + r.pt_sales
+
+/** Số buổi còn lại / tổng buổi của gói, ví dụ "6 / 10". */
+export function sessionsText(left: number | null, total: number | null): string {
+  if (left == null && total == null) return '-'
+  return `${left ?? 0} / ${total ?? '?'}`
+}
