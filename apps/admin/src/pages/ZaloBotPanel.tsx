@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtDateTime } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
-import { Button, Chip, Field, Input, Panel, Select, useToast } from '../components/ui'
+import { Button, Field, Input, Panel, Segmented, useToast } from '../components/ui'
 
 const TPL_KEYS = ['morning', 'afternoon', 'leaf', 'hourly', 'done', 'late'] as const
 type TplKey = (typeof TPL_KEYS)[number]
@@ -103,33 +102,23 @@ export default function ZaloBotPanel() {
   if (!cfg) return <Panel title="Zalo Bot báo ca và vệ sinh">{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</Panel>
 
   const groups = cfg.state.chats.filter((c) => c.type.toUpperCase() === 'GROUP')
-  const alive = cfg.state.lastPollAt && Date.now() - Date.parse(cfg.state.lastPollAt) < 90_000
 
   return (
     <form onSubmit={save}>
     <Panel title="Zalo Bot: cài đặt">
-      <p className="cell-sub">Chỉ bật bot ở một nơi: tắt phần nhận tin của bot Cloudflare cũ trước. PT lớp nhóm và khung giờ lớp nhóm lấy theo mặc định, đã đặt ở menu Lớp nhóm.</p>
       {err && <div className="form-error" role="alert">{err}</div>}
       <div className="bot-boxes">
         <div className="bot-box">
-          <h3>Kết nối bot</h3>
+          <div className="bot-head">
+            <h3>Kết nối bot</h3>
+            <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.enabled ? 'on' : 'off'} onChange={(v) => set({ enabled: v === 'on' })} />
+          </div>
           <Field label="Token bot" htmlFor="zb-token" hint={cfg.has_token ? 'Đã lưu, để trống để giữ nguyên.' : undefined}>
             <Input id="zb-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />
           </Field>
-          <Field label="Tên bot (để tag)" htmlFor="zb-name"><Input id="zb-name" value={form.bot_name} onChange={(e) => set({ bot_name: e.target.value })} /></Field>
-          <label className="check">
-            <input type="checkbox" checked={form.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> Bật bot (nhận tin và gửi nhắc)
-          </label>
-          <div className="cell-sub">
-            Trạng thái: {form.enabled ? (alive ? <Chip tone="ok">Đang nhận tin</Chip> : <Chip tone="warn">Chưa thấy hoạt động</Chip>) : <Chip>Đang tắt</Chip>}
-            {cfg.state.lastPollAt && <> Lần hỏi Zalo gần nhất: {fmtDateTime(cfg.state.lastPollAt)}.</>}
-            {cfg.state.lastItemAt && <> Tin gần nhất: {fmtDateTime(cfg.state.lastItemAt)}.</>}
-            {cfg.state.lastError && <span className="form-error"> Lỗi: {cfg.state.lastError}</span>}
-          </div>
         </div>
         <div className="bot-box">
           <h3>Bot báo ca/off</h3>
-          <p className="cell-sub">Đọc tin báo ca và lịch off trong nhóm PT, ghi vào Lịch PT 1:1, nhắc giờ trong nhóm.</p>
           <Field label="Mã nhóm PT" htmlFor="zb-group" hint="Nhắn tin tag bot trong nhóm, nhóm sẽ hiện ở dưới.">
             <Input id="zb-group" value={form.pt_group} onChange={(e) => set({ pt_group: e.target.value })} />
           </Field>
@@ -138,16 +127,9 @@ export default function ZaloBotPanel() {
               {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.pt_group ? 'primary' : 'secondary'} onClick={() => set({ pt_group: g.id })}>{g.name || g.id}</Button>)}
             </div>
           )}
-          <Field label="Chi nhánh" htmlFor="zb-branch">
-            <Select id="zb-branch" value={form.branch_id} onChange={(e) => set({ branch_id: e.target.value })}>
-              <option value="">Chọn chi nhánh</option>
-              {user?.branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </Select>
-          </Field>
         </div>
         <div className="bot-box">
         <h3>Bot vệ sinh</h3>
-        <p className="cell-sub">Gửi checklist Ca Sáng 10:00 và Ca Chiều 16:45 vào nhóm vệ sinh, hạn xác nhận 1 giờ 15 phút. Nhân viên nhắn "xong" thì bot ghi tên và giờ. Nhắc kiểm tra toilet, dẹp tạ lúc 8h, 12h, 14h, 18h, 20h. Dùng chung token và tên bot ở trên.</p>
         <div className="form-grid">
           <Field label="Mã nhóm vệ sinh" htmlFor="zb-cgroup" hint="Nhắn tin tag bot trong nhóm vệ sinh, nhóm sẽ hiện ở dưới.">
             <Input id="zb-cgroup" value={form.clean_group} onChange={(e) => set({ clean_group: e.target.value })} />
@@ -159,19 +141,13 @@ export default function ZaloBotPanel() {
             {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.clean_group ? 'primary' : 'secondary'} onClick={() => set({ clean_group: g.id })}>{g.name || g.id}</Button>)}
           </div>
         )}
-        <label className="check" style={{ display: 'block', margin: '8px 0' }}>
-          <input type="checkbox" checked={form.clean_on} onChange={(e) => set({ clean_on: e.target.checked })} /> Bật bot vệ sinh
-        </label>
+        <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot vệ sinh" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.clean_on ? 'on' : 'off'} onChange={(v) => set({ clean_on: v === 'on' })} />
         </div>
         <div className="bot-box">
         <h3>Bot buổi quay với Emma</h3>
-        <p className="cell-sub">Nhắc PT Trang và PT Thịnh đăng ký lịch quay từ Thứ 7 tuần trước đến Thứ 6 của tuần quay (8h và 15h). PT điền "Trang : thứ 4 14h", Emma nhắn "xác nhận" hoặc "đổi lịch". 19h tối hôm trước bot nhắc lại lịch quay. Dùng chung token và tên bot ở trên.</p>
         <div className="form-grid">
           <Field label="Mã nhóm quay" htmlFor="zb-sgroup" hint="Nhắn tin tag bot trong nhóm quay, nhóm sẽ hiện ở dưới.">
             <Input id="zb-sgroup" value={form.shoot_group} onChange={(e) => set({ shoot_group: e.target.value })} />
-          </Field>
-          <Field label="Tên Zalo của Emma (chữ để nhận ra)" htmlFor="zb-sboss" hint="Tên Zalo có chữ này thì được xác nhận hoặc đổi lịch.">
-            <Input id="zb-sboss" value={form.shoot_boss} onChange={(e) => set({ shoot_boss: e.target.value })} />
           </Field>
         </div>
         {groups.length > 0 && (
@@ -180,9 +156,7 @@ export default function ZaloBotPanel() {
             {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.shoot_group ? 'primary' : 'secondary'} onClick={() => set({ shoot_group: g.id })}>{g.name || g.id}</Button>)}
           </div>
         )}
-        <label className="check" style={{ display: 'block', margin: '8px 0' }}>
-          <input type="checkbox" checked={form.shoot_on} onChange={(e) => set({ shoot_on: e.target.checked })} /> Bật bot buổi quay
-        </label>
+        <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot buổi quay" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.shoot_on ? 'on' : 'off'} onChange={(v) => set({ shoot_on: v === 'on' })} />
         </div>
       </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>

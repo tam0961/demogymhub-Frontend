@@ -560,3 +560,7 @@
 .bot-box p { margin: 0; }
 .bot-boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (max-width: 900px) { .bot-boxes { grid-template-columns: minmax(0, 1fr); } }
+.bot-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bot-box .check { margin: 0; }
+.bot-box .form-grid { grid-template-columns: minmax(0, 1fr); }
+.bot-box .segmented .seg[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
