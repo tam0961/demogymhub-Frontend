@@ -412,43 +412,27 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
 
       {settings && (
         <section className="flow" aria-label="Sơ đồ tính lương">
-          <h3 className="flow-title">Sơ đồ tính lương</h3>
-
           <div className="flow-stage">
-            <div className="flow-label"><span className="flow-num">1</span>Đầu vào cố định</div>
+            <div className="flow-label"><span className="flow-num">1</span>Hoa hồng hiệu suất</div>
             <div className="flow-cards">
               <div className="flow-card">
-                <b>Lương cơ bản trọn gói</b>
-                <p className="hint-muted">Đã gồm phụ cấp, không chia ngày công. Nhập theo từng nhân viên ở bảng Nhân sự phía trên.</p>
-              </div>
-            </div>
-          </div>
-          <div className="flow-arrow" aria-hidden="true">↓</div>
-
-          <div className="flow-stage">
-            <div className="flow-label"><span className="flow-num">2</span>Hoa hồng hiệu suất</div>
-            <div className="flow-cards">
-              <div className="flow-card">
-                <div className="flow-tag">Cả 3 nhóm</div>
-                <b>Bảng 1: Bán gói Member</b>
+                <div className="flow-tag">Bán gói Member và gói PT</div>
+                <div className="flow-split">
+                  <Field label="Nhận liền khi ký (%)" htmlFor="ps-imm"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
+                  <Field label="Chia theo buổi dạy (%)" htmlFor="ps-ses"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
+                </div>
+                <b>Bảng 1: Bán gói Member (cả 3 nhóm)</b>
                 <p className="hint-muted">Lũy tiến từng phần theo doanh số thực thu trong tháng.</p>
                 <TierEditor bare title="Bảng 1: Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
+                <b>Bảng 2: Quỹ hoa hồng gói PT (PT, Marketing nếu có bán)</b>
+                <p className="hint-muted">Quỹ = doanh số gói PT x tỷ lệ bậc, rẽ hai nhánh.</p>
+                <TierEditor bare title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
               </div>
               <div className="flow-card">
                 <div className="flow-tag">Riêng Marketing</div>
                 <b>Bảng 4: Doanh số Member</b>
                 <p className="hint-muted">Tính theo tổng doanh số Member trong tháng.</p>
                 <TierEditor bare title="Bảng 4: Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
-              </div>
-              <div className="flow-card">
-                <div className="flow-tag">PT, Marketing nếu có bán</div>
-                <b>Bảng 2: Quỹ hoa hồng gói PT</b>
-                <p className="hint-muted">Quỹ = doanh số gói PT x tỷ lệ bậc, rẽ hai nhánh.</p>
-                <TierEditor bare title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
-                <div className="flow-split">
-                  <Field label="Nhận liền khi ký (%)" htmlFor="ps-imm"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
-                  <Field label="Chia theo buổi dạy (%)" htmlFor="ps-ses"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
-                </div>
               </div>
               <div className="flow-card">
                 <div className="flow-tag">Chỉ PT</div>
@@ -461,7 +445,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
           <div className="flow-arrow" aria-hidden="true">↓</div>
 
           <div className="flow-stage">
-            <div className="flow-label"><span className="flow-num">3</span>Tổng hợp</div>
+            <div className="flow-label"><span className="flow-num">2</span>Tổng hợp</div>
             <div className="flow-card flow-sum">
               <b>TỔNG THU NHẬP (GROSS)</b>
               <p>= Lương cơ bản + HH Member + HH gói PT (nhận liền) + HH dạy 1-1 (chia buổi) + HH lớp nhóm</p>
@@ -470,7 +454,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
           <div className="flow-arrow" aria-hidden="true">↓</div>
 
           <div className="flow-stage">
-            <div className="flow-label"><span className="flow-num">4</span>Khấu trừ</div>
+            <div className="flow-label"><span className="flow-num">3</span>Khấu trừ</div>
             <div className="flow-cards">
               <div className="flow-card">
                 <div className="flow-tag">Nhân viên chính thức</div>
