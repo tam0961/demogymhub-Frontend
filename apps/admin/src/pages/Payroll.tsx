@@ -383,6 +383,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
     <>
       {err && <div className="form-error" role="alert">{err}</div>}
 
+      <div className="settings-top">
       <div className="settings-staff">
       <Panel title="Lương cơ bản" flush>
         <div className="table-wrap">
@@ -428,6 +429,33 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
         </div>
       </Panel>
 
+      </div>
+
+      {settings && (
+        <aside className="pay-diagram" aria-label="Sơ đồ cơ cấu lương">
+          <h3>Cơ cấu lương</h3>
+          <div className="pd-formula"><b>Thực nhận</b> = Lương cơ bản + Hoa hồng - Khấu trừ</div>
+          <div className="pd-cols">
+            <div className="pd-col">
+              <div className="pd-title">Hoa hồng gồm</div>
+              <ul>
+                <li><b>Sale Member</b> <span>mọi nhân viên</span></li>
+                <li><b>Sale PT</b> <span>nhận liền {Math.round(settings.ptImmediateShare * 100)}%, dạy 1-1 {Math.round(settings.ptSessionShare * 100)}%</span></li>
+                <li><b>Doanh số Member</b> <span>Marketing</span></li>
+                <li><b>Lớp nhóm</b> <span>PT</span></li>
+              </ul>
+            </div>
+            <div className="pd-col">
+              <div className="pd-title">Khấu trừ gồm</div>
+              <ul>
+                <li><b>Bảo hiểm {String(settings.insuranceRate).replace('.', ',')}%</b> <span>PT Fulltime, Marketing</span></li>
+                <li><b>Thuế TNCN {String(settings.partTimeTaxRate).replace('.', ',')}%</b> <span>PT Parttime</span></li>
+                <li><b>Phạt</b> <span>đi trễ, vi phạm</span></li>
+              </ul>
+            </div>
+          </div>
+        </aside>
+      )}
       </div>
 
       {settings && (
