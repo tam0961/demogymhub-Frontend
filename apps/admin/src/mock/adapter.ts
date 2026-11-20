@@ -1096,13 +1096,21 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const o = ipadStore(); o[token] = { stage: 'idle', payload: null, signature: null }; ipadSave(o)
     return ok({ token })
   }
+  if (url === '/public/ipad/pair' && method === 'post') {
+    const token = `mock${Math.random().toString(36).slice(2)}${Date.now().toString(36)}abcdefghij`
+    const o = ipadStore(); o[token] = { stage: 'idle', payload: null, signature: null }; ipadSave(o)
+    return ok({ token, code: '123456' })
+  }
+  if (url === '/ipad/branch' && method === 'get') return ok({ token: null })
+  if (url === '/ipad/pair' && method === 'post') return ok({ token: 'mock' })
+  if (url === '/ipad/branch' && method === 'delete') return ok({ ok: true })
   const ipm = /^\/(ipad\/sessions|public\/ipad)\/([^/]+)(\/sign)?$/.exec(url)
   if (ipm) {
     const o = ipadStore(); const sess = o[ipm[2]]
     if (!sess) { fail(config, 404, 'NOT_FOUND', 'Không tìm thấy phiên'); return ok(null) }
     if (ipm[1] === 'ipad/sessions' && method === 'put') { o[ipm[2]] = { stage: body.stage, payload: body.payload ?? null, signature: null }; ipadSave(o); return ok({ stage: body.stage }) }
     if (ipm[1] === 'ipad/sessions' && method === 'get') return ok({ stage: sess.stage, signature: sess.signature })
-    if (ipm[1] === 'public/ipad' && !ipm[3] && method === 'get') return ok({ stage: sess.stage, payload: sess.payload })
+    if (ipm[1] === 'public/ipad' && !ipm[3] && method === 'get') return ok({ stage: sess.stage, payload: sess.payload, paired: true, code: null })
     if (ipm[1] === 'public/ipad' && ipm[3] && method === 'post') { o[ipm[2]] = { ...sess, stage: 'signed', signature: String(body.signature) }; ipadSave(o); return ok({ stage: 'signed' }) }
   }
   if (url === '/pt/off' && method === 'get') return ok(mockOffs.filter((o) => o.date >= String(params.from) && o.date <= String(params.to)))

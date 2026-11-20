@@ -1,24 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { fmtDate, fmtTime } from '../lib/format'
-import { createIpadSession, getIpadSession, ipadUrl, setIpadStage } from '../lib/ipad'
+import { getIpadSession, setIpadStage } from '../lib/ipad'
+import { useBranch } from '../context/BranchContext'
 import { Modal } from './Modal'
-import { QRImage } from './QRImage'
-import { Button, useToast } from './ui'
+import { IpadPairBox, useBranchIpad } from './IpadPairBox'
+import { Button } from './ui'
 import type { PtSession } from '../types'
 
 export function PtSignModal({ session, onClose, onConfirmed }: { session: PtSession; onClose: () => void; onConfirmed: (s: PtSession) => void }) {
-  const toast = useToast()
-  const [token, setToken] = useState('')
+  const { branchId } = useBranch()
+  const branch = session.branch_id ?? branchId ?? ''
+  const { token, loaded, refresh } = useBranchIpad(branch)
   const done = useRef(false)
   const sessionRef = useRef(session)
   const confirmedRef = useRef(onConfirmed)
   confirmedRef.current = onConfirmed
-
-  useEffect(() => {
-    let alive = true
-    createIpadSession().then((t) => { if (alive) setToken(t) }).catch(() => { if (alive) setToken('') })
-    return () => { alive = false }
-  }, [])
 
   useEffect(() => {
     if (!token) return
@@ -55,18 +51,8 @@ export function PtSignModal({ session, onClose, onConfirmed }: { session: PtSess
         <h3>Mở iPad cho khách ký xác nhận</h3>
         <p>Khách ký trên iPad, hệ thống tự ghi nhận buổi, trừ 1 buổi và gửi tin Zalo số buổi còn lại. Chưa ký thì chưa tính.</p>
       </div>
-      {token ? (
-        <div className="ipad-box">
-          <QRImage text={ipadUrl(token)} size={110} />
-          <div>
-            <div className="cell-main">Quét mã hoặc mở liên kết trên iPad</div>
-            <div className="ipad-link hint-muted">{ipadUrl(token)}</div>
-            <Button small onClick={() => navigator.clipboard?.writeText(ipadUrl(token)).then(() => toast('Đã sao chép liên kết iPad')).catch(() => {})}>Sao chép liên kết</Button>
-          </div>
-        </div>
-      ) : (
-        <p className="hint-muted">Đang tạo liên kết iPad...</p>
-      )}
+      {!loaded ? <p className="hint-muted">Đang kiểm tra iPad...</p> : <IpadPairBox branchId={branch} token={token} onChanged={refresh} />}
+      {token && <p className="hint-muted" style={{ marginTop: 8 }}>Đã gửi lên iPad quầy, đang chờ khách ký...</p>}
     </Modal>
   )
 }

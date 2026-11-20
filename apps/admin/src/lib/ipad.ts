@@ -27,9 +27,25 @@ export async function getIpadSession(token: string): Promise<{ stage: IpadStage;
   return r.data.data
 }
 
-export async function getIpadPublic(token: string): Promise<{ stage: IpadStage; payload: (PayPayload & SignPayload) | null }> {
-  const r = await api.get<{ data: { stage: IpadStage; payload: (PayPayload & SignPayload) | null } }>(`/public/ipad/${token}`)
+export interface IpadPublic { stage: IpadStage; payload: (PayPayload & SignPayload) | null; paired: boolean; code: string | null }
+
+export async function getIpadPublic(token: string): Promise<IpadPublic> {
+  const r = await api.get<{ data: IpadPublic }>(`/public/ipad/${token}`)
   return r.data.data
 }
 
 export const sendIpadSignature = (token: string, signature: string) => api.post(`/public/ipad/${token}/sign`, { signature })
+
+export async function startIpadPairing(): Promise<string> {
+  const r = await api.post<{ data: { token: string; code: string } }>('/public/ipad/pair')
+  return r.data.data.token
+}
+
+export async function getBranchIpad(branchId: string): Promise<string | null> {
+  const r = await api.get<{ data: { token: string | null } }>('/ipad/branch', { params: { branch_id: branchId } })
+  return r.data.data.token
+}
+
+export const pairBranchIpad = (branchId: string, code: string) => api.post('/ipad/pair', { code, branch_id: branchId })
+
+export const unpairBranchIpad = (branchId: string) => api.delete('/ipad/branch', { params: { branch_id: branchId } })

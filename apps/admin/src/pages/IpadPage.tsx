@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { fmtMoney } from '../lib/format'
-import { getIpadPublic, sendIpadSignature, type IpadStage, type PayPayload, type SignPayload } from '../lib/ipad'
+import { getIpadPublic, sendIpadSignature, startIpadPairing, type IpadStage, type PayPayload, type SignPayload } from '../lib/ipad'
 import { SignaturePad } from '../components/SignaturePad'
 import { Button } from '../components/ui'
 
 export default function IpadPage() {
-  const { token = '' } = useParams()
+  const { token: urlToken = '' } = useParams()
+  const [token, setToken] = useState(urlToken)
+  const [paired, setPaired] = useState(true)
+  const [code, setCode] = useState<string | null>(null)
   const [stage, setStage] = useState<IpadStage>('idle')
   const [payload, setPayload] = useState<(PayPayload & SignPayload) | null>(null)
   const [error, setError] = useState('')
@@ -16,6 +19,18 @@ export default function IpadPage() {
   const lastStage = useRef<IpadStage>('idle')
 
   useEffect(() => {
+    if (urlToken) return
+    let saved = ''
+    try { saved = localStorage.getItem('gymhub.ipad.token') ?? '' } catch { /* ignore */ }
+    if (saved) { setToken(saved); return }
+    startIpadPairing().then((t) => {
+      try { localStorage.setItem('gymhub.ipad.token', t) } catch { /* ignore */ }
+      setToken(t)
+    }).catch(() => setError('Không tạo được mã kết nối, hãy tải lại trang.'))
+  }, [urlToken])
+
+  useEffect(() => {
+    if (!token) return
     let alive = true
     const tick = async () => {
       try {
@@ -28,15 +43,19 @@ export default function IpadPage() {
         }
         setStage(s.stage)
         setPayload(s.payload)
+        setPaired(s.paired)
+        setCode(s.code)
         setError('')
       } catch {
-        if (alive) setError('Phiên không còn hiệu lực. Hãy nhờ nhân viên tạo lại liên kết.')
+        if (!alive) return
+        if (!urlToken) { try { localStorage.removeItem('gymhub.ipad.token') } catch { /* ignore */ } setToken(''); startIpadPairing().then((t) => { try { localStorage.setItem('gymhub.ipad.token', t) } catch { /* ignore */ } setToken(t) }).catch(() => {}); return }
+        setError('Phiên không còn hiệu lực. Hãy nhờ nhân viên tạo lại liên kết.')
       }
     }
     tick()
     const id = window.setInterval(tick, 2000)
     return () => { alive = false; window.clearInterval(id) }
-  }, [token])
+  }, [token, urlToken])
 
   const submit = async () => {
     if (!sig) return
@@ -55,7 +74,14 @@ export default function IpadPage() {
     <main className="ipad-page">
       <h1>TH Gym &amp; Fitness</h1>
       {error && <div className="form-error" role="alert">{error}</div>}
-      {!error && stage === 'idle' && <p className="ipad-wait">Vui lòng chờ nhân viên...</p>}
+      {!error && !paired && code && (
+        <section className="ipad-card">
+          <h2>Mã kết nối iPad</h2>
+          <p className="ipad-code" style={{ fontSize: 48, letterSpacing: 8, fontWeight: 700, margin: '12px 0' }}>{code}</p>
+          <p className="hint-muted">Nhân viên nhập mã này trên máy tính để kết nối iPad quầy lễ tân.</p>
+        </section>
+      )}
+      {!error && paired && stage === 'idle' && <p className="ipad-wait">Vui lòng chờ nhân viên...</p>}
       {!error && stage === 'pay' && payload && (
         <section className="ipad-card">
           <h2>Quét mã để chuyển khoản</h2>

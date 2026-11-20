@@ -4,7 +4,7 @@ import { apiError } from '../lib/errors'
 import { CreateFlowError, STEP_LABEL, runCreateContract, type CreateOutcome } from '../lib/contracts'
 import { METHODS, METHOD_LABEL, PACKAGE_CATEGORIES, PACKAGE_CATEGORY, isPtCategory, fmtDate, fmtMoney, parseMoney, todayISO } from '../lib/format'
 import { BANKS, bankReady, loadBank, transferContent, vietQrUrl } from '../lib/bank'
-import { createIpadSession, getIpadSession, ipadUrl, setIpadStage } from '../lib/ipad'
+import { createIpadSession, getBranchIpad, getIpadSession, ipadUrl, setIpadStage } from '../lib/ipad'
 import { QRImage } from '../components/QRImage'
 import { PROMO_OPTIONS, addDays, defaultStart, memberBanner, priceHint, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
 import type { ProcessedPhoto } from '../lib/photo'
@@ -39,6 +39,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [ipadToken, setIpadToken] = useState('')
   const [ipadSigned, setIpadSigned] = useState(false)
+  const [ipadPaired, setIpadPaired] = useState(false)
   const [mode, setMode] = useState<'new' | 'existing'>(memberId ? 'existing' : 'new')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -206,8 +207,11 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
 
   useEffect(() => {
     if (step === 1 || ipadToken) return
-    createIpadSession().then(setIpadToken).catch(() => setIpadToken(''))
-  }, [step, ipadToken])
+    getBranchIpad(branch).catch(() => null).then((t) => {
+      if (t) { setIpadPaired(true); setIpadToken(t); return }
+      return createIpadSession().then(setIpadToken).catch(() => setIpadToken(''))
+    })
+  }, [step, ipadToken, branch])
 
   useEffect(() => {
     if (!ipadToken) return
@@ -237,7 +241,9 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     return () => window.clearInterval(id)
   }, [ipadToken, step])
 
-  const ipadPanel = ipadToken ? (
+  const ipadPanel = ipadToken && ipadPaired ? (
+    <div className="ipad-box"><div><div className="cell-main">Đã gửi lên iPad quầy lễ tân</div><div className="hint-muted">Khách thao tác trên iPad đã kết nối.</div></div></div>
+  ) : ipadToken ? (
     <div className="ipad-box">
       <QRImage text={ipadUrl(ipadToken)} size={110} />
       <div>
