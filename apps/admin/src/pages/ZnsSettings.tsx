@@ -149,7 +149,6 @@ export default function ZnsSettings({ embedded = false }: { embedded?: boolean }
             <Button variant="primary" disabled={busy} onClick={() => save()}>{busy ? 'Đang lưu...' : 'Lưu Zalo OA'}</Button>
           </div>
         </Panel>
-        <ZaloBotPanel />
       </div>
 
       <Panel title="Tin nhắn ZNS">
@@ -187,6 +186,8 @@ export default function ZnsSettings({ embedded = false }: { embedded?: boolean }
         </div>
       </Panel>
 
+      <div style={{ height: 16 }} />
+      <ZaloBotPanel />
       <div style={{ height: 16 }} />
       <Panel title="Lịch sử gửi gần đây" count={`${logs.length} tin`}>
         {logs.length === 0 ? <p className="cell-sub">Chưa gửi tin nào.</p> : (

@@ -106,10 +106,11 @@ export default function ZaloBotPanel() {
   const alive = cfg.state.lastPollAt && Date.now() - Date.parse(cfg.state.lastPollAt) < 90_000
 
   return (
-    <Panel title="Zalo Bot báo ca và vệ sinh">
+    <form onSubmit={save}>
+    <Panel title="Zalo Bot: cài đặt">
       <p className="cell-sub">Đọc tin báo ca và lịch off trong nhóm PT rồi ghi vào Lịch PT 1:1, nhắc giờ trong nhóm. Chỉ bật bot ở một nơi: tắt phần nhận tin của bot Cloudflare cũ trước.</p>
       {err && <div className="form-error" role="alert">{err}</div>}
-      <form onSubmit={save}>
+      <div>
         <div className="form-grid">
           <Field label="Token bot" htmlFor="zb-token" hint={cfg.has_token ? 'Đã lưu, để trống để giữ nguyên.' : undefined}>
             <Input id="zb-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />
@@ -162,22 +163,6 @@ export default function ZaloBotPanel() {
         <label className="check" style={{ display: 'block', margin: '8px 0' }}>
           <input type="checkbox" checked={form.clean_on} onChange={(e) => set({ clean_on: e.target.checked })} /> Bật bot vệ sinh
         </label>
-        <div className="zns-grid">
-          {TPL_KEYS.map((k) => (
-            <div key={k} className="zns-card">
-              <span className="cell-main">{TPL_LABEL[k]}</span>
-              <textarea
-                className="input"
-                aria-label={`Mẫu tin: ${TPL_LABEL[k]}`}
-                rows={k === 'morning' || k === 'afternoon' ? 14 : 4}
-                value={form.clean_tpl[k] ?? cfg.clean_tpl_default[k]}
-                onChange={(e) => set({ clean_tpl: { ...form.clean_tpl, [k]: e.target.value } })}
-              />
-              <div className="cell-sub">Biến: {TPL_VARS[k]}</div>
-              <div><Button small type="button" onClick={() => set({ clean_tpl: { ...form.clean_tpl, [k]: cfg.clean_tpl_default[k] } })}>Khôi phục mẫu gốc</Button></div>
-            </div>
-          ))}
-        </div>
         <h3 style={{ margin: '16px 0 4px', fontSize: 15 }}>Bot buổi quay với Emma</h3>
         <p className="cell-sub">Nhắc PT Trang và PT Thịnh đăng ký lịch quay từ Thứ 7 tuần trước đến Thứ 6 của tuần quay (8h và 15h). PT điền "Trang : thứ 4 14h", Emma nhắn "xác nhận" hoặc "đổi lịch". 19h tối hôm trước bot nhắc lại lịch quay. Dùng chung token và tên bot ở trên.</p>
         <div className="form-grid">
@@ -204,7 +189,31 @@ export default function ZaloBotPanel() {
           <Button type="button" onClick={() => call('/zalo/bot/send-test-shoot', 'Đã gửi tin thử vào nhóm quay')}>Gửi tin thử nhóm quay</Button>
           <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
         </div>
-      </form>
+      </div>
     </Panel>
+    <div style={{ height: 16 }} />
+    <Panel title="Zalo Bot: tin nhắn mẫu">
+      <p className="cell-sub">Sửa nội dung tin bot vệ sinh gửi vào nhóm. Dòng nào để mẫu gốc thì bot dùng mẫu gốc. Biến trong ngoặc nhọn được thay bằng giá trị thật khi gửi.</p>
+        <div className="zns-grid">
+          {TPL_KEYS.map((k) => (
+            <div key={k} className="zns-card">
+              <span className="cell-main">{TPL_LABEL[k]}</span>
+              <textarea
+                className="input"
+                aria-label={`Mẫu tin: ${TPL_LABEL[k]}`}
+                rows={k === 'morning' || k === 'afternoon' ? 14 : 4}
+                value={form.clean_tpl[k] ?? cfg.clean_tpl_default[k]}
+                onChange={(e) => set({ clean_tpl: { ...form.clean_tpl, [k]: e.target.value } })}
+              />
+              <div className="cell-sub">Biến: {TPL_VARS[k]}</div>
+              <div><Button small type="button" onClick={() => set({ clean_tpl: { ...form.clean_tpl, [k]: cfg.clean_tpl_default[k] } })}>Khôi phục mẫu gốc</Button></div>
+            </div>
+          ))}
+        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu tin nhắn mẫu'}</Button>
+      </div>
+    </Panel>
+    </form>
   )
 }
