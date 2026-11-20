@@ -553,3 +553,10 @@
 .zalo-top { grid-template-columns: minmax(0, 1fr); }
 .zalo-top .form-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 @media (max-width: 1000px) { .zalo-top .form-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.bot-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin: 10px 0; align-items: start; }
+.bot-box { border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.bot-box h3 { margin: 0; font-size: 15px; }
+.bot-box p { margin: 0; }
+.bot-boxes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .bot-boxes { grid-template-columns: minmax(0, 1fr); } }
