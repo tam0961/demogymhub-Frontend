@@ -68,6 +68,7 @@ function PtCard({ row, month }: { row: PtStatRow; month: string }) {
                       <th>Khách hàng</th>
                       <th>Gói</th>
                       <th style={{ minWidth: 180 }}>Tiến trình buổi tập</th>
+                      <th className="num">Buổi dạy tháng này</th>
                       <th className="num">Hoa hồng dạy đã đạt</th>
                       <th>Hết hạn</th>
                     </tr>
@@ -85,7 +86,9 @@ function PtCard({ row, month }: { row: PtStatRow; month: string }) {
                             <div className="pt-bar" role="progressbar" aria-label={`Tiến trình ${c.member_name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pctDone} title={`${done}/${total} buổi`}>
                               <div className="pt-bar-fill" style={{ width: `${pctDone}%` }} />
                             </div>
+                            <div className="cell-sub">{done}/{total} buổi</div>
                           </td>
+                          <td className="num">{c.taught_in_month}</td>
                           <td className="num">{fmtMoney(c.session_pay)}</td>
                           <td>{fmtDate(c.end_date)}</td>
                         </tr>
