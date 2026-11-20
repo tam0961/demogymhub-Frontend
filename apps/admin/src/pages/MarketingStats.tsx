@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { fmtDateTime, fmtMoney } from '../lib/format'
@@ -7,12 +8,11 @@ import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { Button, Chip, Field, Input, MoneyInput, PageHeader, Panel, Select, Tabs, useToast } from '../components/ui'
 import { MarketingAutoPanel } from '../components/MarketingAutoPanel'
-import ZnsSettings from './ZnsSettings'
 import type { Lead, ListResp } from '../types'
 
 type Channel = 'facebook_ads' | 'google_ads' | 'google_maps'
 type Platform = 'facebook' | 'google_ads' | 'maps'
-type Tab = 'overview' | 'ads' | 'zalo' | 'api'
+type Tab = 'overview' | 'ads' | 'zalo'
 type AdsTab = Platform | 'general' | 'auto'
 interface Metric { month: string; channel: Channel; spend: number; impressions: number; clicks: number; leads: number; note: string; source?: 'auto' | 'manual' }
 type AdsCfg = Record<Platform, { account_id: string; has_token: boolean }>
@@ -146,7 +146,7 @@ function ConnectForm({ platform, cfg, canEdit, onSaved }: { platform: Platform; 
   )
 }
 
-function ZaloCampaign({ onOpenApi }: { onOpenApi: () => void }) {
+function ZaloCampaign() {
   const [logs, setLogs] = useState<ZnsLog[] | null>(null)
   const [err, setErr] = useState('')
   useEffect(() => {
@@ -164,7 +164,7 @@ function ZaloCampaign({ onOpenApi }: { onOpenApi: () => void }) {
         <div className="kpi2"><div className="kpi2-label">Đã gửi thành công</div><div className="kpi2-value">{sent}</div><div className="kpi2-note">Trong 100 tin gần nhất</div></div>
         <div className="kpi2"><div className="kpi2-label">Lỗi</div><div className="kpi2-value">{failed}</div><div className="kpi2-note">Kiểm tra mẫu tin hoặc token</div></div>
       </div>
-      <Panel title="Nhật ký gửi tin" note={<Button small onClick={onOpenApi}>Cấu hình Zalo API</Button>} flush>
+      <Panel title="Nhật ký gửi tin" note={<Link to="/settings/zns" className="btn secondary btn-sm">Cấu hình Zalo</Link>} flush>
         <div className="table-wrap">
           <table className="table">
             <thead><tr><th>Thời gian</th><th>Sự kiện</th><th>Số điện thoại</th><th>Trạng thái</th><th>Ghi chú</th></tr></thead>
@@ -262,7 +262,7 @@ export default function MarketingStats() {
         action={<Select aria-label="Tháng" value={month} onChange={(e) => setMonth(e.target.value)}>{monthOptions().map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}</Select>}
       />
       {error && <div className="form-error" role="alert">{error}</div>}
-      <Tabs<Tab> tabs={[{ value: 'overview', label: 'Tổng quan' }, { value: 'ads', label: 'Cài đặt quảng cáo' }, { value: 'zalo', label: 'Chiến dịch Zalo' }, { value: 'api', label: 'Zalo API' }]} value={tab} onChange={setTab} />
+      <Tabs<Tab> tabs={[{ value: 'overview', label: 'Tổng quan' }, { value: 'ads', label: 'Cài đặt quảng cáo' }, { value: 'zalo', label: 'Chiến dịch Zalo' }]} value={tab} onChange={setTab} />
       <div style={{ height: 12 }} />
 
       {tab === 'overview' && (
@@ -295,8 +295,7 @@ export default function MarketingStats() {
         </>
       )}
 
-      {tab === 'zalo' && <ZaloCampaign onOpenApi={() => setTab('api')} />}
-      {tab === 'api' && <ZnsSettings embedded />}
+      {tab === 'zalo' && <ZaloCampaign />}
     </>
   )
 }

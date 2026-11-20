@@ -63,7 +63,7 @@ export default function ZnsSettings({ embedded = false }: { embedded?: boolean }
   }, [])
   useEffect(() => { load() }, [load])
 
-  if (!form) return <><PageHeader title="Marketing" />{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</>
+  if (!form) return <><PageHeader title="Zalo" />{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</>
 
   const setTop = (k: TopKey, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f))
   const setEv = (k: EventKey, patch: Partial<EventForm>) => setForm((f) => (f ? { ...f, events: { ...f.events, [k]: { ...f.events[k], ...patch } } } : f))
@@ -127,7 +127,7 @@ export default function ZnsSettings({ embedded = false }: { embedded?: boolean }
 
   return (
     <>
-      {!embedded && <PageHeader title="Marketing" sub="Thiết lập Zalo. Cấu hình lưu trên máy chủ, điền một lần, hệ thống tự gửi tin." />}
+      {!embedded && <PageHeader title="Zalo" sub="Thiết lập Zalo. Cấu hình lưu trên máy chủ, điền một lần, hệ thống tự gửi tin." />}
       {err && <div className="form-error" role="alert">{err}</div>}
       <div className="zalo-top">
         <Panel title="Zalo OA">
