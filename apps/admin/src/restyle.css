@@ -505,3 +505,6 @@
 .set-grid .set-share label { font-size: 13px; font-weight: 600; margin: 0 0 0 6px; }
 .set-grid .set-share label:first-child { margin-left: 0; }
 .set-grid .set-share input { width: 52px; max-width: 52px; min-width: 0; font-size: 15px; padding: 4px 6px; height: 34px; }
+
+.set-grid { grid-template-columns: repeat(2, max-content); justify-content: start; }
+@media (max-width: 900px) { .set-grid { grid-template-columns: minmax(0, 1fr); } }

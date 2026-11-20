@@ -29,15 +29,6 @@ function NumInput({ id, value, onChange, label }: { id?: string; value: number; 
   return <Input id={id} aria-label={label} inputMode="decimal" value={text} onChange={(e) => { setText(e.target.value); onChange(parseNum(e.target.value)) }} />
 }
 
-function PercentInput({ id, value, onChange }: { id?: string; value: number; onChange: (n: number) => void }) {
-  const [text, setText] = useState(String(Math.round(value * 100)))
-  useEffect(() => {
-    if (Math.round(parseNum(text)) !== Math.round(value * 100)) setText(String(Math.round(value * 100)))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value])
-  return <Input id={id} inputMode="numeric" value={text} onChange={(e) => { const t = e.target.value.replace(/\D/g, ''); setText(t); onChange(Math.min(100, Number(t) || 0) / 100) }} />
-}
-
 const positionDefaults = (position: PayrollPosition): Partial<PayrollProfile> => {
   if (position === 'pt_parttime') return { position, has_insurance: false, tax_mode: 'flat10', dependents: 0, active: true }
   if (position === 'pt_fulltime' || position === 'marketing') return { position, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: true }
@@ -432,19 +423,11 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
         <section className="set-wrap" aria-label="Cài đặt hoa hồng và khấu trừ">
           <div className="set-grid">
             <div className="flow-card">
-              <div className="set-top"><div className="flow-tag">Cả 3 nhóm</div></div>
-              <div className="set-head"><div><b>Hoa hồng Sale Member</b><p className="hint-muted">Lũy tiến từng phần theo doanh số thực thu trong tháng.</p></div></div>
+              <b>Hoa hồng Sale Member</b>
               <TierEditor bare title="Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
             </div>
             <div className="flow-card">
-              <div className="set-top">
-                <div className="flow-tag">PT, Marketing nếu có bán</div>
-                <div className="set-share">
-                  <label htmlFor="ps-imm">Nhận liền (%)</label><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} />
-                  <label htmlFor="ps-ses">Chia buổi dạy (%)</label><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} />
-                </div>
-              </div>
-              <div className="set-head"><div><b>Hoa hồng Sale PT</b><p className="hint-muted">Quỹ = doanh số gói PT x tỷ lệ bậc.</p></div></div>
+              <div><b>Hoa hồng Sale PT</b><span className="cell-sub"> - nhận liền {Math.round(settings.ptImmediateShare * 100)}%, chia theo buổi dạy {Math.round(settings.ptSessionShare * 100)}%</span></div>
               <TierEditor bare title="Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
             </div>
             <div className="flow-card">
