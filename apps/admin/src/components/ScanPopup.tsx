@@ -99,7 +99,7 @@ export default function ScanPopup() {
     return () => clearTimeout(t)
   }, [cur, next])
 
-  const warn = paused ? <div className="scan-offline scan-paused" role="status">Kết nối máy chấm công đang tạm dừng. Khách quét mặt sẽ không hiện popup và không tự check-in. Vào Thiết lập, Thiết bị, bấm "Tiếp tục kết nối" để bật lại.</div> : bridgeOk === false ? <div className="scan-offline" role="alert">Cầu nối máy chấm công đang tắt. Khách quét mặt sẽ không hiện popup và không tự check-in. Hãy mở lại chay-quet.bat trên máy này.</div> : null
+  const warn = bridgeOk === false && !paused ? <div className="scan-offline" role="alert">Cầu nối máy chấm công đang tắt. Khách quét mặt sẽ không hiện popup và không tự check-in. Hãy mở lại chay-quet.bat trên máy này.</div> : null
   if (!cur) return warn
   const m = cur.member
   const v = verdict(cur)
