@@ -1,6 +1,6 @@
 import { api } from './api'
 
-export type IpadStage = 'idle' | 'pay' | 'sign' | 'signed'
+export type IpadStage = 'idle' | 'pay' | 'paid' | 'sign' | 'signed'
 
 export interface PayPayload {
   amount: number
@@ -19,7 +19,7 @@ export async function createIpadSession(): Promise<string> {
   return r.data.data.token
 }
 
-export const setIpadStage = (token: string, stage: 'idle' | 'pay' | 'sign', payload: PayPayload | SignPayload | null) =>
+export const setIpadStage = (token: string, stage: 'idle' | 'pay' | 'paid' | 'sign', payload: PayPayload | SignPayload | null) =>
   api.put(`/ipad/sessions/${token}`, { stage, payload })
 
 export async function getIpadSession(token: string): Promise<{ stage: IpadStage; signature: string | null }> {

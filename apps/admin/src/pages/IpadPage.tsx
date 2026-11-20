@@ -95,6 +95,13 @@ export default function IpadPage() {
           </dl>
         </section>
       )}
+      {!error && stage === 'paid' && payload && (
+        <section className="ipad-card">
+          <h2>Đã nhận thanh toán</h2>
+          <dl className="kv">{payload.rows.map(([k, v]) => <div key={k} style={{ display: 'contents' }}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+          <p className="ipad-wait">Cảm ơn quý khách! Vui lòng chờ chuyển sang bước ký tên...</p>
+        </section>
+      )}
       {!error && stage === 'sign' && payload && (
         <section className="ipad-card">
           <h2>{payload.title}</h2>

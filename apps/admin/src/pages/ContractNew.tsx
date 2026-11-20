@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { CreateFlowError, STEP_LABEL, runCreateContract, type CreateOutcome } from '../lib/contracts'
@@ -41,6 +41,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const [ipadToken, setIpadToken] = useState('')
   const [ipadSigned, setIpadSigned] = useState(false)
   const [ipadPaired, setIpadPaired] = useState(false)
+  const paidShown = useRef(false)
   const [mode, setMode] = useState<'new' | 'existing'>(memberId ? 'existing' : 'new')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
@@ -225,6 +226,12 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
         ['Giá trị', fmtMoney(qt.total)], ['Đã thanh toán', fmtMoney(qt.paid)], ['Còn thiếu', fmtMoney(qt.remain)],
       ]
       setIpadSigned(false)
+      if (paidShown.current) {
+        paidShown.current = false
+        setIpadStage(ipadToken, 'paid', { title: 'Đã nhận thanh toán', rows: [['Họ và tên', who], ['Gói tập', pkg.name], ['Số tiền', fmtMoney(qt.paid)]] }).catch(() => {})
+        const t = window.setTimeout(() => { setIpadStage(ipadToken, 'sign', { title: 'Hợp đồng thành viên', rows }).catch(() => {}) }, 3000)
+        return () => window.clearTimeout(t)
+      }
       setIpadStage(ipadToken, 'sign', { title: 'Hợp đồng thành viên', rows }).catch(() => {})
     } else {
       setIpadStage(ipadToken, 'idle', null).catch(() => {})
@@ -277,7 +284,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     ) : step === 2 ? (
       <>
         <Button onClick={() => setStep(1)} disabled={busy}>Quay lại</Button>
-        <Button variant="primary" onClick={() => setStep(3)}>Đã nhận tiền, tiếp tục</Button>
+        <Button variant="primary" onClick={() => { paidShown.current = true; setStep(3) }}>Đã nhận tiền, tiếp tục</Button>
       </>
     ) : (
       <>
