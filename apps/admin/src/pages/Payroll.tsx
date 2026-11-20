@@ -392,7 +392,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
                 const dirty = !!edits[u.user_id] || (names[u.user_id] !== undefined && names[u.user_id] !== u.name)
                 return (
                   <tr key={u.user_id}>
-                    <td><Input aria-label={`Họ và tên ${u.email}`} disabled={disabled} value={names[u.user_id] ?? u.name} onChange={(e) => setNames((n) => ({ ...n, [u.user_id]: e.target.value }))} style={{ minWidth: 180 }} /><div className="cell-sub">{u.branch_codes.length ? u.branch_codes.join(', ') : ''}</div></td>
+                    <td><Input aria-label={`Họ và tên ${u.email}`} disabled={disabled} value={names[u.user_id] ?? u.name} onChange={(e) => setNames((n) => ({ ...n, [u.user_id]: e.target.value }))} style={{ minWidth: 180 }} /></td>
                     <td>
                       <Select aria-label={`Vị trí ${u.name}`} disabled={disabled} value={p.position} onChange={(e) => patchProfile(u, positionDefaults(e.target.value as PayrollPosition))}>
                         {POSITIONS.map((k) => <option key={k} value={k}>{POSITION_LABEL[k]}</option>)}
