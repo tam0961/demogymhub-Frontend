@@ -75,6 +75,21 @@ const znsLogs = [
   { id: 'zl1', event: 'expiring', phone: '84903000111', status: 'sent', error: null as string | null, created_at: new Date(Date.now() - 3600_000).toISOString() },
   { id: 'zl2', event: 'new_contract', phone: '84903000222', status: 'failed', error: '-118 user not found' as string | null, created_at: new Date(Date.now() - 7200_000).toISOString() },
 ]
+const pendingSheetMembers = [
+  { name: 'Lê Vân', phone: '0399797922', email: 'levan.lv96@gmail.com', expiry: '2026-06-05', learned: 10, remaining: 0, note: '', seenAt: new Date().toISOString() },
+  { name: 'Bùi Nguyệt Ánh', phone: '0388861801', email: 'anhnguyet18102001@gmail.com', expiry: '2026-08-17', learned: 10, remaining: 0, note: 'KH đki thêm 10 buổi', seenAt: new Date().toISOString() },
+]
+const sheetSyncCfg = {
+  write_on: false, bridge_url: 'https://script.google.com/macros/s/AKfycbMOCK/exec', pull_on: false, dump_url: '', branch_id: '',
+  last_pull_at: null as string | null, last_pull_error: null as string | null, last_pull_counts: null as Record<string, number> | null,
+  write_log: {
+    counts: { ok: 8, pending: 0, failed: 1, skipped: 1 } as Record<string, number>,
+    problems: [
+      { id: 'w1', status: 'skipped', reason: 'Số điện thoại chưa có trong tab Members của Sheet', attempts: 1, member_name: 'Nguyễn Thị Mai', phone: '0901234567', class_date: '2026-11-24', class_start: '20:00', created_at: new Date().toISOString() },
+      { id: 'w2', status: 'failed', reason: 'Apps Script lỗi, sẽ thử lại', attempts: 2, member_name: 'Trần Văn Bình', phone: '0907654321', class_date: '2026-11-25', class_start: '06:30', created_at: new Date().toISOString() },
+    ] as { id: string; status: string; reason: string | null; attempts: number; member_name: string; phone: string; class_date: string; class_start: string; created_at: string }[],
+  },
+}
 const botCfg = {
   enabled: false, has_token: false, bot_label: '', bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: 'Thịnh', group_windows: '06:30-07:45, 20:00-21:15',
   pt_tpl: { today: 'Báo ca hôm nay {list}', missing: 'Nhắc báo ca {date} {names}', off: 'Nhắc lịch off {bot}', tomorrow: 'Ca lớp nhóm {dow} {date} {list}' } as Record<string, string>,
@@ -1658,6 +1673,35 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     Object.assign(botCfg, { enabled: b.enabled, bot_name: b.bot_name, pt_group: b.pt_group, branch_id: b.branch_id, group_trainer: b.group_trainer, group_windows: b.group_windows, clean_on: b.clean_on ?? botCfg.clean_on, clean_group: b.clean_group ?? botCfg.clean_group, clean_tpl: b.clean_tpl ? { ...botCfg.clean_tpl_default, ...b.clean_tpl } : botCfg.clean_tpl, pt_tpl: b.pt_tpl ? { ...botCfg.pt_tpl_default, ...b.pt_tpl } : botCfg.pt_tpl, shoot_tpl: b.shoot_tpl ? { ...botCfg.shoot_tpl_default, ...b.shoot_tpl } : botCfg.shoot_tpl, shoot_on: b.shoot_on ?? botCfg.shoot_on, shoot_group: b.shoot_group ?? botCfg.shoot_group, shoot_boss: b.shoot_boss ?? botCfg.shoot_boss })
     if (b.enabled) botCfg.state.lastPollAt = new Date().toISOString()
     return ok(botCfg)
+  }
+  if (url.startsWith('/sheetsync/')) {
+    const sub = url.slice('/sheetsync/'.length)
+    if (sub === 'config' && method === 'get') return ok(sheetSyncCfg)
+    if (sub === 'config' && method === 'put') {
+      const b = body as { write_on: boolean; bridge_url: string; pull_on: boolean; dump_url: string; branch_id: string }
+      if (b.pull_on && !b.dump_url) { fail(config, 400, 'DUMP_URL_REQUIRED', 'Cần dán địa chỉ Web app của Apps Script để bật kéo dữ liệu từ Sheet'); return ok(null) }
+      Object.assign(sheetSyncCfg, b)
+      return ok(sheetSyncCfg)
+    }
+    if (sub === 'import-members' && method === 'post') {
+      const dry = (body as { dry_run?: boolean }).dry_run !== false
+      return ok({ dryRun: dry, counts: { exists: 3, created: 2, contracts: 2, skipped: 1, other_packages: 0 }, items: [
+        { name: 'Nguyễn Thị Mai', phone: '0911000111', email: 'mai@example.test', action: 'create', reason: 'Tạo hội viên và PT NHÓM 10 BUỔI', total: 10, promo: 0, remaining: 4, packageName: 'PT NHÓM 10 BUỔI', end: '2027-01-15', status: 'active' },
+        { name: 'Lê Thu Hà', phone: '0911000222', email: '', action: 'create', reason: 'Tạo hội viên và PT NHÓM 20 BUỔI cộng 2 buổi khuyến mãi', total: 22, promo: 2, remaining: 9, packageName: 'PT NHÓM 20 BUỔI', end: '2027-02-01', status: 'active' },
+        { name: 'Trần Văn An', phone: '0911000333', email: '', action: 'exists', reason: 'Đã có hội viên trong app, giữ nguyên', total: 0, promo: 0, remaining: 0, packageName: '', end: null, status: null },
+      ] })
+    }
+    if (sub === 'pending-members' && method === 'get') return ok(pendingSheetMembers)
+    if (sub === 'pending-members/approve' && method === 'post') {
+      const phone = (body as { phone: string }).phone
+      const i = pendingSheetMembers.findIndex((m) => m.phone === phone)
+      if (i < 0) { fail(config, 400, 'APPROVE_FAILED', 'Hội viên không còn trong danh sách chờ'); return ok(null) }
+      pendingSheetMembers.splice(i, 1)
+      return ok({ member_id: `m-${phone}`, code: 'HV1500' })
+    }
+    if (sub === 'script') return ok({ code: ["const SECRET = 'mock';", 'function doGet(e) {}'].join(String.fromCharCode(10)) })
+    if (sub === 'pull-now') { sheetSyncCfg.last_pull_at = new Date().toISOString(); sheetSyncCfg.last_pull_counts = { classes: 4, registrations: 12 }; return ok({ ok: true, counts: sheetSyncCfg.last_pull_counts, unmatched: [] }) }
+    if (sub === 'retry') return ok(sheetSyncCfg)
   }
   if (url === '/zalo/bot/report-script') return ok({ code: ["const SECRET = 'mock';", 'function doPost(e) {}'].join(String.fromCharCode(10)) })
   if (url === '/zalo/bot/report-preview') return ok(new Blob(['%PDF-1.4'], { type: 'application/pdf' }))

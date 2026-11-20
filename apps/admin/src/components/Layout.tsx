@@ -81,6 +81,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/settings/bank', label: 'Tài khoản ngân hàng', icon: 'payments', perm: ['roles.read'] },
     { to: '/settings/devices', label: 'Thiết bị', icon: 'shift', perm: ['devices.manage'] },
     { to: '/settings/zns', label: 'Zalo', icon: 'roles', perm: ['roles.read'] },
+    { to: '/settings/sheet-sync', label: 'Đồng bộ Sheet', icon: 'roles', perm: ['roles.read'] },
     { to: '/settings/invoice', label: 'Hóa đơn VAT', icon: 'payments', perm: ['roles.read'] },
     { to: '/settings/sheets', label: 'Google Sheet', icon: 'packages', perm: ['roles.read'] },
     { to: '/settings/print', label: 'Mẫu in', icon: 'contracts', perm: ['roles.read'] },

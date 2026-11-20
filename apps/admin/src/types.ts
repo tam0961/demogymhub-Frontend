@@ -471,3 +471,37 @@ export interface InvoiceCalc {
 }
 export interface InvoiceIssued { id: string; status: 'test' | 'issued'; live: boolean; note: string | null; invoice_no: string | null; reservation_code: string | null; calc: InvoiceCalc; words: string }
 export interface InvoiceRow { id: string; status: 'test' | 'issued' | 'failed'; invoice_no: string | null; buyer_name: string; net: number; tax: number; total: number; error: string | null; created_at: string }
+
+export interface SheetWriteProblem {
+  id: string
+  status: 'failed' | 'skipped'
+  reason: string | null
+  attempts: number
+  member_name: string
+  phone: string
+  class_date: string
+  class_start: string
+  created_at: string
+}
+export interface SheetSyncCfg {
+  write_on: boolean
+  bridge_url: string
+  pull_on: boolean
+  dump_url: string
+  branch_id: string
+  last_pull_at: string | null
+  last_pull_error: string | null
+  last_pull_counts: Record<string, number> | null
+  write_log: { counts: Record<string, number>; problems: SheetWriteProblem[] }
+}
+
+export interface PendingSheetMember {
+  name: string
+  phone: string
+  email: string
+  expiry: string
+  learned: number
+  remaining: number
+  note: string
+  seenAt: string
+}
