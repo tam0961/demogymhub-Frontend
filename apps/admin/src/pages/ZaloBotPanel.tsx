@@ -36,6 +36,9 @@ interface Cfg {
   clean_group: string
   clean_tpl: Record<TplKey, string>
   clean_tpl_default: Record<TplKey, string>
+  shoot_on: boolean
+  shoot_group: string
+  shoot_boss: string
   state: { lastPollAt: string | null; lastError: string | null; lastItemAt: string | null; chats: { id: string; type: string; name: string; at: string }[] }
 }
 
@@ -44,7 +47,7 @@ export default function ZaloBotPanel() {
   const toast = useToast()
   const [cfg, setCfg] = useState<Cfg | null>(null)
   const [token, setToken] = useState('')
-  const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '', clean_on: false, clean_group: '', clean_tpl: {} as Record<string, string> })
+  const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '', clean_on: false, clean_group: '', clean_tpl: {} as Record<string, string>, shoot_on: false, shoot_group: '', shoot_boss: 'emma' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -57,6 +60,7 @@ export default function ZaloBotPanel() {
         branch_id: data.data.branch_id || (user?.branches.length === 1 ? user.branches[0].id : ''),
         group_trainer: data.data.group_trainer, group_windows: data.data.group_windows,
         clean_on: data.data.clean_on, clean_group: data.data.clean_group, clean_tpl: { ...data.data.clean_tpl },
+        shoot_on: data.data.shoot_on, shoot_group: data.data.shoot_group, shoot_boss: data.data.shoot_boss,
       })
     } catch (e) {
       setErr(apiError(e).message)
@@ -174,10 +178,30 @@ export default function ZaloBotPanel() {
             </div>
           ))}
         </div>
+        <h3 style={{ margin: '16px 0 4px', fontSize: 15 }}>Bot buổi quay với Emma</h3>
+        <p className="cell-sub">Nhắc PT Trang và PT Thịnh đăng ký lịch quay từ Thứ 7 tuần trước đến Thứ 6 của tuần quay (8h và 15h). PT điền "Trang : thứ 4 14h", Emma nhắn "xác nhận" hoặc "đổi lịch". 19h tối hôm trước bot nhắc lại lịch quay. Dùng chung token và tên bot ở trên.</p>
+        <div className="form-grid">
+          <Field label="Mã nhóm quay" htmlFor="zb-sgroup" hint="Nhắn tin tag bot trong nhóm quay, nhóm sẽ hiện ở dưới.">
+            <Input id="zb-sgroup" value={form.shoot_group} onChange={(e) => set({ shoot_group: e.target.value })} />
+          </Field>
+          <Field label="Tên Zalo của Emma (chữ để nhận ra)" htmlFor="zb-sboss" hint="Tên Zalo có chữ này thì được xác nhận hoặc đổi lịch.">
+            <Input id="zb-sboss" value={form.shoot_boss} onChange={(e) => set({ shoot_boss: e.target.value })} />
+          </Field>
+        </div>
+        {groups.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
+            <span className="cell-sub">Nhóm bot đã thấy:</span>
+            {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.shoot_group ? 'primary' : 'secondary'} onClick={() => set({ shoot_group: g.id })}>{g.name || g.id}</Button>)}
+          </div>
+        )}
+        <label className="check" style={{ display: 'block', margin: '8px 0' }}>
+          <input type="checkbox" checked={form.shoot_on} onChange={(e) => set({ shoot_on: e.target.checked })} /> Bật bot buổi quay
+        </label>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
           <Button type="button" onClick={() => call('/zalo/bot/send-test', 'Đã gửi tin thử vào nhóm')}>Gửi tin thử vào nhóm</Button>
           <Button type="button" onClick={() => call('/zalo/bot/send-test-clean', 'Đã gửi tin thử vào nhóm vệ sinh')}>Gửi tin thử nhóm vệ sinh</Button>
+          <Button type="button" onClick={() => call('/zalo/bot/send-test-shoot', 'Đã gửi tin thử vào nhóm quay')}>Gửi tin thử nhóm quay</Button>
           <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
         </div>
       </form>

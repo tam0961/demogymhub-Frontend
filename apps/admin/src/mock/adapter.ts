@@ -77,7 +77,7 @@ const znsLogs = [
 ]
 const botCfg = {
   enabled: false, has_token: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: 'Thịnh', group_windows: '06:30-07:45, 20:00-21:15',
-  clean_on: false, clean_group: '',
+  clean_on: false, clean_group: '', shoot_on: false, shoot_group: '', shoot_boss: 'emma',
   clean_tpl_default: { morning: 'Checklist Ca Sáng', afternoon: 'Checklist Ca Chiều', leaf: 'Lau lá cây ngày {date}', hourly: 'Nhắc vệ sinh định kỳ', done: '{name} đã xác nhận xong {ca} lúc {time}', late: '{ca} quá hạn xác nhận ({deadline})' } as Record<string, string>,
   clean_tpl: { morning: 'Checklist Ca Sáng', afternoon: 'Checklist Ca Chiều', leaf: 'Lau lá cây ngày {date}', hourly: 'Nhắc vệ sinh định kỳ', done: '{name} đã xác nhận xong {ca} lúc {time}', late: '{ca} quá hạn xác nhận ({deadline})' } as Record<string, string>,
   state: { lastPollAt: null as string | null, lastError: null as string | null, lastItemAt: null as string | null, chats: [{ id: 'zgr-demo1', type: 'GROUP', name: 'Nhóm PT TH Gym', at: new Date().toISOString() }] },
@@ -1614,14 +1614,14 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/zalo/run-reminders') return ok({ sent: 2 })
   if (url === '/zalo/bot/config' && method === 'get') return ok(botCfg)
   if (url === '/zalo/bot/config' && method === 'put') {
-    const b = body as { enabled: boolean; token?: string; bot_name: string; pt_group: string; branch_id: string; group_trainer: string; group_windows: string; clean_on?: boolean; clean_group?: string; clean_tpl?: Record<string, string> }
+    const b = body as { enabled: boolean; token?: string; bot_name: string; pt_group: string; branch_id: string; group_trainer: string; group_windows: string; clean_on?: boolean; clean_group?: string; clean_tpl?: Record<string, string>; shoot_on?: boolean; shoot_group?: string; shoot_boss?: string }
     if (b.enabled && ((!botCfg.has_token && !b.token) || !b.pt_group || !b.branch_id)) fail(config, 400, 'BOT_INCOMPLETE', 'Cần token, nhóm PT và chi nhánh để bật bot')
     if (b.token) botCfg.has_token = true
-    Object.assign(botCfg, { enabled: b.enabled, bot_name: b.bot_name, pt_group: b.pt_group, branch_id: b.branch_id, group_trainer: b.group_trainer, group_windows: b.group_windows, clean_on: b.clean_on ?? botCfg.clean_on, clean_group: b.clean_group ?? botCfg.clean_group, clean_tpl: b.clean_tpl ? { ...botCfg.clean_tpl_default, ...b.clean_tpl } : botCfg.clean_tpl })
+    Object.assign(botCfg, { enabled: b.enabled, bot_name: b.bot_name, pt_group: b.pt_group, branch_id: b.branch_id, group_trainer: b.group_trainer, group_windows: b.group_windows, clean_on: b.clean_on ?? botCfg.clean_on, clean_group: b.clean_group ?? botCfg.clean_group, clean_tpl: b.clean_tpl ? { ...botCfg.clean_tpl_default, ...b.clean_tpl } : botCfg.clean_tpl, shoot_on: b.shoot_on ?? botCfg.shoot_on, shoot_group: b.shoot_group ?? botCfg.shoot_group, shoot_boss: b.shoot_boss ?? botCfg.shoot_boss })
     if (b.enabled) botCfg.state.lastPollAt = new Date().toISOString()
     return ok(botCfg)
   }
-  if (url === '/zalo/bot/check' || url === '/zalo/bot/send-test' || url === '/zalo/bot/send-test-clean') return ok({ ok: true, message: 'ok' })
+  if (url === '/zalo/bot/check' || url === '/zalo/bot/send-test' || url === '/zalo/bot/send-test-clean' || url === '/zalo/bot/send-test-shoot') return ok({ ok: true, message: 'ok' })
   if (url === '/contracts/pt-staff') return ok([{ id: 'u-pt1', name: 'Vũ Bảo Khánh' }, { id: 'u-pt2', name: 'Ngô Thị Huyền Trang' }, { id: 'u-pt3', name: 'Thịnh' }])
   if (/^\/contracts\/[^/]+\/staff$/.test(url) && method === 'patch') return ok({})
   if (url === '/contracts/sale-staff') return ok([{ id: 'u-sale1', name: 'Ngô Thị Huyền Trang' }, { id: 'u-sale2', name: 'Vũ Bảo Khánh' }])
