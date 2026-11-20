@@ -443,8 +443,18 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
             </div>
             <div className="flow-card">
               <b>Bảo hiểm NLĐ</b>
+              <div className="table-wrap">
+                <table className="table">
+                  <thead><tr><th>Loại</th><th className="num">Tỷ lệ</th><th className="num">Số tiền/tháng</th></tr></thead>
+                  <tbody>
+                    {([['BHXH', 8], ['BHTN', 1], ['BHYT', 1.5]] as const).map(([k, r]) => (
+                      <tr key={k}><td>{k}</td><td className="num">{String(r).replace('.', ',')}%</td><td className="num">{settings.insuranceBase != null ? fmtMoney(Math.round((settings.insuranceBase * r) / 100)) : '-'}</td></tr>
+                    ))}
+                    <tr><td><b>Tổng</b></td><td className="num"><b>{String(settings.insuranceRate).replace('.', ',')}%</b></td><td className="num"><b>{settings.insuranceBase != null ? fmtMoney(Math.round((settings.insuranceBase * settings.insuranceRate) / 100)) : 'Theo lương cơ bản'}</b></td></tr>
+                  </tbody>
+                </table>
+              </div>
               <dl className="kv">
-                <dt>Tỷ lệ</dt><dd>{String(settings.insuranceRate).replace('.', ',')}%</dd>
                 <dt>Mức lương đóng</dt><dd>{settings.insuranceBase != null ? fmtMoney(settings.insuranceBase) : 'Theo lương cơ bản'}</dd>
               </dl>
             </div>
