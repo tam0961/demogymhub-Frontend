@@ -429,18 +429,39 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
             </div>
           </div>
 
-          <div style={{ height: 16 }} />
-          <Panel title="Thông số khác">
-            <div className="form-grid compact-form">
-              <Field label="Gói PT: nhận liền (%)" htmlFor="ps-imm" hint="Mặc định 40%: trả ngay trong tháng ký hợp đồng"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
-              <Field label="Gói PT: chia theo buổi (%)" htmlFor="ps-ses" hint="Mặc định 60%: chia đều cho số buổi của gói"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
-              <Field label="Đơn giá mỗi buổi lớp nhóm" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
-              <Field label="Bảo hiểm NLĐ (% mức đóng)" htmlFor="ps-ins" hint="BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
-              <Field label="Mức lương đóng bảo hiểm (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
-              <Field label="Thuế TNCN cố định (đồng/tháng)" htmlFor="ps-ftax" hint="Nhân viên chính thức, mặc định 0, không giảm trừ"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
-              <Field label="Thuế PT Parttime (% tổng thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
+          <div className="settings-row">
+            <div className="settings-box settings-box-sm">
+              <Panel title="Gói PT" note="Chia quỹ hoa hồng gói PT">
+                <div className="stack-fields">
+                  <Field label="Nhận liền (%)" htmlFor="ps-imm" hint="Mặc định 40%: trả ngay trong tháng ký"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
+                  <Field label="Chia theo buổi (%)" htmlFor="ps-ses" hint="Mặc định 60%: chia đều theo số buổi"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
+                </div>
+              </Panel>
             </div>
-          </Panel>
+            <div className="settings-box settings-box-sm">
+              <Panel title="Lớp nhóm" note="Chỉ PT">
+                <div className="stack-fields">
+                  <Field label="Đơn giá mỗi buổi" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
+                </div>
+              </Panel>
+            </div>
+            <div className="settings-box settings-box-sm">
+              <Panel title="Bảo hiểm NLĐ" note="Nhân viên chính thức">
+                <div className="stack-fields">
+                  <Field label="Tỷ lệ (% mức đóng)" htmlFor="ps-ins" hint="BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
+                  <Field label="Mức lương đóng (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
+                </div>
+              </Panel>
+            </div>
+            <div className="settings-box settings-box-sm">
+              <Panel title="Thuế TNCN" note="Không tính giảm trừ">
+                <div className="stack-fields">
+                  <Field label="Cố định (đồng/tháng)" htmlFor="ps-ftax" hint="Nhân viên chính thức, mặc định 0"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
+                  <Field label="PT Parttime (% tổng thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
+                </div>
+              </Panel>
+            </div>
+          </div>
         </>
       )}
 

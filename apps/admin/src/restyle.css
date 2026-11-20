@@ -397,3 +397,7 @@
 .settings-rates .table-wrap, .settings-box .table-wrap { overflow-x: visible; }
 .settings-rates .table td:nth-child(2) input, .settings-box .table td:nth-child(2) input { width: 120px; }
 .settings-rates .table td:nth-child(3) input, .settings-box .table td:nth-child(3) input { width: 64px; }
+
+.settings-box-sm { flex: 1 1 220px; }
+.stack-fields { display: flex; flex-direction: column; gap: 12px; }
+.stack-fields .input { max-width: 180px; }
