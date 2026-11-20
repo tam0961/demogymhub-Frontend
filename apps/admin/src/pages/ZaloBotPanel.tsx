@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { useAuth } from '../context/AuthContext'
-import { Button, Field, Input, Panel, Segmented, useToast } from '../components/ui'
+import { Button, Field, Input, Panel, Segmented, Tabs, useToast } from '../components/ui'
 import { ConfirmDialog } from '../components/Dialogs'
+import { Modal } from '../components/Modal'
 
 const TPL_KEYS = ['morning', 'afternoon', 'leaf', 'hourly', 'done', 'late'] as const
 type TplKey = (typeof TPL_KEYS)[number]
@@ -24,6 +25,30 @@ const TPL_VARS: Record<TplKey, string> = {
   late: '{ca} tên ca, {deadline} hạn xác nhận, {bot} tên bot',
 }
 
+type TplGroup = 'pt' | 'clean' | 'shoot'
+const TPL_GROUPS: { key: TplGroup; label: string; items: { k: string; label: string; vars: string }[] }[] = [
+  {
+    key: 'pt',
+    label: 'Báo ca/off',
+    items: [
+      { k: 'today', label: 'Mẫu báo ca hôm nay (7:00)', vars: '{list} danh sách PT, {bot} tên bot' },
+      { k: 'missing', label: 'Nhắc PT chưa báo ca (8:00)', vars: '{date} ngày, {names} tên PT chưa báo, {bot} tên bot' },
+      { k: 'off', label: 'Nhắc lịch off (Chủ nhật 20:00)', vars: '{bot} tên bot' },
+      { k: 'tomorrow', label: 'Ca lớp nhóm ngày mai (21:00)', vars: '{dow} thứ, {date} ngày, {list} danh sách lớp' },
+    ],
+  },
+  { key: 'clean', label: 'Vệ sinh', items: TPL_KEYS.map((k) => ({ k, label: TPL_LABEL[k], vars: TPL_VARS[k] })) },
+  {
+    key: 'shoot',
+    label: 'Đăng ký buổi quay',
+    items: [
+      { k: 'form', label: 'Mẫu đăng ký lịch quay (8h và 15h)', vars: '{week} tuần quay, {list} PT còn thiếu, {bot} tên bot' },
+      { k: 'remind', label: 'Nhắc lịch quay (19h hôm trước)', vars: '{when} ngày quay, {list} lịch quay, {status} trạng thái xác nhận, {bot} tên bot' },
+      { k: 'confirmed', label: 'Emma đã xác nhận', vars: '{week} tuần quay, {list} lịch quay, {missing} PT còn thiếu' },
+    ],
+  },
+]
+
 interface Cfg {
   enabled: boolean
   has_token: boolean
@@ -34,8 +59,12 @@ interface Cfg {
   group_windows: string
   clean_on: boolean
   clean_group: string
-  clean_tpl: Record<TplKey, string>
-  clean_tpl_default: Record<TplKey, string>
+  clean_tpl: Record<string, string>
+  clean_tpl_default: Record<string, string>
+  pt_tpl: Record<string, string>
+  pt_tpl_default: Record<string, string>
+  shoot_tpl: Record<string, string>
+  shoot_tpl_default: Record<string, string>
   shoot_on: boolean
   shoot_group: string
   shoot_boss: string
@@ -47,9 +76,12 @@ export default function ZaloBotPanel() {
   const toast = useToast()
   const [cfg, setCfg] = useState<Cfg | null>(null)
   const [token, setToken] = useState('')
-  const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '', clean_on: false, clean_group: '', clean_tpl: {} as Record<string, string>, shoot_on: false, shoot_group: '', shoot_boss: 'emma' })
+  const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '', clean_on: false, clean_group: '', clean_tpl: {} as Record<string, string>, pt_tpl: {} as Record<string, string>, shoot_tpl: {} as Record<string, string>, shoot_on: false, shoot_group: '', shoot_boss: 'emma' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [tplOpen, setTplOpen] = useState(false)
+  const [tplTab, setTplTab] = useState<TplGroup>('pt')
+  const [draft, setDraft] = useState<Record<TplGroup, Record<string, string>>>({ pt: {}, clean: {}, shoot: {} })
   const [offAsk, setOffAsk] = useState<'main' | 'clean' | 'shoot' | null>(null)
 
   const load = useCallback(async () => {
@@ -60,7 +92,7 @@ export default function ZaloBotPanel() {
         enabled: data.data.enabled, bot_name: data.data.bot_name, pt_group: data.data.pt_group,
         branch_id: data.data.branch_id || (user?.branches.length === 1 ? user.branches[0].id : ''),
         group_trainer: data.data.group_trainer, group_windows: data.data.group_windows,
-        clean_on: data.data.clean_on, clean_group: data.data.clean_group, clean_tpl: { ...data.data.clean_tpl },
+        clean_on: data.data.clean_on, clean_group: data.data.clean_group, clean_tpl: { ...data.data.clean_tpl }, pt_tpl: { ...data.data.pt_tpl }, shoot_tpl: { ...data.data.shoot_tpl },
         shoot_on: data.data.shoot_on, shoot_group: data.data.shoot_group, shoot_boss: data.data.shoot_boss,
       })
     } catch (e) {
@@ -83,9 +115,8 @@ export default function ZaloBotPanel() {
     setBusy(true)
     try {
       const f = { ...form, ...patch }
-      const tpl: Record<string, string> = {}
-      if (cfg) for (const k of TPL_KEYS) if (f.clean_tpl[k] && f.clean_tpl[k] !== cfg.clean_tpl_default[k]) tpl[k] = f.clean_tpl[k]
-      await api.put('/zalo/bot/config', { ...f, clean_tpl: tpl, token: token || undefined })
+      const diff = (m: Record<string, string>, def: Record<string, string>) => Object.fromEntries(Object.entries(m).filter(([k, v]) => v && v !== def[k]))
+      await api.put('/zalo/bot/config', { ...f, clean_tpl: cfg ? diff(f.clean_tpl, cfg.clean_tpl_default) : {}, pt_tpl: cfg ? diff(f.pt_tpl, cfg.pt_tpl_default) : {}, shoot_tpl: cfg ? diff(f.shoot_tpl, cfg.shoot_tpl_default) : {}, token: token || undefined })
       setToken('')
       toast('Đã lưu thiết lập bot Zalo')
       await load()
@@ -180,33 +211,46 @@ export default function ZaloBotPanel() {
         </div>
       </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          <Button type="button" onClick={() => { setDraft({ pt: { ...form.pt_tpl }, clean: { ...form.clean_tpl }, shoot: { ...form.shoot_tpl } }); setTplOpen(true) }}>Mẫu tin</Button>
           <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
           <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
         </div>
     </Panel>
-    <div style={{ height: 16 }} />
-    <Panel title="Zalo Bot: tin nhắn mẫu">
-      <p className="cell-sub">Sửa nội dung tin bot vệ sinh gửi vào nhóm. Dòng nào để mẫu gốc thì bot dùng mẫu gốc. Biến trong ngoặc nhọn được thay bằng giá trị thật khi gửi.</p>
-        <div className="zns-grid">
-          {TPL_KEYS.map((k) => (
-            <div key={k} className="zns-card">
-              <span className="cell-main">{TPL_LABEL[k]}</span>
-              <textarea
-                className="input"
-                aria-label={`Mẫu tin: ${TPL_LABEL[k]}`}
-                rows={k === 'morning' || k === 'afternoon' ? 14 : 4}
-                value={form.clean_tpl[k] ?? cfg.clean_tpl_default[k]}
-                onChange={(e) => set({ clean_tpl: { ...form.clean_tpl, [k]: e.target.value } })}
-              />
-              <div className="cell-sub">Biến: {TPL_VARS[k]}</div>
-              <div><Button small type="button" onClick={() => set({ clean_tpl: { ...form.clean_tpl, [k]: cfg.clean_tpl_default[k] } })}>Khôi phục mẫu gốc</Button></div>
-            </div>
-          ))}
+    {tplOpen && cfg && (
+      <Modal
+        title="Mẫu tin của bot"
+        onClose={() => setTplOpen(false)}
+        footer={
+          <>
+            <Button onClick={() => setTplOpen(false)}>Hủy</Button>
+            <Button variant="primary" disabled={busy} onClick={async () => { if (await save(undefined, { pt_tpl: draft.pt, clean_tpl: draft.clean, shoot_tpl: draft.shoot })) setTplOpen(false) }}>{busy ? 'Đang lưu...' : 'Lưu mẫu tin'}</Button>
+          </>
+        }
+      >
+        <Tabs<TplGroup> tabs={TPL_GROUPS.map((g) => ({ value: g.key, label: g.label }))} value={tplTab} onChange={setTplTab} />
+        <p className="cell-sub" style={{ margin: '8px 0' }}>Mẫu nào để nguyên thì bot dùng mẫu gốc. Biến trong ngoặc nhọn được thay bằng giá trị thật khi gửi.</p>
+        <div style={{ display: 'grid', gap: 12 }}>
+          {TPL_GROUPS.find((g) => g.key === tplTab)!.items.map((it) => {
+            const defs = tplTab === 'pt' ? cfg.pt_tpl_default : tplTab === 'clean' ? cfg.clean_tpl_default : cfg.shoot_tpl_default
+            const cur = draft[tplTab][it.k] ?? defs[it.k] ?? ''
+            return (
+              <div key={it.k} className="zns-card">
+                <span className="cell-main">{it.label}</span>
+                <textarea
+                  className="input"
+                  aria-label={`Mẫu tin: ${it.label}`}
+                  rows={Math.min(14, Math.max(4, cur.split(String.fromCharCode(10)).length + 1))}
+                  value={cur}
+                  onChange={(e) => setDraft((d) => ({ ...d, [tplTab]: { ...d[tplTab], [it.k]: e.target.value } }))}
+                />
+                <div className="cell-sub">Biến: {it.vars}</div>
+                <div><Button small type="button" onClick={() => setDraft((d) => ({ ...d, [tplTab]: { ...d[tplTab], [it.k]: defs[it.k] } }))}>Khôi phục mẫu gốc</Button></div>
+              </div>
+            )
+          })}
         </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
-        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu tin nhắn mẫu'}</Button>
-      </div>
-    </Panel>
+      </Modal>
+    )}
     {offAsk && (
       <ConfirmDialog
         title="Tắt bot?"
