@@ -448,3 +448,12 @@
 
 .pt-bar { width: 100%; min-width: 140px; height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
 .pt-bar-fill { height: 100%; background: var(--ok); border-radius: 999px; }
+
+.ipad-brand { color: #e8590c; font-weight: 700; font-size: 22px; margin-bottom: 8px; }
+.ipad-welcome { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.ipad-welcome .ipad-brand { margin-bottom: 4px; }
+.ipad-welcome h1 { margin: 8px 0; font-size: 40px; color: var(--ink); }
+.ipad-welcome p { max-width: 520px; margin: 0; color: var(--muted); font-size: 20px; line-height: 1.5; }
+.ipad-foot { position: fixed; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 12px; font-size: 15px; color: var(--muted); }
+.ipad-foot-link { all: unset; cursor: pointer; color: #1f5fbf; text-decoration: underline; }
+.ipad-foot-link:focus-visible { outline: 2px solid var(--brand-deep); outline-offset: 2px; }

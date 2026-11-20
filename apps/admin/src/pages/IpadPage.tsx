@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { fmtMoney } from '../lib/format'
 import { getIpadPublic, sendIpadSignature, startIpadPairing, type IpadStage, type PayPayload, type SignPayload } from '../lib/ipad'
 import { SignaturePad } from '../components/SignaturePad'
@@ -7,6 +7,7 @@ import { Button } from '../components/ui'
 
 export default function IpadPage() {
   const { token: urlToken = '' } = useParams()
+  const nav = useNavigate()
   const [token, setToken] = useState(urlToken)
   const [paired, setPaired] = useState(true)
   const [code, setCode] = useState<string | null>(null)
@@ -57,6 +58,18 @@ export default function IpadPage() {
     return () => { alive = false; window.clearInterval(id) }
   }, [token, urlToken])
 
+  const repair = () => {
+    try { localStorage.removeItem('gymhub.ipad.token') } catch { /* ignore */ }
+    if (urlToken) { nav('/ipad'); return }
+    setToken('')
+    setPaired(false)
+    setCode(null)
+    startIpadPairing().then((t) => {
+      try { localStorage.setItem('gymhub.ipad.token', t) } catch { /* ignore */ }
+      setToken(t)
+    }).catch(() => setError('Không tạo được mã kết nối, hãy tải lại trang.'))
+  }
+
   const submit = async () => {
     if (!sig) return
     setBusy(true)
@@ -72,7 +85,7 @@ export default function IpadPage() {
 
   return (
     <main className="ipad-page">
-      <h1>TH Gym &amp; Fitness</h1>
+      {!(stage === 'idle' && !error) && <div className="ipad-brand">TH Gym &amp; Fitness</div>}
       {error && <div className="form-error" role="alert">{error}</div>}
       {!error && !paired && code && (
         <section className="ipad-card">
@@ -81,7 +94,19 @@ export default function IpadPage() {
           <p className="hint-muted">Nhân viên nhập mã này trên máy tính để kết nối iPad quầy lễ tân.</p>
         </section>
       )}
-      {!error && paired && stage === 'idle' && <p className="ipad-wait">Vui lòng chờ nhân viên...</p>}
+      {!error && paired && stage === 'idle' && (
+        <section className="ipad-welcome">
+          <div className="ipad-brand">TH Gym &amp; Fitness</div>
+          <h1>Xin chào quý khách</h1>
+          <p>Màn hình này sẽ hiện nội dung khi nhân viên gửi hợp đồng hoặc buổi tập cần quý khách xác nhận.</p>
+        </section>
+      )}
+      {!error && (stage === 'idle' || !paired) && (
+        <footer className="ipad-foot">
+          <span>{urlToken ? 'Chế độ cùng máy' : 'Đã kết nối quầy lễ tân'}</span>
+          <button type="button" className="ipad-foot-link" onClick={repair}>Ghép với thiết bị khác</button>
+        </footer>
+      )}
       {!error && stage === 'pay' && payload && (
         <section className="ipad-card">
           <h2>Quét mã để chuyển khoản</h2>
