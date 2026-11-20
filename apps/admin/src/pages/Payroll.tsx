@@ -427,13 +427,12 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               <TierEditor bare title="Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
             </div>
             <div className="flow-card">
-              <div><b>Hoa hồng Sale PT</b><span className="cell-sub"> - nhận liền {Math.round(settings.ptImmediateShare * 100)}%, chia theo buổi dạy {Math.round(settings.ptSessionShare * 100)}%</span></div>
+              <b>Hoa hồng Sale PT</b>
               <TierEditor bare title="Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
+              <p className="hint-muted">Nhận liền {Math.round(settings.ptImmediateShare * 100)}%, chia theo buổi dạy {Math.round(settings.ptSessionShare * 100)}%</p>
             </div>
             <div className="flow-card">
-              <div className="flow-tag">Riêng Marketing</div>
               <b>Hoa hồng doanh số Member</b>
-              <p className="hint-muted">Tính theo tổng doanh số Member của cả phòng trong tháng.</p>
               <TierEditor bare title="Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
             </div>
             <div className="flow-card">
