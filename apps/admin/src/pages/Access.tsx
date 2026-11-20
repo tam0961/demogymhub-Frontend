@@ -8,7 +8,7 @@ import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { BranchTag, Button, Chip, DataTable, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, Select, Tabs, type Column } from '../components/ui'
 import DayTickets from './DayTickets'
-import type { CheckinItem, CheckinResult, CheckinStats } from '../types'
+import type { CheckinItem, CheckinResult, CheckinStats, Member } from '../types'
 
 const REFRESH_MS = 30000
 
@@ -27,6 +27,8 @@ function AccessLog() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [code, setCode] = useState('')
+  const [matches, setMatches] = useState<Member[]>([])
+  const [searching, setSearching] = useState(false)
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<CheckinResult | null>(null)
   const [err, setErr] = useState('')
@@ -62,14 +64,24 @@ function AccessLog() {
     return () => clearInterval(t)
   }, [load])
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    const v = code.trim()
-    if (!v) return
+  useEffect(() => {
+    const k = code.trim()
+    if (k.length < 2) { setMatches([]); return }
+    setSearching(true)
+    const t = setTimeout(() => {
+      api.get('/members', { params: { q: k, branch_id: bid, limit: 6 } })
+        .then((r) => setMatches(r.data.data as Member[]))
+        .catch(() => setMatches([]))
+        .finally(() => setSearching(false))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [code, bid])
+
+  const checkin = async (memberId: string) => {
     setBusy(true)
     setErr('')
     try {
-      const { data } = await api.post('/checkins', { member_code: v, direction: 'in' })
+      const { data } = await api.post('/checkins', { member_id: memberId, direction: 'in' })
       setRes(data.data)
       const r: CheckinResult = data.data
       if (r.member) {
@@ -81,13 +93,22 @@ function AccessLog() {
       load()
     } catch (x) {
       setRes(null)
-      const a = apiError(x)
-      setErr(a.status === 404 ? 'Không tìm thấy hội viên với mã này' : a.message)
+      setErr(apiError(x).message)
     } finally {
       setBusy(false)
       setCode('')
+      setMatches([])
       inputRef.current?.focus()
     }
+  }
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const v = code.trim()
+    if (!v) return
+    if (matches.length === 1) checkin(matches[0].id)
+    else if (matches.length > 1) setErr('Có nhiều hội viên khớp, hãy bấm chọn đúng người trong danh sách')
+    else setErr(searching ? 'Đang tìm hội viên...' : 'Không tìm thấy hội viên với tên hoặc số điện thoại này')
   }
 
   const maxHour = Math.max(1, ...(stats?.branches.flatMap((b) => b.by_hour.map((h) => h.count)) ?? [1]))
@@ -136,12 +157,22 @@ function AccessLog() {
       )}
 
       {canCheckin && (
-        <Panel title="Check-in thủ công" note="Nhập mã hội viên hoặc số điện thoại">
+        <Panel title="Check-in thủ công" note="Nhập tên hoặc số điện thoại hội viên">
           <form className="inline-form" onSubmit={submit}>
-            <label className="sr-only" htmlFor="ac-code">Mã hội viên hoặc số điện thoại</label>
-            <input id="ac-code" ref={inputRef} className="input" placeholder="Mã hội viên hoặc số điện thoại" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
+            <label className="sr-only" htmlFor="ac-code">Tên hoặc số điện thoại hội viên</label>
+            <input id="ac-code" ref={inputRef} className="input" placeholder="Tên hoặc số điện thoại hội viên" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
             <Button variant="primary" type="submit" disabled={busy}><Icon name="checkin" size={16} />{busy ? 'Đang kiểm tra...' : 'Check-in'}</Button>
           </form>
+          {matches.length > 0 && (
+            <div className="match-list" role="listbox" aria-label="Hội viên khớp">
+              {matches.map((m) => (
+                <button key={m.id} type="button" role="option" aria-selected={false} className="match-item" disabled={busy} onClick={() => checkin(m.id)}>
+                  <span className="cell-main">{m.name}</span>
+                  <span className="cell-sub">{m.code} · {m.phone}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {err && <div className="form-error" role="alert" style={{ marginTop: 10 }}>{err}</div>}
           {res && (
             <div className={`mini-result ${res.result === 'allowed' ? 'ok' : 'bad'}`} role="status" aria-live="assertive">

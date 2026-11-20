@@ -487,3 +487,8 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .pw-wrap .input { padding-right: 44px; }
 .pw-eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: none; border: 0; color: var(--muted); cursor: pointer; border-radius: var(--r-md); }
 .pw-eye:hover { color: var(--ink); }
+
+.match-list { margin-top: 10px; border: 1px solid var(--line); border-radius: var(--r-md); overflow: hidden; }
+.match-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; background: var(--surface); border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; font: inherit; }
+.match-item:first-child { border-top: 0; }
+.match-item:hover { background: var(--brand-soft); }

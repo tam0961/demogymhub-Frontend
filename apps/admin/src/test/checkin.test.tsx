@@ -59,12 +59,12 @@ describe('Access gating', async () => {
   const { default: Access } = await import('../pages/Access')
   it('owner: no manual box', () => {
     wrap(owner, <Access />)
-    expect(screen.queryByLabelText('Mã hội viên hoặc số điện thoại')).toBeNull()
+    expect(screen.queryByLabelText('Tên hoặc số điện thoại hội viên')).toBeNull()
     expect(screen.getByRole('note')).toBeTruthy()
   })
   it('receptionist: manual box present', () => {
     wrap(lt, <Access />)
-    expect(screen.getByLabelText('Mã hội viên hoặc số điện thoại')).toBeTruthy()
+    expect(screen.getByLabelText('Tên hoặc số điện thoại hội viên')).toBeTruthy()
   })
 })
 
