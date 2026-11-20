@@ -359,6 +359,7 @@ export interface PayrollRow {
 export interface PayrollPreview {
   month: string
   status: 'open' | 'closed'
+  updated_at?: string
   rows: PayrollRow[]
   totals: Omit<PayrollRow, 'user_id' | 'name' | 'position' | 'tax_pending' | 'note' | 'pt_rate'> & Partial<Pick<PayrollRow, 'pt_rate'>>
 }

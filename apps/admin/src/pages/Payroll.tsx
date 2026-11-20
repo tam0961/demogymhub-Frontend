@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtMoney } from '../lib/format'
-import { POSITIONS, POSITION_LABEL, type SimPosition, currentMonth, pct, } from '../lib/payroll'
+import { fmtDateTime, fmtMoney } from '../lib/format'
+import { POSITIONS, POSITION_LABEL, currentMonth, pct, } from '../lib/payroll'
 import { usePermission } from '../context/usePermission'
 import { useBranch } from '../context/BranchContext'
 import { ConfirmDialog } from '../components/Dialogs'
@@ -10,7 +10,6 @@ import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, MoneyInput, PageHeader, Panel, Segmented, Select, Textarea, type Column } from '../components/ui'
 import { PtStatsSection } from './PtStats'
-import { PayrollSimulator, type PayrollFilter } from './PayrollStructure'
 import type { PayrollPosition, PayrollPreview, PayrollProfile, PayrollRow, PayrollSettings, PayrollStaff, PayrollTier } from '../types'
 
 const DEFAULT_PROFILE: PayrollProfile = { position: 'other', base_salary: 0, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: false }
@@ -36,23 +35,20 @@ const positionDefaults = (position: PayrollPosition): Partial<PayrollProfile> =>
   return { position, has_insurance: false, tax_mode: 'none', dependents: 0, active: false }
 }
 
-type PayrollTab = 'sheet' | 'sim' | 'settings'
+type PayrollTab = 'sheet' | 'settings'
 
 export default function Payroll() {
   const { can } = usePermission()
   const [tab, setTab] = useState<PayrollTab>('sheet')
-  const [filter, setFilter] = useState<PayrollFilter>('pt_fulltime')
   const canManage = can('payroll.manage')
-  const simPos: SimPosition = filter === 'all' ? 'pt_fulltime' : filter
   return (
     <>
       <PageHeader
         title="Lương nhân viên"
-        sub="Bảng lương theo tháng, tính thử và cài đặt, chỉ chủ xem"
-        action={<Segmented<PayrollTab> ariaLabel="Chọn mục" options={[{ value: 'sheet', label: 'Bảng lương' }, { value: 'sim', label: 'Tính thử lương' }, { value: 'settings', label: 'Cài đặt lương' }]} value={tab} onChange={setTab} />}
+        sub="Bảng lương theo tháng và cài đặt, chỉ chủ xem"
+        action={<Segmented<PayrollTab> ariaLabel="Chọn mục" options={[{ value: 'sheet', label: 'Bảng lương' }, { value: 'settings', label: 'Cài đặt lương' }]} value={tab} onChange={setTab} />}
       />
       {tab === 'sheet' && <SheetTab canManage={canManage} />}
-      {tab === 'sim' && <PayrollSimulator position={simPos} onPosition={setFilter} />}
       {tab === 'settings' && <SettingsTab canManage={canManage} />}
     </>
   )
@@ -106,6 +102,19 @@ function SheetTab({ canManage }: { canManage: boolean }) {
     { key: 'net', header: 'Thực nhận', numeric: true, sortValue: (r) => r.net, render: (r) => <b>{fmtMoney(r.net)}</b> },
   ]
 
+  const refreshNow = async () => {
+    setBusy(true)
+    try {
+      await api.post('/payroll/refresh', { month })
+      await load()
+      toast('Đã cập nhật bảng lương')
+    } catch (e) {
+      toast(apiError(e).message, true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const changeStatus = async () => {
     if (!closing) return
     setBusy(true)
@@ -130,6 +139,8 @@ function SheetTab({ canManage }: { canManage: boolean }) {
           <Input id="pr-month" type="month" value={month} onChange={(e) => e.target.value && setMonth(e.target.value)} />
         </Field>
         {data && <Chip tone={closed ? 'ok' : 'warn'}>{closed ? 'Đã chốt' : 'Đang mở'}</Chip>}
+        {data?.updated_at && !closed && <span className="cell-sub">Cập nhật lúc {fmtDateTime(data.updated_at)}. Tự động cập nhật lúc 12h và 18h mỗi ngày.</span>}
+        {canManage && data?.updated_at && !closed && <Button disabled={busy} onClick={refreshNow}>Cập nhật ngay</Button>}
         <div style={{ flex: 1 }} />
         {canManage && data && (closed
           ? <Button onClick={() => setClosing('reopen')}>Mở lại</Button>

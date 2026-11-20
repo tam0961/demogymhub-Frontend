@@ -1692,6 +1692,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
       payrollAdj[`${b.user_id}:${b.month}`] = { penalty: b.penalty, adjustment: b.adjustment, note: b.note || null }
       return ok(b)
     }
+    if (url === '/payroll/refresh' && method === 'post') return ok({ month: (body as { month: string }).month, refreshed: true })
     if (url === '/payroll/close' && method === 'post') { payrollClosed.add((body as { month: string }).month); return ok({ month: (body as { month: string }).month, status: 'closed', closed_at: new Date().toISOString() }) }
     if (url === '/payroll/reopen' && method === 'post') { payrollClosed.delete((body as { month: string }).month); return ok({ month: (body as { month: string }).month, status: 'open' }) }
     if (url === '/payroll/periods' && method === 'get') return ok([...payrollClosed].map((m) => ({ month: m, status: 'closed', closed_at: new Date().toISOString() })))
