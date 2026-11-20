@@ -459,13 +459,11 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               </dl>
             </div>
             <div className="flow-card">
-              <div className="flow-tag">Không tính giảm trừ</div>
               <b>Thuế TNCN</b>
-              <p className="hint-muted">Nhân viên chính thức nộp số cố định, PT Parttime nộp theo % tổng thu nhập.</p>
-              <div className="flow-split">
-                <Field label="Chính thức: cố định (đồng/tháng)" htmlFor="ps-ftax"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
-                <Field label="PT Parttime (% thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
-              </div>
+              <dl className="kv">
+                <dt>Tỷ lệ</dt><dd>{String(settings.partTimeTaxRate).replace('.', ',')}% tổng thu nhập</dd>
+              </dl>
+              <p className="hint-muted">Chỉ dành cho nhân viên Parttime.</p>
             </div>
           </div>
         </section>
