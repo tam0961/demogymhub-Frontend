@@ -363,6 +363,41 @@ export interface PayrollPreview {
   totals: Omit<PayrollRow, 'user_id' | 'name' | 'position' | 'tax_pending' | 'note' | 'pt_rate'> & Partial<Pick<PayrollRow, 'pt_rate'>>
 }
 
+export interface PtStatClient {
+  contract_id: string
+  contract_code: string
+  member_id: string
+  member_code: string
+  member_name: string
+  package_name: string
+  sessions_total: number | null
+  sessions_left: number | null
+  taught_in_month: number
+  end_date: string | null
+}
+export interface PtStatClass { id: string; title: string; start_at: string }
+export interface PtStatSale {
+  contract_id: string
+  contract_code: string
+  member_name: string
+  package_name: string
+  kind: 'member' | 'pt'
+  amount: number
+}
+export interface PtStatRow {
+  user_id: string
+  name: string
+  position: PayrollPosition
+  clients: PtStatClient[]
+  sessions_taught: number
+  group_classes: number
+  classes: PtStatClass[]
+  member_sales: number
+  pt_sales: number
+  sales: PtStatSale[]
+}
+export interface PtStats { month: string; rows: PtStatRow[] }
+
 export type StaffPosition = 'pt_fulltime' | 'pt_parttime' | 'marketing' | 'sale' | 'reception' | 'other'
 export interface StaffKpi {
   contracts_sold: number; member_contracts: number; pt_contracts: number; new_customers: number
