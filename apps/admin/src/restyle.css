@@ -566,3 +566,6 @@
 .bot-box .segmented .seg[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
 .bot-row { display: flex; gap: 8px; align-items: center; }
 .bot-row .input { flex: 1 1 auto; min-width: 0; }
+.bot-boxes { margin: 0 0 8px; gap: 10px; align-items: stretch; }
+.bot-box { padding: 10px 12px; gap: 6px; }
+.bot-box .field, .bot-box .form-grid { gap: 4px; }

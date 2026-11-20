@@ -154,15 +154,14 @@ export default function ZaloBotPanel() {
           </Field>
         </div>
         {groups.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
-            <span className="cell-sub">Nhóm bot đã thấy:</span>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: 0 }}>
             {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.clean_group ? 'primary' : 'secondary'} onClick={() => set({ clean_group: g.id })}>{g.name || g.id}</Button>)}
           </div>
         )}
         </div>
         <div className="bot-box">
         <div className="bot-head">
-          <h3>Bot buổi quay với Emma</h3>
+          <h3>Bot đăng ký buổi quay</h3>
           <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot buổi quay" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.shoot_on ? 'on' : 'off'} onChange={(v) => flip('shoot', v === 'on')} />
         </div>
         <div className="form-grid">
@@ -174,8 +173,7 @@ export default function ZaloBotPanel() {
           </Field>
         </div>
         {groups.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
-            <span className="cell-sub">Nhóm bot đã thấy:</span>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: 0 }}>
             {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.shoot_group ? 'primary' : 'secondary'} onClick={() => set({ shoot_group: g.id })}>{g.name || g.id}</Button>)}
           </div>
         )}
