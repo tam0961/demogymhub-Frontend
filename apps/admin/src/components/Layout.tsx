@@ -7,7 +7,7 @@ import { useShift, ShiftProvider } from '../context/ShiftContext'
 import { useConnected } from '../lib/connection'
 import { activeBranches } from '../lib/branches'
 import ScanPopup from './ScanPopup'
-import { Avatar, BranchTag, Icon, Segmented, branchColor } from './ui'
+import { Avatar, Icon, Segmented, branchColor } from './ui'
 import type { Me } from '../types'
 import type { IconName } from './icons'
 
@@ -185,6 +185,12 @@ export function roleLabelOf(u: Pick<Me, 'roles' | 'branches' | 'checkin_branch'>
   return `${base} ${short}`
 }
 
+const VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'
+const BUILT = typeof __BUILD_TIME__ !== 'undefined' ? new Date(__BUILD_TIME__) : null
+const BUILT_TEXT = BUILT && !Number.isNaN(BUILT.getTime())
+  ? BUILT.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric', hour12: false })
+  : ''
+
 function Topbar({ onMenu }: { onMenu: () => void }) {
   const { user } = useAuth()
   const { branchId, setBranch } = useBranch()
@@ -222,6 +228,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
         <input className="input" type="search" list="screen-list" placeholder="Tìm hội viên hoặc màn hình" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Tìm hội viên hoặc màn hình" />
         <datalist id="screen-list">{screens.map((s) => <option key={s.to} value={s.label} />)}</datalist>
       </form>
+      <div className="app-ver" role="status" aria-label="Phiên bản đang chạy">{VERSION}{BUILT_TEXT ? ` · cập nhật ${BUILT_TEXT}` : ''}</div>
       <div className="top-right">
         <ShiftChip />
         <span className={`conn ${connected ? 'conn-ok' : 'conn-bad'}`} role="status">
@@ -229,7 +236,7 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
           {connected ? 'Đã kết nối' : 'Mất kết nối'}
         </span>
         {single
-          ? <span className="branch-fixed" aria-label="Chi nhánh của bạn"><BranchTag branch={single} /></span>
+          ? null
           : <Segmented ariaLabel="Chi nhánh" options={options} value={branchId ?? ''} onChange={(v) => setBranch(v || null)} />}
       </div>
     </header>
