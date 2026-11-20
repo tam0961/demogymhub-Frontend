@@ -319,6 +319,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [savingRow, setSavingRow] = useState('')
+  const [editing, setEditing] = useState<Record<string, boolean>>({})
   const [names, setNames] = useState<Record<string, string>>({})
 
   const load = useCallback(async () => {
@@ -344,11 +345,18 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
       await api.put(`/payroll/profiles/${u.user_id}`, { ...profileOf(u), name: (names[u.user_id] ?? u.name).trim() || u.name })
       toast(`Đã lưu hồ sơ lương ${(names[u.user_id] ?? u.name).trim() || u.name}`)
       await load()
+      setEditing({})
     } catch (e) {
       toast(apiError(e).message, true)
     } finally {
       setSavingRow('')
     }
+  }
+
+  const cancelRow = (u: PayrollStaff) => {
+    setEditing((m) => ({ ...m, [u.user_id]: false }))
+    setEdits((e) => { const n = { ...e }; delete n[u.user_id]; return n })
+    setNames((e) => { const n = { ...e }; delete n[u.user_id]; return n })
   }
 
   const saveSettings = async () => {
@@ -374,14 +382,14 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
       {err && <div className="form-error" role="alert">{err}</div>}
 
       <div className="settings-staff">
-      <Panel title="Lương cơ bản" note="Chọn vị trí: PT Fulltime và Marketing có bảo hiểm, PT Parttime chịu thuế 10%" flush>
+      <Panel title="Lương cơ bản" flush>
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
                 <th>Nhân viên</th>
                 <th>Vị trí</th>
-                <th className="num">Lương cơ bản trọn gói</th>
+                <th className="num">Lương cơ bản</th>
                 <th />
               </tr>
             </thead>
@@ -389,17 +397,27 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               {staff.length === 0 && <tr><td colSpan={4} className="hint-muted">Chưa có nhân viên</td></tr>}
               {staff.map((u) => {
                 const p = profileOf(u)
+                const isEdit = !!editing[u.user_id]
                 const dirty = !!edits[u.user_id] || (names[u.user_id] !== undefined && names[u.user_id] !== u.name)
                 return (
                   <tr key={u.user_id}>
-                    <td><Input aria-label={`Họ và tên ${u.email}`} disabled={disabled} value={names[u.user_id] ?? u.name} onChange={(e) => setNames((n) => ({ ...n, [u.user_id]: e.target.value }))} style={{ minWidth: 180 }} /></td>
+                    <td><Input aria-label={`Họ và tên ${u.email}`} disabled={disabled || !isEdit} value={names[u.user_id] ?? u.name} onChange={(e) => setNames((n) => ({ ...n, [u.user_id]: e.target.value }))} style={{ minWidth: 180 }} /></td>
                     <td>
-                      <Select aria-label={`Vị trí ${u.name}`} disabled={disabled} value={p.position} onChange={(e) => patchProfile(u, positionDefaults(e.target.value as PayrollPosition))}>
+                      <Select aria-label={`Vị trí ${u.name}`} disabled={disabled || !isEdit} value={p.position} onChange={(e) => patchProfile(u, positionDefaults(e.target.value as PayrollPosition))}>
                         {POSITIONS.map((k) => <option key={k} value={k}>{POSITION_LABEL[k]}</option>)}
                       </Select>
                     </td>
-                    <td className="num"><MoneyInput aria-label={`Lương cơ bản ${u.name}`} disabled={disabled} value={p.base_salary || ''} onValueChange={(d) => patchProfile(u, { base_salary: Number(d) || 0 })} placeholder="0 ₫" /></td>
-                    <td><Button small variant={dirty ? 'primary' : 'secondary'} disabled={disabled || !dirty || savingRow === u.user_id} onClick={() => saveRow(u)}>{savingRow === u.user_id ? 'Đang lưu...' : 'Lưu'}</Button></td>
+                    <td className="num"><MoneyInput aria-label={`Lương cơ bản ${u.name}`} disabled={disabled || !isEdit} value={p.base_salary || ''} onValueChange={(d) => patchProfile(u, { base_salary: Number(d) || 0 })} placeholder="0 ₫" /></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      {!isEdit ? (
+                        <Button small disabled={disabled} onClick={() => setEditing((m) => ({ ...m, [u.user_id]: true }))}>Sửa</Button>
+                      ) : (
+                        <>
+                          <Button small variant={dirty ? 'primary' : 'secondary'} disabled={disabled || !dirty || savingRow === u.user_id} onClick={() => saveRow(u)}>{savingRow === u.user_id ? 'Đang lưu...' : 'Lưu'}</Button>{' '}
+                          <Button small onClick={() => cancelRow(u)}>Hủy</Button>
+                        </>
+                      )}
+                    </td>
                   </tr>
                 )
               })}

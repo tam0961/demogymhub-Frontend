@@ -484,3 +484,7 @@
 
 .set-head > div:first-child p { margin: 4px 0 0; }
 .set-head { align-items: flex-start; }
+
+.settings-staff { width: fit-content; max-width: 100%; }
+.settings-staff .table th:nth-child(4), .settings-staff .table td:nth-child(4) { width: 1%; }
+.settings-staff .table input:disabled, .settings-staff .table select:disabled { background: var(--surface-2); color: var(--ink); opacity: 1; }
