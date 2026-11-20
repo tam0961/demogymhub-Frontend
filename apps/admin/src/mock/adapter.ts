@@ -1,6 +1,7 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
 import { ptUsageDeadline } from '../lib/pt'
-import type { Ticket, Lead, PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
+import { shiftMonth } from '../lib/staff'
+import type { StaffPosition, StaffRow, Ticket, Lead, PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
 
 const branches = [
   { id: 'b-q2', code: 'Q2', name: 'Chi nhánh Quận 2' },
@@ -19,7 +20,7 @@ const P = {
   leads: ['leads.read', 'leads.create', 'leads.update'],
 }
 const MANAGER_EXTRA = ['contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
-const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage', 'devices.manage', 'payroll.read', 'payroll.manage']
+const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage', 'devices.manage', 'payroll.read', 'payroll.manage', 'staff.read', 'staff.manage']
 
 const ptTrainers = [{ id: 'pt1', name: 'PT Đạt', branches: [{ id: 'b-nb', name: 'Chi nhánh Nhà Bè' }] }, { id: 'pt2', name: 'PT Tuấn', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }, { id: 'pt3', name: 'PT Ánh', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }]
 const mockOffs: { trainer_id: string; date: string }[] = []
@@ -95,6 +96,42 @@ const payrollSettings = {
   taxBrackets: [] as { upTo: number | null; rate: number }[],
   personalDeduction: null as number | null,
   dependentDeduction: null as number | null,
+}
+
+const staffMonthFactor = (month: string) => 0.7 + ((Number(month.slice(5)) * 37) % 10) / 20
+type StaffBase = { user_id: string; name: string; phone: string | null; position: string; active: boolean; hired_on: string | null; left_on: string | null; note: string | null; employee_no: string | null; rev: number; contracts: number; member: number; newc: number; sessions: number; group: number; clients: number; left: number; exp: number; done: number; noshow: number; renew: number | null; debt: number }
+const staffBase: StaffBase[] = [
+  { user_id: 'st-khanh', name: 'Khánh', phone: '0903111222', position: 'pt_fulltime', active: true, hired_on: '2024-03-01', left_on: null as string | null, note: null as string | null, employee_no: '8000101', rev: 38_000_000, contracts: 6, member: 2, newc: 4, sessions: 58, group: 0, clients: 14, left: 96, exp: 3, done: 0.92, noshow: 0.05, renew: 0.6, debt: 1_200_000 },
+  { user_id: 'st-trang', name: 'Trang', phone: '0903333444', position: 'pt_fulltime', active: true, hired_on: '2024-06-15', left_on: null as string | null, note: 'Phụ trách lớp sáng', employee_no: '8000102', rev: 52_500_000, contracts: 8, member: 3, newc: 6, sessions: 71, group: 12, clients: 18, left: 120, exp: 5, done: 0.95, noshow: 0.03, renew: 0.75, debt: 0 },
+  { user_id: 'st-thinh', name: 'Thịnh', phone: '0903555666', position: 'pt_parttime', active: true, hired_on: '2025-01-10', left_on: null as string | null, note: null as string | null, employee_no: null as string | null, rev: 21_000_000, contracts: 3, member: 1, newc: 2, sessions: 34, group: 20, clients: 8, left: 44, exp: 2, done: 0.88, noshow: 0.09, renew: null as number | null, debt: 600_000 },
+  { user_id: 'st-tam', name: 'Trần Trí Tâm', phone: '0903777888', position: 'marketing', active: true, hired_on: '2023-09-01', left_on: null as string | null, note: null as string | null, employee_no: null as string | null, rev: 64_000_000, contracts: 21, member: 21, newc: 17, sessions: 0, group: 0, clients: 0, left: 0, exp: 0, done: 0, noshow: 0, renew: null as number | null, debt: 2_400_000 },
+  { user_id: 'st-letan', name: 'Lễ tân Quận 7', phone: null as string | null, position: 'reception', active: true, hired_on: '2024-01-05', left_on: null as string | null, note: null as string | null, employee_no: '8000110', rev: 9_000_000, contracts: 4, member: 4, newc: 3, sessions: 0, group: 0, clients: 0, left: 0, exp: 0, done: 0, noshow: 0, renew: null as number | null, debt: 0 },
+  { user_id: 'st-cu', name: 'PT Minh (đã nghỉ)', phone: '0903999000', position: 'pt_parttime', active: false, hired_on: '2024-02-01', left_on: '2026-08-31', note: null as string | null, employee_no: null as string | null, rev: 0, contracts: 0, member: 0, newc: 0, sessions: 0, group: 0, clients: 0, left: 12, exp: 0, done: 0, noshow: 0, renew: null as number | null, debt: 0 },
+]
+const staffRows = (month: string): StaffRow[] => {
+  const f = staffMonthFactor(month)
+  const pf = staffMonthFactor(shiftMonth(month, -1))
+  const mk = (b: StaffBase): StaffRow => {
+    const pt = b.position === 'pt_fulltime' || b.position === 'pt_parttime'
+    const sc = (n: number, fac: number) => Math.round(n * fac)
+    return {
+      user_id: b.user_id, name: b.name, phone: b.phone, position: b.position as StaffPosition, active: b.active, hired_on: b.hired_on, left_on: b.left_on, note: b.note, employee_no: b.employee_no,
+      branches: [{ id: 'b-q7', code: 'Q7', name: 'Chi nhánh Quận 7' }],
+      kpi: {
+        contracts_sold: sc(b.contracts, f), member_contracts: sc(b.member, f), pt_contracts: sc(b.contracts - b.member, f), new_customers: sc(b.newc, f),
+        revenue: Math.round(sc(b.rev, f) / 1000) * 1000, member_revenue: Math.round(sc(b.rev * 0.4, f) / 1000) * 1000, pt_revenue: Math.round(sc(b.rev * 0.6, f) / 1000) * 1000,
+        avg_contract_value: b.contracts ? Math.round(b.rev / b.contracts / 1000) * 1000 : 0, debt_outstanding: b.debt,
+        active_clients: b.clients, sessions_taught: pt ? sc(b.sessions, f) : 0, group_classes: pt ? sc(b.group, f) : 0,
+        session_done_rate: pt ? b.done : null, no_show_rate: pt ? b.noshow : null, sessions_left_total: b.left, expiring_30: b.exp, renewal_rate: b.renew,
+      },
+      prev: { contracts_sold: sc(b.contracts, pf), revenue: Math.round(sc(b.rev, pf) / 1000) * 1000, sessions_taught: pt ? sc(b.sessions, pf) : 0, new_customers: sc(b.newc, pf) },
+      rank: { revenue: null },
+    }
+  }
+  const rows = staffBase.map(mk)
+  const ranked = [...rows].filter((r) => r.active && r.kpi.revenue > 0).sort((a, b) => b.kpi.revenue - a.kpi.revenue)
+  ranked.forEach((r, i) => { r.rank.revenue = i + 1 })
+  return rows
 }
 const payrollStaff = [
   { user_id: 'pr-khanh', name: 'Khánh', email: 'khanh@thgym.com', roles: ['trainer'], branch_codes: ['q7'], profile: { position: 'pt_fulltime', base_salary: 8_000_000, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: true } as Record<string, unknown> | null },
@@ -1495,6 +1532,37 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/contracts/sale-staff') return ok([{ id: 'u-sale1', name: 'Ngô Thị Huyền Trang' }, { id: 'u-sale2', name: 'Vũ Bảo Khánh' }])
   if (url === '/attendance/face-jobs' && method === 'get') return ok([{ id: 'fj1', device_name: 'Máy Q7', status: 'done', message: null, created_at: new Date().toISOString() }])
   if (url === '/attendance/face-jobs' && method === 'post') return ok([{ id: 'fj2', status: 'pending' }])
+  if (url === '/staff' || url.startsWith('/staff/')) {
+    if (method === 'get') need('staff.read')
+    else need('staff.manage')
+    const month = String(params.month ?? new Date().toISOString().slice(0, 7))
+    if (url === '/staff' && method === 'get') return ok({ month, prev_month: shiftMonth(month, -1), rows: staffRows(month) })
+    if (url === '/staff' && method === 'post') {
+      const b = body as { name: string; phone?: string | null; position: string; hired_on?: string | null; employee_no?: string | null; note?: string | null }
+      staffBase.push({ user_id: nid('st'), name: b.name, phone: b.phone ?? null, position: b.position, active: true, hired_on: b.hired_on ?? null, left_on: null, note: b.note ?? null, employee_no: b.employee_no ?? null, rev: 0, contracts: 0, member: 0, newc: 0, sessions: 0, group: 0, clients: 0, left: 0, exp: 0, done: 0, noshow: 0, renew: null, debt: 0 })
+      return ok(staffRows(month).find((r) => r.name === b.name))
+    }
+    const sm = /^\/staff\/([^/]+)$/.exec(url)
+    if (sm) {
+      const base = staffBase.find((x) => x.user_id === sm[1])
+      if (!base) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy nhân viên')
+      if (method === 'put') {
+        const b = body as Partial<{ name: string; phone: string | null; position: string; hired_on: string | null; left_on: string | null; employee_no: string | null; note: string | null; active: boolean }>
+        Object.assign(base!, b)
+        return ok(staffRows(month).find((r) => r.user_id === sm[1]))
+      }
+      const row = staffRows(month).find((r) => r.user_id === sm[1])!
+      const trend = Array.from({ length: 6 }, (_, i) => {
+        const m = shiftMonth(month, i - 5)
+        const rr = staffRows(m).find((r) => r.user_id === sm[1])!
+        return { month: m, contracts_sold: rr.kpi.contracts_sold, revenue: rr.kpi.revenue, sessions_taught: rr.kpi.sessions_taught, new_customers: rr.kpi.new_customers }
+      })
+      const pt = row.position === 'pt_fulltime' || row.position === 'pt_parttime'
+      const clients = pt ? Array.from({ length: Math.min(row.kpi.active_clients, 6) }, (_, i) => ({ member_id: 'm-' + i, member_code: 'HV' + (1400 + i), member_name: ['Lê Thị Ngọc Trang', 'Nguyễn Văn Đối', 'Hà Học Tiến', 'Phạm Hữu Sang', 'Đinh Công Tâm', 'Giang Hoàng'][i], package_name: i % 2 ? 'PT 1:1 - 20b' : 'PT 1:1 - 30b', contract_code: 'HP2601' + (10 + i), sessions_left: 4 + i * 3, end_date: '2027-01-' + String(10 + i), status: 'active' })) : []
+      const contracts = Array.from({ length: Math.min(row.kpi.contracts_sold, 5) }, (_, i) => ({ id: 'c' + i, code: (pt ? 'HP2601' : 'HD2610') + (20 + i), member_name: ['Trần Thị Thu Hà', 'Nguyễn Minh Khoa', 'Tô Ngọc Diệp', 'Hà Sỹ Nguyên', 'Giang Hoàng'][i], package_name: pt ? 'PT 1:1 - 20b' : 'MEMBER 3 THÁNG + 1', total_amount: pt ? 9_900_000 : 1_990_000, paid_amount: pt ? 9_900_000 : 1_990_000, created_at: new Date().toISOString(), role: (pt ? 'pt' : 'sale') as 'pt' | 'sale' }))
+      return ok({ staff: row, trend, clients, contracts })
+    }
+  }
   if (url.startsWith('/payroll')) {
     if (method === 'get') need('payroll.read')
     else need('payroll.manage')

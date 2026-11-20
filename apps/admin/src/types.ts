@@ -357,3 +357,26 @@ export interface PayrollPreview {
   rows: PayrollRow[]
   totals: Omit<PayrollRow, 'user_id' | 'name' | 'position' | 'tax_pending' | 'note' | 'pt_rate'> & Partial<Pick<PayrollRow, 'pt_rate'>>
 }
+
+export type StaffPosition = 'pt_fulltime' | 'pt_parttime' | 'marketing' | 'sale' | 'reception' | 'other'
+export interface StaffKpi {
+  contracts_sold: number; member_contracts: number; pt_contracts: number; new_customers: number
+  revenue: number; member_revenue: number; pt_revenue: number; avg_contract_value: number; debt_outstanding: number
+  active_clients: number; sessions_taught: number; group_classes: number
+  session_done_rate: number | null; no_show_rate: number | null; sessions_left_total: number; expiring_30: number; renewal_rate: number | null
+}
+export interface StaffPrev { contracts_sold: number; revenue: number; sessions_taught: number; new_customers: number }
+export interface StaffRow {
+  user_id: string; name: string; phone: string | null; position: StaffPosition; active: boolean
+  hired_on: string | null; left_on: string | null; note: string | null; employee_no: string | null
+  branches: { id: string; code: string; name: string }[]
+  kpi: StaffKpi; prev: StaffPrev; rank: { revenue: number | null }
+}
+export interface StaffList { month: string; prev_month: string; rows: StaffRow[] }
+export interface StaffTrendPoint { month: string; contracts_sold: number; revenue: number; sessions_taught: number; new_customers: number }
+export interface StaffClient { member_id: string; member_code: string; member_name: string; package_name: string; contract_code: string; sessions_left: number | null; end_date: string | null; status: string }
+export interface StaffContract { id: string; code: string; member_name: string; package_name: string; total_amount: number; paid_amount: number; created_at: string; role: 'sale' | 'pt' }
+export interface StaffDetail { staff: StaffRow; trend: StaffTrendPoint[]; clients: StaffClient[]; contracts: StaffContract[] }
+export interface StaffForm {
+  name: string; phone: string; position: StaffPosition; branch_id: string; hired_on: string; employee_no: string; note: string
+}
