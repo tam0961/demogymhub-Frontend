@@ -432,19 +432,19 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
         <section className="set-wrap" aria-label="Cài đặt hoa hồng và khấu trừ">
           <div className="set-grid">
             <div className="flow-card">
-              <div className="flow-tag">Cả 3 nhóm</div>
+              <div className="set-top"><div className="flow-tag">Cả 3 nhóm</div></div>
               <div className="set-head"><div><b>Hoa hồng Sale Member</b><p className="hint-muted">Lũy tiến từng phần theo doanh số thực thu trong tháng.</p></div></div>
               <TierEditor bare title="Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
             </div>
             <div className="flow-card">
-              <div className="flow-tag">PT, Marketing nếu có bán</div>
-              <div className="set-head">
-                <div><b>Hoa hồng Sale PT</b><p className="hint-muted">Quỹ = doanh số gói PT x tỷ lệ bậc.</p></div>
+              <div className="set-top">
+                <div className="flow-tag">PT, Marketing nếu có bán</div>
                 <div className="set-share">
-                  <Field label="Nhận liền khi ký (%)" htmlFor="ps-imm"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
-                  <Field label="Chia theo buổi dạy (%)" htmlFor="ps-ses"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
+                  <label htmlFor="ps-imm">Nhận liền (%)</label><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} />
+                  <label htmlFor="ps-ses">Chia buổi dạy (%)</label><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} />
                 </div>
               </div>
+              <div className="set-head"><div><b>Hoa hồng Sale PT</b><p className="hint-muted">Quỹ = doanh số gói PT x tỷ lệ bậc.</p></div></div>
               <TierEditor bare title="Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
             </div>
             <div className="flow-card">

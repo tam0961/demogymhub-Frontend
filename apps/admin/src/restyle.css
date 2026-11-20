@@ -488,3 +488,20 @@
 .settings-staff { width: fit-content; max-width: 100%; }
 .settings-staff .table th:nth-child(4), .settings-staff .table td:nth-child(4) { width: 1%; }
 .settings-staff .table input:disabled, .settings-staff .table select:disabled { background: var(--surface-2); color: var(--ink); opacity: 1; }
+
+.set-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; flex-wrap: wrap; }
+.set-share { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 14px; font-weight: 600; color: var(--muted); }
+.set-share label { margin-left: 6px; }
+.set-share .input { max-width: 64px; }
+.set-head { min-height: 0; }
+.set-grid .flow-card table.table { width: auto; }
+.set-grid .flow-card .table th, .set-grid .flow-card .table td { padding-left: 6px; padding-right: 6px; }
+.set-top { flex-wrap: nowrap; }
+.set-share { flex-wrap: nowrap; white-space: nowrap; font-size: 13px; gap: 4px; }
+.set-share label { margin-left: 8px; }
+.set-share label:first-child { margin-left: 0; }
+.set-share .input { width: 56px; max-width: 56px; min-width: 0; font-size: 15px; padding: 4px 8px; height: 34px; }
+.set-grid .set-top .flow-tag { white-space: nowrap; flex-shrink: 0; }
+.set-grid .set-share label { font-size: 13px; font-weight: 600; margin: 0 0 0 6px; }
+.set-grid .set-share label:first-child { margin-left: 0; }
+.set-grid .set-share input { width: 52px; max-width: 52px; min-width: 0; font-size: 15px; padding: 4px 6px; height: 34px; }
