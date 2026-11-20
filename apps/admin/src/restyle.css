@@ -471,3 +471,16 @@
 .set-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .set-col .flow-card { background: var(--surface); }
 @media (max-width: 900px) { .set-cols { grid-template-columns: minmax(0, 1fr); } }
+
+.set-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; min-height: 64px; }
+.set-head > b { align-self: flex-start; }
+.set-share { display: flex; gap: 12px; }
+.set-share .input { max-width: 84px; }
+.set-hint { min-height: 2.6em; }
+.settings-staff table.table { width: auto; table-layout: auto; }
+.settings-staff .table th:nth-child(1), .settings-staff .table td:nth-child(1) { width: 1%; white-space: nowrap; }
+.settings-staff .table th:nth-child(2), .settings-staff .table td:nth-child(2) { width: 1%; white-space: nowrap; }
+.settings-staff .table th:nth-child(3), .settings-staff .table td:nth-child(3) { width: 1%; white-space: nowrap; }
+
+.set-head > div:first-child p { margin: 4px 0 0; }
+.set-head { align-items: flex-start; }

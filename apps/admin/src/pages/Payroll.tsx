@@ -374,7 +374,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
       {err && <div className="form-error" role="alert">{err}</div>}
 
       <div className="settings-staff">
-      <Panel title="Nhân sự" note="Chọn vị trí: PT Fulltime và Marketing có bảo hiểm, PT Parttime chịu thuế 10%" flush>
+      <Panel title="Lương cơ bản" note="Chọn vị trí: PT Fulltime và Marketing có bảo hiểm, PT Parttime chịu thuế 10%" flush>
         <div className="table-wrap">
           <table className="table">
             <thead>
@@ -412,57 +412,52 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
 
       {settings && (
         <section className="set-wrap" aria-label="Cài đặt hoa hồng và khấu trừ">
-          <div className="set-cols">
-            <div className="set-col">
-              <div className="flow-card">
-                <div className="flow-tag">Cả 3 nhóm</div>
-                <b>Hoa hồng bán gói Member</b>
-                <p className="hint-muted">Lũy tiến từng phần theo doanh số thực thu trong tháng.</p>
-                <TierEditor bare title="Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
-              </div>
-              <div className="flow-card">
-                <div className="flow-tag">Riêng Marketing</div>
-                <b>Hoa hồng doanh số Member</b>
-                <p className="hint-muted">Tính theo tổng doanh số Member của cả phòng trong tháng.</p>
-                <TierEditor bare title="Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
-              </div>
-              <div className="flow-card">
-                <div className="flow-tag">Nhân viên chính thức</div>
-                <b>Bảo hiểm NLĐ</b>
-                <p className="hint-muted">BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%</p>
-                <div className="flow-split">
-                  <Field label="Tỷ lệ (% mức đóng)" htmlFor="ps-ins"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
-                  <Field label="Mức lương đóng (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
-                </div>
-              </div>
+          <div className="set-grid">
+            <div className="flow-card">
+              <div className="flow-tag">Cả 3 nhóm</div>
+              <div className="set-head"><div><b>Hoa hồng Sale Member</b><p className="hint-muted">Lũy tiến từng phần theo doanh số thực thu trong tháng.</p></div></div>
+              <TierEditor bare title="Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
             </div>
-            <div className="set-col">
-              <div className="flow-card">
-                <div className="flow-tag">PT, Marketing nếu có bán</div>
-                <b>Hoa hồng bán gói PT và dạy 1-1</b>
-                <div className="flow-split">
+            <div className="flow-card">
+              <div className="flow-tag">PT, Marketing nếu có bán</div>
+              <div className="set-head">
+                <div><b>Hoa hồng Sale PT</b><p className="hint-muted">Quỹ = doanh số gói PT x tỷ lệ bậc.</p></div>
+                <div className="set-share">
                   <Field label="Nhận liền khi ký (%)" htmlFor="ps-imm"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
                   <Field label="Chia theo buổi dạy (%)" htmlFor="ps-ses"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
                 </div>
-                <TierEditor bare title="Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
               </div>
-              <div className="flow-card">
-                <div className="flow-tag">Chỉ PT</div>
-                <b>Hoa hồng lớp nhóm</b>
-                <p className="hint-muted">Tính theo số buổi đứng lớp thực tế.</p>
-                <Field label="Đơn giá mỗi buổi" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
-                <hr className="set-sep" />
-                <b>Phạt đi trễ, vi phạm</b>
-                <p className="hint-muted">Nhập theo từng tháng ở tab Bảng lương, trừ trực tiếp vào thực nhận.</p>
+              <TierEditor bare title="Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
+            </div>
+            <div className="flow-card">
+              <div className="flow-tag">Riêng Marketing</div>
+              <b>Hoa hồng doanh số Member</b>
+              <p className="hint-muted">Tính theo tổng doanh số Member của cả phòng trong tháng.</p>
+              <TierEditor bare title="Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
+            </div>
+            <div className="flow-card">
+              <div className="flow-tag">Chỉ PT</div>
+              <b>Hoa hồng lớp nhóm</b>
+              <p className="hint-muted">Tính theo số buổi đứng lớp thực tế.</p>
+              <Field label="Đơn giá mỗi buổi" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
+              <p className="hint-muted">Ví dụ: dạy 10 buổi nhận {fmtMoney(10 * settings.classRate)}.</p>
+            </div>
+            <div className="flow-card">
+              <div className="flow-tag">Nhân viên chính thức</div>
+              <b>Bảo hiểm NLĐ</b>
+              <p className="hint-muted">BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%</p>
+              <div className="flow-split">
+                <Field label="Tỷ lệ (% mức đóng)" htmlFor="ps-ins"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
+                <Field label="Mức lương đóng (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
               </div>
-              <div className="flow-card">
-                <div className="flow-tag">Không tính giảm trừ</div>
-                <b>Thuế TNCN</b>
-                <p className="hint-muted">Nhân viên chính thức nộp số cố định, PT Parttime nộp theo % tổng thu nhập.</p>
-                <div className="flow-split">
-                  <Field label="Chính thức: cố định (đồng/tháng)" htmlFor="ps-ftax"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
-                  <Field label="PT Parttime (% thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
-                </div>
+            </div>
+            <div className="flow-card">
+              <div className="flow-tag">Không tính giảm trừ</div>
+              <b>Thuế TNCN</b>
+              <p className="hint-muted">Nhân viên chính thức nộp số cố định, PT Parttime nộp theo % tổng thu nhập.</p>
+              <div className="flow-split">
+                <Field label="Chính thức: cố định (đồng/tháng)" htmlFor="ps-ftax"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
+                <Field label="PT Parttime (% thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
               </div>
             </div>
           </div>
