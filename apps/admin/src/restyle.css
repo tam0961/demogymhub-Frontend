@@ -570,3 +570,6 @@
 .bot-box { padding: 10px 12px; gap: 6px; }
 .bot-box .field, .bot-box .form-grid { gap: 4px; }
 .panel-head + .panel-body > .bot-boxes:first-child { margin-top: -10px; }
+.bot-box-wide { grid-column: 1 / -1; }
+.bot-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
+@media (max-width: 900px) { .bot-fields { grid-template-columns: minmax(0, 1fr); } }

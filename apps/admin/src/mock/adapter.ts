@@ -81,6 +81,7 @@ const botCfg = {
   pt_tpl_default: { today: 'Báo ca hôm nay {list}', missing: 'Nhắc báo ca {date} {names}', off: 'Nhắc lịch off {bot}', tomorrow: 'Ca lớp nhóm {dow} {date} {list}' } as Record<string, string>,
   shoot_tpl: { form: 'Đăng ký quay tuần {week} {list}', remind: 'Nhắc lịch quay {when} {list} {status}', confirmed: 'Emma xác nhận tuần {week} {list}{missing}' } as Record<string, string>,
   shoot_tpl_default: { form: 'Đăng ký quay tuần {week} {list}', remind: 'Nhắc lịch quay {when} {list} {status}', confirmed: 'Emma xác nhận tuần {week} {list}{missing}' } as Record<string, string>,
+  report_on: false, report_script_url: '', report_ready: false, report_last: null as { month: string; url: string; at: string } | null,
   clean_on: false, clean_group: '', shoot_on: false, shoot_group: '', shoot_boss: 'emma',
   clean_tpl_default: { morning: 'Checklist Ca Sáng', afternoon: 'Checklist Ca Chiều', leaf: 'Lau lá cây ngày {date}', hourly: 'Nhắc vệ sinh định kỳ', done: '{name} đã xác nhận xong {ca} lúc {time}', late: '{ca} quá hạn xác nhận ({deadline})' } as Record<string, string>,
   clean_tpl: { morning: 'Checklist Ca Sáng', afternoon: 'Checklist Ca Chiều', leaf: 'Lau lá cây ngày {date}', hourly: 'Nhắc vệ sinh định kỳ', done: '{name} đã xác nhận xong {ca} lúc {time}', late: '{ca} quá hạn xác nhận ({deadline})' } as Record<string, string>,
@@ -1647,13 +1648,19 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/zalo/run-reminders') return ok({ sent: 2 })
   if (url === '/zalo/bot/config' && method === 'get') return ok(botCfg)
   if (url === '/zalo/bot/config' && method === 'put') {
-    const b = body as { enabled: boolean; token?: string; bot_name: string; pt_group: string; branch_id: string; group_trainer: string; group_windows: string; clean_on?: boolean; clean_group?: string; clean_tpl?: Record<string, string>; shoot_on?: boolean; shoot_group?: string; shoot_boss?: string; pt_tpl?: Record<string, string>; shoot_tpl?: Record<string, string> }
+    const b = body as { enabled: boolean; token?: string; bot_name: string; pt_group: string; branch_id: string; group_trainer: string; group_windows: string; clean_on?: boolean; clean_group?: string; clean_tpl?: Record<string, string>; shoot_on?: boolean; shoot_group?: string; shoot_boss?: string; pt_tpl?: Record<string, string>; shoot_tpl?: Record<string, string>; report_on?: boolean; report_script_url?: string }
+    if (b.report_script_url !== undefined) botCfg.report_script_url = b.report_script_url
+    botCfg.report_ready = !!botCfg.report_script_url
+    if (b.report_on !== undefined) botCfg.report_on = b.report_on && botCfg.report_ready
     if (b.enabled && ((!botCfg.has_token && !b.token) || !b.pt_group || !b.branch_id)) fail(config, 400, 'BOT_INCOMPLETE', 'Cần token, nhóm PT và chi nhánh để bật bot')
     if (b.token) { botCfg.has_token = true; botCfg.bot_label = 'Bot AI TH Gym' }
     Object.assign(botCfg, { enabled: b.enabled, bot_name: b.bot_name, pt_group: b.pt_group, branch_id: b.branch_id, group_trainer: b.group_trainer, group_windows: b.group_windows, clean_on: b.clean_on ?? botCfg.clean_on, clean_group: b.clean_group ?? botCfg.clean_group, clean_tpl: b.clean_tpl ? { ...botCfg.clean_tpl_default, ...b.clean_tpl } : botCfg.clean_tpl, pt_tpl: b.pt_tpl ? { ...botCfg.pt_tpl_default, ...b.pt_tpl } : botCfg.pt_tpl, shoot_tpl: b.shoot_tpl ? { ...botCfg.shoot_tpl_default, ...b.shoot_tpl } : botCfg.shoot_tpl, shoot_on: b.shoot_on ?? botCfg.shoot_on, shoot_group: b.shoot_group ?? botCfg.shoot_group, shoot_boss: b.shoot_boss ?? botCfg.shoot_boss })
     if (b.enabled) botCfg.state.lastPollAt = new Date().toISOString()
     return ok(botCfg)
   }
+  if (url === '/zalo/bot/report-script') return ok({ code: ["const SECRET = 'mock';", 'function doPost(e) {}'].join(String.fromCharCode(10)) })
+  if (url === '/zalo/bot/report-preview') return ok(new Blob(['%PDF-1.4'], { type: 'application/pdf' }))
+  if (url === '/zalo/bot/report-send') { botCfg.report_last = { month: '2026-10', url: 'https://drive.google.com/file/d/mock/view', at: new Date().toISOString() }; return ok({ month: '2026-10', url: botCfg.report_last.url }) }
   if (url === '/zalo/bot/check' || url === '/zalo/bot/send-test' || url === '/zalo/bot/send-test-clean' || url === '/zalo/bot/send-test-shoot') return ok({ ok: true, message: 'ok' })
   if (url === '/contracts/pt-staff') return ok([{ id: 'u-pt1', name: 'Vũ Bảo Khánh' }, { id: 'u-pt2', name: 'Ngô Thị Huyền Trang' }, { id: 'u-pt3', name: 'Thịnh' }])
   if (/^\/contracts\/[^/]+\/staff$/.test(url) && method === 'patch') return ok({})
