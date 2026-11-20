@@ -569,3 +569,4 @@
 .bot-boxes { margin: 0 0 8px; gap: 10px; align-items: stretch; }
 .bot-box { padding: 10px 12px; gap: 6px; }
 .bot-box .field, .bot-box .form-grid { gap: 4px; }
+.panel-head + .panel-body > .bot-boxes:first-child { margin-top: -10px; }

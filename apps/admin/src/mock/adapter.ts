@@ -76,7 +76,7 @@ const znsLogs = [
   { id: 'zl2', event: 'new_contract', phone: '84903000222', status: 'failed', error: '-118 user not found' as string | null, created_at: new Date(Date.now() - 7200_000).toISOString() },
 ]
 const botCfg = {
-  enabled: false, has_token: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: 'Thịnh', group_windows: '06:30-07:45, 20:00-21:15',
+  enabled: false, has_token: false, bot_label: '', bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: 'Thịnh', group_windows: '06:30-07:45, 20:00-21:15',
   pt_tpl: { today: 'Báo ca hôm nay {list}', missing: 'Nhắc báo ca {date} {names}', off: 'Nhắc lịch off {bot}', tomorrow: 'Ca lớp nhóm {dow} {date} {list}' } as Record<string, string>,
   pt_tpl_default: { today: 'Báo ca hôm nay {list}', missing: 'Nhắc báo ca {date} {names}', off: 'Nhắc lịch off {bot}', tomorrow: 'Ca lớp nhóm {dow} {date} {list}' } as Record<string, string>,
   shoot_tpl: { form: 'Đăng ký quay tuần {week} {list}', remind: 'Nhắc lịch quay {when} {list} {status}', confirmed: 'Emma xác nhận tuần {week} {list}{missing}' } as Record<string, string>,
@@ -1649,7 +1649,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/zalo/bot/config' && method === 'put') {
     const b = body as { enabled: boolean; token?: string; bot_name: string; pt_group: string; branch_id: string; group_trainer: string; group_windows: string; clean_on?: boolean; clean_group?: string; clean_tpl?: Record<string, string>; shoot_on?: boolean; shoot_group?: string; shoot_boss?: string; pt_tpl?: Record<string, string>; shoot_tpl?: Record<string, string> }
     if (b.enabled && ((!botCfg.has_token && !b.token) || !b.pt_group || !b.branch_id)) fail(config, 400, 'BOT_INCOMPLETE', 'Cần token, nhóm PT và chi nhánh để bật bot')
-    if (b.token) botCfg.has_token = true
+    if (b.token) { botCfg.has_token = true; botCfg.bot_label = 'Bot AI TH Gym' }
     Object.assign(botCfg, { enabled: b.enabled, bot_name: b.bot_name, pt_group: b.pt_group, branch_id: b.branch_id, group_trainer: b.group_trainer, group_windows: b.group_windows, clean_on: b.clean_on ?? botCfg.clean_on, clean_group: b.clean_group ?? botCfg.clean_group, clean_tpl: b.clean_tpl ? { ...botCfg.clean_tpl_default, ...b.clean_tpl } : botCfg.clean_tpl, pt_tpl: b.pt_tpl ? { ...botCfg.pt_tpl_default, ...b.pt_tpl } : botCfg.pt_tpl, shoot_tpl: b.shoot_tpl ? { ...botCfg.shoot_tpl_default, ...b.shoot_tpl } : botCfg.shoot_tpl, shoot_on: b.shoot_on ?? botCfg.shoot_on, shoot_group: b.shoot_group ?? botCfg.shoot_group, shoot_boss: b.shoot_boss ?? botCfg.shoot_boss })
     if (b.enabled) botCfg.state.lastPollAt = new Date().toISOString()
     return ok(botCfg)

@@ -61,6 +61,7 @@ interface Cfg {
   clean_group: string
   clean_tpl: Record<string, string>
   clean_tpl_default: Record<string, string>
+  bot_label: string
   pt_tpl: Record<string, string>
   pt_tpl_default: Record<string, string>
   shoot_tpl: Record<string, string>
@@ -156,6 +157,7 @@ export default function ZaloBotPanel() {
           <Field label="Token bot" htmlFor="zb-token" hint={cfg.has_token ? 'Đã lưu, để trống để giữ nguyên.' : undefined}>
             <Input id="zb-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />
           </Field>
+          {cfg.has_token && <div className="cell-sub">Tên bot: <b>{cfg.bot_label || form.bot_name}</b></div>}
         </div>
         <div className="bot-box">
           <h3>Bot báo ca/off</h3>
