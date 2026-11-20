@@ -420,3 +420,14 @@
 .flow-card .table td:nth-child(2) input { width: 120px; }
 .flow-card .table td:nth-child(3) input { width: 64px; }
 .flow-card .table th, .flow-card .table td { white-space: nowrap; padding: 5px 8px; font-size: 13px; }
+
+.flow-cards { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+.flow-card .table-wrap { overflow-x: auto; }
+.flow-card .table { width: 100%; table-layout: auto; }
+.flow-card .table th, .flow-card .table td { padding: 4px 6px; }
+.flow-card .table input { min-width: 0; text-align: right; }
+.flow-card .table td:nth-child(2) input { width: 124px; }
+.flow-card .table td:nth-child(3) input { width: 60px; }
+.flow-card .field .input, .flow-card .input { min-width: 0; }
+.flow-card > .field .input, .flow-card > div > .input { width: 170px; }
+.flow-split .input { width: 84px; max-width: 84px; text-align: right; }
