@@ -431,3 +431,12 @@
 .flow-card .field .input, .flow-card .input { min-width: 0; }
 .flow-card > .field .input, .flow-card > div > .input { width: 170px; }
 .flow-split .input { width: 84px; max-width: 84px; text-align: right; }
+
+.flow-card table.table, .settings-staff table.table { min-width: 0; }
+.flow-card .table-wrap { overflow-x: visible; }
+.flow-card .table th { padding: 6px 6px; }
+.flow-card .table th:first-child, .flow-card .table td:first-child { width: 36px; }
+.flow-cards { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.settings-staff .table td:first-child input { width: 220px; max-width: 100%; }
+.settings-staff .table td:nth-child(2) select { width: 150px; }
+.settings-staff .table td:nth-child(3) input { width: 150px; }
