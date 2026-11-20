@@ -1443,7 +1443,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
         pt_active: { total: 9, members: 9, by_branch: [{ branch: 'Chi nhánh Quận 7', code: 'q7', count: 4 }, { branch: 'Chi nhánh Nhà Bè', code: 'nb', count: 5 }], spark: spark(2) },
       },
       packages: { total: 55, rows: [{ name: 'Member 6 tháng', contracts: 12, share: 0.218 }, { name: 'Member 12 tháng', contracts: 11, share: 0.2 }, { name: 'Member 1 tháng', contracts: 10, share: 0.182 }, { name: 'PT 1:1 - 10 buổi', contracts: 9, share: 0.164 }] },
-      health: { score: 89, parts: [{ key: 'revenue', label: 'Doanh thu', score: 25 }, { key: 'members', label: 'Hội viên', score: 18 }, { key: 'collection', label: 'Thu tiền', score: 24 }, { key: 'attendance', label: 'Vận hành', score: 22 }] },
+      health: { score: 89, grade: 'Rất tốt', parts: [{ key: 'revenue', label: 'Doanh thu', score: 25 }, { key: 'members', label: 'Hội viên', score: 18 }, { key: 'collection', label: 'Thu tiền', score: 24 }, { key: 'operations', label: 'Vận hành', score: 22 }] },
       alerts: { expiring_30: { count: 20, impact: 53000000 }, unsigned: { count: 3, impact: 10000000 }, debt: { count: 4, impact: 5919000 }, refund_pending: { count: 1, impact: 2000000 }, renew_rate: 0.6 },
       recent_contracts: recent,
       expiring_list: contracts.slice(0, 5).map((c, i) => ({ id: c.id, member: { id: c.member.id, name: c.member.name }, package: c.package.name, end_date: c.end_date ?? '', days_left: i + 1, branch: branches.find((b) => b.id === c.branch_id) ?? null })),
@@ -1464,6 +1464,23 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     ]
     const total = items.reduce((s, i) => s + i.revenue, 0)
     return ok({ days: Number(config.params?.days ?? 30), total, groups: [{ key: 'gym', revenue: items.filter((i) => i.group === 'gym').reduce((s, i) => s + i.revenue, 0) }, { key: 'pt', revenue: items.filter((i) => i.group === 'pt').reduce((s, i) => s + i.revenue, 0) }], items })
+  }
+  if (url === '/reports/health') {
+    need('reports.view')
+    return ok({ score: 72, grade: 'Tốt', renew_rate: null, parts: [{ key: 'revenue', label: 'Doanh thu', score: 20.8 }, { key: 'members', label: 'Hội viên', score: 17.5 }, { key: 'collection', label: 'Thu tiền', score: 22.1 }, { key: 'operations', label: 'Vận hành', score: 11.6 }] })
+  }
+  if (url === '/reports/alerts') {
+    need('reports.view')
+    return ok([
+      { key: 'expiring_30', label: 'Hợp đồng hết hạn trong 30 ngày', count: 14, impact: 38500000, detail: '5 hội viên bỏ tập hơn 14 ngày', tone: 'warn' },
+      { key: 'debt', label: 'Hợp đồng còn nợ', count: 4, impact: 5900000, detail: '1 hợp đồng quá hạn', tone: 'bad' },
+      { key: 'unsigned', label: 'Hợp đồng chưa ký hoặc chưa kích hoạt', count: 2, impact: 3200000, detail: '', tone: 'warn' },
+    ])
+  }
+  if (url === '/reports/capacity') {
+    need('reports.view')
+    const heatmap = Array.from({ length: 7 }, (_, d) => Array.from({ length: 24 }, (_, h) => (h >= 6 && h <= 21 ? ((d + 1) * (h % 5) * 2) % 17 : 0)))
+    return ok({ days: 30, total_checkins: heatmap.flat().reduce((s, x) => s + x, 0), avg_per_day: 21.4, heatmap, peak: { from_hour: 17, to_hour: 19, count: 96 }, pt_funnel: { booked: 40, attended: 31, no_show: 5, cancelled: 4, completion_rate: 0.775 }, day_tickets: { count: 6, amount: 600000 } })
   }
   if (url === '/reports/contract-progress') {
     need('reports.view')

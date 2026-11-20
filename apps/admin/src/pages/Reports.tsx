@@ -1,3 +1,4 @@
+import { gradeTone } from './OpsStats'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -18,7 +19,7 @@ interface Business {
   collected: { total: number; rows: Row[] }
   cards: { member_active: Card; expiring_7: Card; pt_active: Card }
   packages: { total: number; rows: { name: string; contracts: number; share: number }[] }
-  health: { score: number; parts: { key: string; label: string; score: number }[] }
+  health: { score: number; grade: string; parts: { key: string; label: string; score: number }[] }
   alerts: {
     expiring_30: { count: number; impact: number }
     unsigned: { count: number; impact: number }
@@ -209,7 +210,7 @@ export default function Reports() {
   if (!d) return <div className="loading">Đang tải...</div>
 
   const A = d.alerts
-  const grade = d.health.score >= 80 ? { label: 'Rất tốt', tone: 'ok' as ChipTone } : d.health.score >= 60 ? { label: 'Tốt', tone: 'ok' as ChipTone } : d.health.score >= 40 ? { label: 'Cần chú ý', tone: 'warn' as ChipTone } : { label: 'Cần xử lý', tone: 'bad' as ChipTone }
+  const grade = { label: d.health.grade, tone: gradeTone(d.health.grade) }
   const gymColor: Record<string, string> = { gym: 'var(--c1)', pt: 'var(--c2)' }
   const svcLabel: Record<string, string> = { gym: 'Gym', pt: 'PT' }
   const period = mode === 'month' ? `tháng ${month}/${year}` : `năm ${year}`
