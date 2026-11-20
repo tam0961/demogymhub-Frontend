@@ -63,6 +63,7 @@ interface Cfg {
   clean_tpl: Record<string, string>
   clean_tpl_default: Record<string, string>
   bot_label: string
+  pt_on: boolean
   report_on: boolean
   report_script_url: string
   report_ready: boolean
@@ -82,14 +83,14 @@ export default function ZaloBotPanel() {
   const toast = useToast()
   const [cfg, setCfg] = useState<Cfg | null>(null)
   const [token, setToken] = useState('')
-  const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '', clean_on: false, clean_group: '', clean_tpl: {} as Record<string, string>, pt_tpl: {} as Record<string, string>, shoot_tpl: {} as Record<string, string>, report_on: false, report_script_url: '', shoot_on: false, shoot_group: '', shoot_boss: 'emma' })
+  const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '', clean_on: false, clean_group: '', clean_tpl: {} as Record<string, string>, pt_tpl: {} as Record<string, string>, shoot_tpl: {} as Record<string, string>, pt_on: true, report_on: false, report_script_url: '', shoot_on: false, shoot_group: '', shoot_boss: 'emma' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [scriptCode, setScriptCode] = useState('')
   const [tplOpen, setTplOpen] = useState(false)
   const [tplTab, setTplTab] = useState<TplGroup>('pt')
   const [draft, setDraft] = useState<Record<TplGroup, Record<string, string>>>({ pt: {}, clean: {}, shoot: {} })
-  const [offAsk, setOffAsk] = useState<'main' | 'clean' | 'shoot' | 'report' | null>(null)
+  const [offAsk, setOffAsk] = useState<'main' | 'pt' | 'clean' | 'shoot' | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -100,7 +101,7 @@ export default function ZaloBotPanel() {
         branch_id: data.data.branch_id || (user?.branches.length === 1 ? user.branches[0].id : ''),
         group_trainer: data.data.group_trainer, group_windows: data.data.group_windows,
         clean_on: data.data.clean_on, clean_group: data.data.clean_group, clean_tpl: { ...data.data.clean_tpl }, pt_tpl: { ...data.data.pt_tpl }, shoot_tpl: { ...data.data.shoot_tpl },
-        report_on: data.data.report_on, report_script_url: data.data.report_script_url,
+        pt_on: data.data.pt_on, report_on: data.data.report_on, report_script_url: data.data.report_script_url,
         shoot_on: data.data.shoot_on, shoot_group: data.data.shoot_group, shoot_boss: data.data.shoot_boss,
       })
     } catch (e) {
@@ -110,9 +111,9 @@ export default function ZaloBotPanel() {
   useEffect(() => { load() }, [load])
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }))
-  const FIELD = { main: 'enabled', clean: 'clean_on', shoot: 'shoot_on', report: 'report_on' } as const
-  const OFF_TEXT = { main: 'Bot sẽ ngừng nhận tin và ngừng gửi nhắc ở tất cả các nhóm.', clean: 'Bot sẽ ngừng gửi checklist và nhắc vệ sinh vào nhóm vệ sinh.', shoot: 'Bot sẽ ngừng nhắc đăng ký và nhắc lịch quay trong nhóm quay.', report: 'Hệ thống sẽ ngừng gửi báo cáo tổng hợp tháng vào nhóm PT & Sale.' }
-  const flip = (kind: 'main' | 'clean' | 'shoot' | 'report', on: boolean) => {
+  const FIELD = { main: 'enabled', pt: 'pt_on', clean: 'clean_on', shoot: 'shoot_on' } as const
+  const OFF_TEXT = { main: 'Bot sẽ ngừng nhận tin và ngừng gửi nhắc ở tất cả các nhóm.', clean: 'Bot sẽ ngừng gửi checklist và nhắc vệ sinh vào nhóm vệ sinh.', shoot: 'Bot sẽ ngừng nhắc đăng ký và nhắc lịch quay trong nhóm quay.', pt: 'Bot sẽ ngừng đọc tin báo ca, lịch off và ngừng nhắc trong nhóm PT & Sale.' }
+  const flip = (kind: 'main' | 'pt' | 'clean' | 'shoot', on: boolean) => {
     if (on) set({ [FIELD[kind]]: true })
     else setOffAsk(kind)
   }
@@ -201,7 +202,10 @@ export default function ZaloBotPanel() {
           {cfg.has_token && <div className="cell-sub">Tên bot: <b>{cfg.bot_label || form.bot_name}</b></div>}
         </div>
         <div className="bot-box">
-          <h3>Nhóm PT & Sale</h3>
+          <div className="bot-head">
+            <h3>Nhóm PT & Sale</h3>
+            <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot nhóm PT và Sale" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.pt_on ? 'on' : 'off'} onChange={(v) => flip('pt', v === 'on')} />
+          </div>
           <Field label="Mã nhóm PT" htmlFor="zb-group" hint="Nhắn tin tag bot trong nhóm, nhóm sẽ hiện ở dưới.">
             <div className="bot-row">
               <Input id="zb-group" value={form.pt_group} onChange={(e) => set({ pt_group: e.target.value })} />
@@ -252,28 +256,26 @@ export default function ZaloBotPanel() {
           </div>
         )}
         </div>
-        <div className="bot-box bot-box-wide">
-          <div className="bot-head">
-            <h3>Báo cáo tháng</h3>
-            <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt báo cáo tháng" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.report_on ? 'on' : 'off'} onChange={(v) => flip('report', v === 'on')} />
-          </div>
-          <p className="cell-sub">7:00 ngày 1 hằng tháng: tạo báo cáo tổng hợp tháng trước thành file PDF, đưa lên Google Drive của bạn và gửi liên kết vào nhóm PT & Sale. Kết nối bằng một đoạn Apps Script, không cần Client ID hay token.</p>
-          <Field label="Địa chỉ Web app Apps Script" htmlFor="zb-rurl" hint="Dán địa chỉ sau khi triển khai, dạng https://script.google.com/macros/s/.../exec">
-            <Input id="zb-rurl" value={form.report_script_url} onChange={(e) => set({ report_script_url: e.target.value })} />
-          </Field>
-          {cfg.report_last && <div className="cell-sub">Báo cáo gần nhất: tháng {cfg.report_last.month}. <a href={cfg.report_last.url} target="_blank" rel="noreferrer">Mở file</a></div>}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <Button type="button" onClick={openScript}>Lấy mã Apps Script</Button>
-            <Button type="button" onClick={reportPreview}>Tải báo cáo thử</Button>
-            <Button type="button" disabled={!cfg.report_ready} onClick={reportSend}>Gửi ngay</Button>
-          </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 10 }}>
+        <Button type="button" onClick={() => { setDraft({ pt: { ...form.pt_tpl }, clean: { ...form.clean_tpl }, shoot: { ...form.shoot_tpl } }); setTplOpen(true) }}>Mẫu tin</Button>
+        <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
+        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
+      </div>
+      <div className="bot-box" style={{ marginTop: 10 }}>
+        <h3>Báo cáo tháng</h3>
+        <p className="cell-sub">7:00 ngày 1 hằng tháng: tạo báo cáo tổng hợp tháng trước thành file PDF, đưa lên Google Drive của bạn và gửi liên kết vào nhóm PT & Sale. Kết nối bằng một đoạn Apps Script, không cần Client ID hay token. Dán địa chỉ Web app và bấm Lưu báo cáo là báo cáo tự chạy, xóa địa chỉ để tắt.</p>
+        <Field label="Địa chỉ Web app Apps Script" htmlFor="zb-rurl" hint="Dán địa chỉ sau khi triển khai, dạng https://script.google.com/macros/s/.../exec">
+          <Input id="zb-rurl" value={form.report_script_url} onChange={(e) => set({ report_script_url: e.target.value })} />
+        </Field>
+        {cfg.report_last && <div className="cell-sub">Báo cáo gần nhất: tháng {cfg.report_last.month}. <a href={cfg.report_last.url} target="_blank" rel="noreferrer">Mở file</a></div>}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu báo cáo'}</Button>
+          <Button type="button" onClick={openScript}>Lấy mã Apps Script</Button>
+          <Button type="button" onClick={reportPreview}>Tải báo cáo thử</Button>
+          <Button type="button" disabled={!cfg.report_ready} onClick={reportSend}>Gửi ngay</Button>
         </div>
       </div>
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-          <Button type="button" onClick={() => { setDraft({ pt: { ...form.pt_tpl }, clean: { ...form.clean_tpl }, shoot: { ...form.shoot_tpl } }); setTplOpen(true) }}>Mẫu tin</Button>
-          <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
-          <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
-        </div>
     </Panel>
     {scriptCode && (
       <Modal title="Kết nối Google Drive bằng Apps Script" onClose={() => setScriptCode('')} footer={<><Button onClick={() => { navigator.clipboard?.writeText(scriptCode).then(() => toast('Đã sao chép mã')).catch(() => {}) }}>Sao chép mã</Button><Button variant="primary" onClick={() => setScriptCode('')}>Đóng</Button></>}>
