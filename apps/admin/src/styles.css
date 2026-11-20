@@ -482,3 +482,8 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .delta-flat { color: var(--muted); font-weight: 600; }
 
 .scan-paused { background: var(--warn); }
+
+.pw-wrap { position: relative; }
+.pw-wrap .input { padding-right: 44px; }
+.pw-eye { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: none; border: 0; color: var(--muted); cursor: pointer; border-radius: var(--r-md); }
+.pw-eye:hover { color: var(--ink); }

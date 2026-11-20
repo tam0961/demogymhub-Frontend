@@ -17,6 +17,7 @@ export default function Login() {
   const loc = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -48,7 +49,16 @@ export default function Login() {
           <Input id="email" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="username" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Mật khẩu" htmlFor="password">
-          <Input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <div className="pw-wrap">
+            <Input id="password" type={showPw ? 'text' : 'password'} autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <button type="button" className="pw-eye" aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'} aria-pressed={showPw} onClick={() => setShowPw((v) => !v)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                <circle cx="12" cy="12" r="3" />
+                {showPw && <path d="M3 3l18 18" />}
+              </svg>
+            </button>
+          </div>
         </Field>
         <Button variant="primary" className="btn-block" type="submit" disabled={busy}>{busy ? 'Đang đăng nhập...' : 'Đăng nhập'}</Button>
         <div className="link-row"><Link to="/forgot-password">Quên mật khẩu?</Link></div>
