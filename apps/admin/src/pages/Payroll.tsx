@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { fmtMoney } from '../lib/format'
-import { POSITIONS, POSITION_LABEL, type SimPosition, currentMonth, pct, ptSplit, tierLine } from '../lib/payroll'
+import { POSITIONS, POSITION_LABEL, type SimPosition, currentMonth, pct, } from '../lib/payroll'
 import { usePermission } from '../context/usePermission'
 import { useBranch } from '../context/BranchContext'
 import { ConfirmDialog } from '../components/Dialogs'
@@ -26,6 +26,15 @@ function NumInput({ id, value, onChange, label }: { id?: string; value: number; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
   return <Input id={id} aria-label={label} inputMode="decimal" value={text} onChange={(e) => { setText(e.target.value); onChange(parseNum(e.target.value)) }} />
+}
+
+function PercentInput({ id, value, onChange }: { id?: string; value: number; onChange: (n: number) => void }) {
+  const [text, setText] = useState(String(Math.round(value * 100)))
+  useEffect(() => {
+    if (Math.round(parseNum(text)) !== Math.round(value * 100)) setText(String(Math.round(value * 100)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+  return <Input id={id} inputMode="numeric" value={text} onChange={(e) => { const t = e.target.value.replace(/\D/g, ''); setText(t); onChange(Math.min(100, Number(t) || 0) / 100) }} />
 }
 
 const positionDefaults = (position: PayrollPosition): Partial<PayrollProfile> => {
@@ -257,7 +266,7 @@ function DetailModal({ row, month, locked, canManage, onClose, onSaved }: { row:
   )
 }
 
-function TierEditor({ title, tiers, onChange, split, resizable, disabled }: { title: string; tiers: PayrollTier[]; onChange: (t: PayrollTier[]) => void; split?: { immediate: number; session: number }; resizable?: boolean; disabled?: boolean }) {
+function TierEditor({ title, tiers, onChange, resizable, disabled }: { title: string; tiers: PayrollTier[]; onChange: (t: PayrollTier[]) => void; resizable?: boolean; disabled?: boolean }) {
   const set = (i: number, patch: Partial<PayrollTier>) => onChange(tiers.map((t, k) => (k === i ? { ...t, ...patch } : t)))
   return (
     <div style={{ marginBottom: 16 }}>
@@ -269,8 +278,6 @@ function TierEditor({ title, tiers, onChange, split, resizable, disabled }: { ti
               <th>Bậc</th>
               <th className="num">Đến (đồng)</th>
               <th className="num">Tỷ lệ %</th>
-              {split && <th className="num">Nhận liền / chia buổi</th>}
-              <th>Mô tả</th>
             </tr>
           </thead>
           <tbody>
@@ -285,8 +292,6 @@ function TierEditor({ title, tiers, onChange, split, resizable, disabled }: { ti
                       : <MoneyInput aria-label={`${title} bậc ${i + 1} đến`} disabled={disabled} value={t.upTo ?? ''} onValueChange={(d) => set(i, { upTo: d ? Number(d) : null })} placeholder="0 ₫" />}
                   </td>
                   <td className="num"><NumInput label={`${title} bậc ${i + 1} tỷ lệ`} value={t.rate} onChange={(n) => set(i, { rate: n })} /></td>
-                  {split && <td className="num">{pct(ptSplit(t.rate, split.immediate, split.session).immediate)} / {pct(ptSplit(t.rate, split.immediate, split.session).session)}</td>}
-                  <td className="cell-sub">{tierLine(tiers, i)}</td>
                 </tr>
               )
             })}
@@ -356,7 +361,6 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
     }
   }
 
-  const split = useMemo(() => (settings ? { immediate: settings.ptImmediateShare, session: settings.ptSessionShare } : undefined), [settings])
   const set = (patch: Partial<PayrollSettings>) => setSettings((s) => (s ? { ...s, ...patch } : s))
   const disabled = !canManage
 
@@ -404,12 +408,12 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
           <Panel title="Bảng tỷ lệ" note="Hoa hồng lũy tiến từng phần theo doanh số thực thu trong tháng">
             <div className="tier-grid">
             <TierEditor title="Bảng 1: Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
-            <TierEditor title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} split={split} disabled={disabled} />
+            <TierEditor title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
             <TierEditor title="Bảng 4: Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
             </div>
-            <div className="form-grid">
-              <Field label="Gói PT: phần nhận liền (0 đến 1)" htmlFor="ps-imm" hint="Mặc định 0,4: trả ngay trong tháng ký hợp đồng"><NumInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
-              <Field label="Gói PT: phần chia theo buổi (0 đến 1)" htmlFor="ps-ses" hint="Mặc định 0,6: chia đều cho số buổi của gói"><NumInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
+            <div className="form-grid compact-form">
+              <Field label="Gói PT: nhận liền (%)" htmlFor="ps-imm" hint="Mặc định 40%: trả ngay trong tháng ký hợp đồng"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
+              <Field label="Gói PT: chia theo buổi (%)" htmlFor="ps-ses" hint="Mặc định 60%: chia đều cho số buổi của gói"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
               <Field label="Đơn giá mỗi buổi lớp nhóm" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
               <Field label="Bảo hiểm NLĐ (% mức đóng)" htmlFor="ps-ins" hint="BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
               <Field label="Mức lương đóng bảo hiểm (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>

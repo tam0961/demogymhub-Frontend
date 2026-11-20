@@ -378,3 +378,10 @@
 .tier-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-bottom: 8px; }
 .tier-grid .table th, .tier-grid .table td { padding: 5px 8px; font-size: 13px; }
 .tier-grid h4 { font-size: 13px; }
+
+.tier-grid .table-wrap { overflow-x: visible; }
+.tier-grid .table td:nth-child(2) input { width: 120px; }
+.tier-grid .table td:nth-child(3) input { width: 64px; }
+.tier-grid .table th, .tier-grid .table td { white-space: nowrap; }
+.compact-form { grid-template-columns: repeat(auto-fill, minmax(200px, 240px)); }
+.compact-form .input { max-width: 200px; }
