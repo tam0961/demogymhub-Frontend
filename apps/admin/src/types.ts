@@ -122,6 +122,9 @@ export interface Contract {
   discount: number
   paid_amount: number
   debt_amount: number
+  due_date?: string | null
+  overdue_days?: number
+  is_deposit?: boolean
   start_date: string | null
   end_date: string | null
   sessions_total: number | null
@@ -186,7 +189,7 @@ export interface SessionRow { id: string; device?: string | null; user_agent?: s
 
 export interface TodayTasks {
   awaiting_signature: { count: number; items: { id: string; code: string; member_name: string }[] }
-  unpaid: { count: number; total_debt: number; items: { id: string; code: string; member_name: string; debt_amount: number }[] }
+  unpaid: { count: number; total_debt: number; items: { id: string; code: string; member_name: string; debt_amount: number; due_date?: string | null; overdue_days?: number }[] }
   expiring_in_2_days: { count: number; items: { id: string; code: string; member_name: string; end_date: string }[] }
   pending_refunds: { count: number; items: { id: string; contract_code: string; amount: number }[] }
 }

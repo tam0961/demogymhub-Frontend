@@ -43,6 +43,7 @@ export default function Debt() {
     { key: 'branch', header: 'Chi nhánh', render: (c) => <BranchTag branch={c.branch} /> },
     { key: 'total', header: 'Giá trị', numeric: true, sortValue: (c) => c.total_amount, render: (c) => fmtMoney(c.total_amount) },
     { key: 'paid', header: 'Đã thu', numeric: true, sortValue: (c) => c.paid_amount, render: (c) => fmtMoney(c.paid_amount) },
+    { key: 'due', header: 'Hạn đóng', numeric: true, sortValue: (c) => c.due_date ?? '', render: (c) => c.due_date ? <>{fmtDate(c.due_date)}{(c.overdue_days ?? 0) > 0 && <> <Chip tone="bad">quá hạn {c.overdue_days} ngày</Chip></>}</> : '-' },
     { key: 'debt', header: 'Còn nợ', numeric: true, sortValue: (c) => c.debt_amount, render: (c) => <span className="text-bad cell-main">{fmtMoney(c.debt_amount)}</span> },
     {
       key: 'end', header: 'Hết hạn', numeric: true, sortValue: (c) => c.end_date,

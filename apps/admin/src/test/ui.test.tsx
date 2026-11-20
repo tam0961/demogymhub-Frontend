@@ -121,6 +121,10 @@ describe('buildTasks', () => {
     expect(rows[1].detail).toContain('3.954.000 ₫')
     expect(buildTasks(null)).toEqual([])
   })
+  it('counts overdue debts in the unpaid row', () => {
+    const rows = buildTasks({ ...t, unpaid: { count: 2, total_debt: 5000000, items: [{ id: 'c', code: 'HD3', member_name: 'Cường', debt_amount: 3000000, due_date: '2026-11-01', overdue_days: 9 }, { id: 'd', code: 'HD5', member_name: 'Dũng', debt_amount: 2000000, due_date: '2026-12-01', overdue_days: 0 }] } })
+    expect(rows.find((r) => r.key === 'unpaid')!.detail).toContain('1 quá hạn')
+  })
   it('single awaiting contract opens it directly', () => {
     const one = buildTasks({ ...t, awaiting_signature: { count: 1, items: [{ id: 'z', code: 'HD9', member_name: 'Zed' }] } })
     expect(one[0].to).toBe('/contracts/z')

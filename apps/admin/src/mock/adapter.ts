@@ -400,6 +400,8 @@ function addEvent(c: Contract, type: string, by: string, reason: string | null =
 function recalc(c: Contract) {
   c.paid_amount = payments.filter((p) => p.contract_id === c.id && p.status === 'confirmed').reduce((s, p) => s + p.amount, 0)
   c.debt_amount = Math.max(0, c.total_amount - c.paid_amount)
+  c.is_deposit = c.status !== 'cancelled' && c.total_amount > 0 && c.paid_amount < Math.ceil(c.total_amount * 0.5)
+  if (c.debt_amount === 0) { c.due_date = null; c.overdue_days = 0 }
 }
 function seedContract(memberId: string, packageId: string, status: Contract['status'], paid: number, startOffset: number | null, by = 'Hệ thống') {
   const m = memberOf(memberId)
@@ -408,7 +410,7 @@ function seedContract(memberId: string, packageId: string, status: Contract['sta
   const start = startOffset == null ? null : day(startOffset)
   const c: Contract = {
     id: nid('c'), code: `HD${String(contracts.length + 1).padStart(5, '0')}`, member_id: m.id, package_id: pk.id, branch_id: m.branch_id, status,
-    total_amount: total, discount: 0, paid_amount: 0, debt_amount: total, start_date: start,
+    total_amount: total, discount: 0, paid_amount: 0, debt_amount: total, due_date: day(25), overdue_days: 0, is_deposit: true, start_date: start,
     end_date: start && pk.duration_days ? day(startOffset! + pk.duration_days) : start ? day(startOffset! + 30) : null,
     sessions_total: pk.sessions, sessions_left: pk.sessions, signed_at: status === 'draft' ? null : iso(-10), activated_at: ['active', 'frozen', 'expired'].includes(status) ? iso(-10) : null,
     frozen_until: status === 'frozen' ? day(10) : null, renewed_from_id: null, note: null, created_at: iso(-12),
@@ -1311,6 +1313,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     }
     payments.unshift(p)
     recalc(c!)
+    if (c!.debt_amount > 0) { c!.due_date = day(25); c!.overdue_days = 0 }
     addEvent(c!, 'payment', me.name, null, { amount, method: body.method })
     log(me.email, 'payments.create', c!.code)
     return ok(p)
@@ -1511,7 +1514,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const refunds = payments.filter((p) => p.refund_requested && p.status === 'confirmed' && myBranch(contracts.find((c) => c.id === p.contract_id)?.branch_id ?? ''))
     return ok({
       awaiting_signature: { count: awaiting.length, items: awaiting.slice(0, 5).map((c) => ({ id: c.id, code: c.code, member_name: c.member.name })) },
-      unpaid: { count: unpaid.length, total_debt: unpaid.reduce((s, c) => s + c.debt_amount, 0), items: unpaid.slice(0, 5).map((c) => ({ id: c.id, code: c.code, member_name: c.member.name, debt_amount: c.debt_amount })) },
+      unpaid: { count: unpaid.length, total_debt: unpaid.reduce((s, c) => s + c.debt_amount, 0), items: unpaid.slice(0, 5).map((c) => ({ id: c.id, code: c.code, member_name: c.member.name, debt_amount: c.debt_amount, due_date: c.due_date ?? null, overdue_days: c.overdue_days ?? 0 })) },
       expiring_in_2_days: { count: expiring.length, items: expiring.slice(0, 5).map((c) => ({ id: c.id, code: c.code, member_name: c.member.name, end_date: c.end_date as string })) },
       pending_refunds: { count: refunds.length, items: refunds.slice(0, 5).map((p) => ({ id: p.id, contract_code: contracts.find((c) => c.id === p.contract_id)?.code ?? '', amount: p.amount })) },
     })

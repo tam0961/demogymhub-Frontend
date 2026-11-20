@@ -4,14 +4,14 @@ import { api } from '../lib/api'
 import { daysLeftText, fmtDate, fmtMoney } from '../lib/format'
 import { usePermission } from '../context/usePermission'
 import { MemberAvatar } from './MemberAvatar'
-import { Button } from './ui'
+import { Button, Chip } from './ui'
 
 interface ScanMember {
   id: string; code: string; name: string; phone: string; has_photo: boolean; photo_version: number | null
   package_name: string | null; end_date: string | null; state: 'ok' | 'expired' | 'frozen' | 'not_started' | 'no_package'
   sessions_left: number | null; debt: number
   branch?: { code: string; name: string } | null; contract_id?: string | null; checkin_before?: string | null
-  debt_contract?: { id: string; code: string; amount: number } | null
+  debt_contract?: { id: string; code: string; amount: number; due_date?: string | null; overdue_days?: number } | null
   pt?: { package_name: string; sessions_left: number | null; sessions_total: number | null } | null
 }
 interface ScanItem { id: string; employee_no: string; scanned_at: string; result: 'allowed' | 'denied' | null; reason: string | null; member: ScanMember | null }
@@ -173,8 +173,14 @@ export default function ScanPopup() {
               )}
               <div className="scan-row">
                 <dt>Công nợ</dt>
-                <dd>{m.debt > 0 ? <><span className="scan-debt">{fmtMoney(m.debt)}</span>{m.debt_contract ? ` (${m.debt_contract.code})` : ''}</> : 'Không có'}</dd>
+                <dd>{m.debt > 0 ? <><span className="scan-debt">{fmtMoney(m.debt)}</span>{m.debt_contract ? ` (${m.debt_contract.code})` : ''}{m.debt_contract?.due_date ? ` hạn đóng ${fmtDate(m.debt_contract.due_date)}` : ''}{(m.debt_contract?.overdue_days ?? 0) > 0 && <> <Chip tone="bad">quá hạn {m.debt_contract!.overdue_days} ngày</Chip></>}</> : 'Không có'}</dd>
               </div>
+              {m.debt_contract?.due_date && (
+                <div className="scan-row">
+                  <dt>Hạn thanh toán</dt>
+                  <dd className={(m.debt_contract.overdue_days ?? 0) > 0 ? 'scan-debt' : ''}>{fmtDate(m.debt_contract.due_date)}</dd>
+                </div>
+              )}
             </dl>
             <div className="scan-foot">
               <Button onClick={() => go(`/members?q=${encodeURIComponent(m.code)}`)}>Mở hồ sơ</Button>

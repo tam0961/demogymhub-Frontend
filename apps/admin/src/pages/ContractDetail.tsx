@@ -169,6 +169,7 @@ export default function ContractDetail() {
         <Kpi value={c.bundle_of_id && c.total_amount === 0 ? 'Kèm gói PT' : fmtMoney(c.total_amount)} label="Giá trị" />
         <Kpi value={fmtMoney(c.paid_amount)} label="Đã thu" />
         <Kpi value={<span className={c.debt_amount > 0 ? 'text-bad' : ''}>{fmtMoney(c.debt_amount)}</span>} label="Còn nợ" />
+        {c.debt_amount > 0 && c.due_date && <Kpi value={<span className={(c.overdue_days ?? 0) > 0 ? 'text-bad' : ''}>{fmtDate(c.due_date)}{(c.overdue_days ?? 0) > 0 && <> <Chip tone="bad">quá hạn {c.overdue_days} ngày</Chip></>}</span>} label="Hạn đóng" />}
         {hasHsd(c.package.category) && <Kpi value={c.usage_deadline ? fmtDate(c.usage_deadline) : '-'} label="Hạn sử dụng gói PT" />}
         <Kpi value={c.sessions_total != null ? `${c.sessions_left ?? 0}/${c.sessions_total}` : daysLeftText(c.end_date) || '-'} label={c.sessions_total != null ? 'Số buổi còn' : 'Thời hạn còn lại'} />
       </KpiRow>

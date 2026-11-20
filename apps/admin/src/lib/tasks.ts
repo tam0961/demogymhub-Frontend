@@ -28,7 +28,7 @@ export function buildTasks(t: TodayTasks | null | undefined): TaskRow[] {
   }
   const u = t.unpaid
   if (u.count > 0) {
-    out.push({ key: 'unpaid', tone: 'bad', title: `${u.count} hợp đồng còn nợ`, detail: `Còn thiếu ${fmtMoney(u.total_debt)}: ${names(u.items.map((i) => i.member_name))}`, actionLabel: 'Xem công nợ', to: '/debt' })
+    out.push({ key: 'unpaid', tone: 'bad', title: `${u.count} hợp đồng còn nợ`, detail: `Còn thiếu ${fmtMoney(u.total_debt)}${u.items.some((i) => (i.overdue_days ?? 0) > 0) ? `, ${u.items.filter((i) => (i.overdue_days ?? 0) > 0).length} quá hạn` : ''}: ${names(u.items.map((i) => i.member_name))}`, actionLabel: 'Xem công nợ', to: '/debt' })
   }
   const e = t.expiring_in_2_days
   if (e.count > 0) {

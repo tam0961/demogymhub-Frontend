@@ -72,6 +72,10 @@ export default function Contracts() {
       render: (c) => <><div className="cell-main">{c.bundle_of_id && c.total_amount === 0 ? <span className="hint-muted">Kèm gói PT</span> : fmtMoney(c.total_amount)}</div><div className="cell-sub">{c.last_payment_method ? METHOD_LABEL[c.last_payment_method] : ''}</div></>,
     },
     {
+      key: 'due', header: 'Hạn đóng', numeric: true, sortValue: (c) => c.due_date ?? '',
+      render: (c) => c.debt_amount > 0 && c.due_date ? <><div className="cell-main">{fmtDate(c.due_date)}</div>{(c.overdue_days ?? 0) > 0 && <div className="cell-sub"><Chip tone="bad">quá hạn {c.overdue_days} ngày</Chip></div>}</> : <span className="hint-muted">-</span>,
+    },
+    {
       key: 'debt', header: 'Còn nợ', numeric: true, sortValue: (c) => c.debt_amount,
       render: (c) => (
         <>
