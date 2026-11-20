@@ -309,6 +309,8 @@ export interface PayrollSettings {
   ptSessionShare: number
   classRate: number
   insuranceRate: number
+  insuranceBase: number | null
+  fixedTax: number
   partTimeTaxRate: number
   taxBrackets: PayrollTier[]
   personalDeduction: number | null

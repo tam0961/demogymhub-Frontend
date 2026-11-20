@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { fmtMoney } from '../lib/format'
-import { POSITIONS, POSITION_LABEL, TAX_MODES, TAX_MODE_LABEL, currentMonth, pct, ptSplit, tierLine } from '../lib/payroll'
+import { POSITIONS, POSITION_LABEL, type SimPosition, TAX_MODES, TAX_MODE_LABEL, currentMonth, pct, ptSplit, tierLine } from '../lib/payroll'
 import { usePermission } from '../context/usePermission'
 import { useBranch } from '../context/BranchContext'
 import { ConfirmDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, MoneyInput, PageHeader, Panel, Segmented, Select, Textarea, type Column } from '../components/ui'
+import { PayrollSimulator, PayrollStructure, type PayrollFilter } from './PayrollStructure'
 import type { PayrollPosition, PayrollPreview, PayrollProfile, PayrollRow, PayrollSettings, PayrollStaff, PayrollTaxMode, PayrollTier } from '../types'
 
 const DEFAULT_PROFILE: PayrollProfile = { position: 'other', base_salary: 0, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: false }
@@ -27,18 +28,25 @@ function NumInput({ id, value, onChange, label }: { id?: string; value: number; 
   return <Input id={id} aria-label={label} inputMode="decimal" value={text} onChange={(e) => { setText(e.target.value); onChange(parseNum(e.target.value)) }} />
 }
 
+type PayrollTab = 'sheet' | 'structure' | 'sim' | 'settings'
+
 export default function Payroll() {
   const { can } = usePermission()
-  const [tab, setTab] = useState<'sheet' | 'settings'>('sheet')
+  const [tab, setTab] = useState<PayrollTab>('sheet')
+  const [filter, setFilter] = useState<PayrollFilter>('pt_fulltime')
   const canManage = can('payroll.manage')
+  const simPos: SimPosition = filter === 'all' ? 'pt_fulltime' : filter
   return (
     <>
       <PageHeader
         title="Lương nhân viên"
-        sub="Bảng lương theo tháng và cài đặt tỷ lệ, chỉ chủ xem"
-        action={<Segmented<'sheet' | 'settings'> ariaLabel="Chọn mục" options={[{ value: 'sheet', label: 'Bảng lương' }, { value: 'settings', label: 'Cài đặt lương' }]} value={tab} onChange={setTab} />}
+        sub="Bảng lương theo tháng, cơ cấu tỷ lệ và cài đặt, chỉ chủ xem"
+        action={<Segmented<PayrollTab> ariaLabel="Chọn mục" options={[{ value: 'sheet', label: 'Bảng lương' }, { value: 'structure', label: 'Cơ cấu & Bảng tỷ lệ' }, { value: 'sim', label: 'Tính thử lương' }, { value: 'settings', label: 'Cài đặt lương' }]} value={tab} onChange={setTab} />}
       />
-      {tab === 'sheet' ? <SheetTab canManage={canManage} /> : <SettingsTab canManage={canManage} />}
+      {tab === 'sheet' && <SheetTab canManage={canManage} />}
+      {tab === 'structure' && <PayrollStructure filter={filter} onFilter={setFilter} onSimulate={() => setTab('sim')} />}
+      {tab === 'sim' && <PayrollSimulator position={simPos} onPosition={setFilter} />}
+      {tab === 'settings' && <SettingsTab canManage={canManage} />}
     </>
   )
 }
@@ -407,14 +415,16 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               <Field label="Gói PT: phần nhận liền (0 đến 1)" htmlFor="ps-imm" hint="Mặc định 0,4: trả ngay trong tháng ký hợp đồng"><NumInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
               <Field label="Gói PT: phần chia theo buổi (0 đến 1)" htmlFor="ps-ses" hint="Mặc định 0,6: chia đều cho số buổi của gói"><NumInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
               <Field label="Đơn giá mỗi buổi lớp nhóm" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
-              <Field label="Bảo hiểm NLĐ (% lương cơ bản)" htmlFor="ps-ins"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
+              <Field label="Bảo hiểm NLĐ (% mức đóng)" htmlFor="ps-ins" hint="BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
+              <Field label="Mức lương đóng bảo hiểm (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
+              <Field label="Thuế TNCN cố định (đồng/tháng)" htmlFor="ps-ftax" hint="Nhân viên chính thức, mặc định 0, không giảm trừ"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
               <Field label="Thuế PT Parttime (% tổng thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
             </div>
           </Panel>
 
           <div style={{ height: 16 }} />
-          <Panel title="Thuế lũy tiến" note="Chờ chủ xác nhận biểu thuế trước khi dùng">
-            <div className="view-note" role="note">Chờ chủ xác nhận biểu thuế trước khi dùng. Chưa nhập bậc thuế thì thuế lũy tiến tính 0 và bảng lương báo "chờ biểu thuế".</div>
+          <Panel title="Thuế lũy tiến (tùy chọn)" note="Chỉ dùng khi nhập bậc thuế">
+            <div className="view-note" role="note">Chưa nhập bậc thuế thì nhân viên chọn kiểu "Biểu lũy tiến" bị trừ số thuế cố định ở trên.</div>
             <TierEditor title="Các bậc thuế TNCN" tiers={settings.taxBrackets.length ? settings.taxBrackets : [{ upTo: null, rate: 0 }]} onChange={(t) => set({ taxBrackets: t })} resizable disabled={disabled} />
             <div className="form-grid">
               <Field label="Giảm trừ bản thân (đồng/tháng)" htmlFor="ps-pd"><MoneyInput id="ps-pd" disabled={disabled} value={settings.personalDeduction ?? ''} onValueChange={(d) => set({ personalDeduction: d ? Number(d) : null })} placeholder="Chưa nhập" /></Field>

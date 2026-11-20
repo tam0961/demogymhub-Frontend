@@ -94,6 +94,8 @@ const payrollSettings = {
   ptSessionShare: 0.6,
   classRate: 100000,
   insuranceRate: 10.5,
+  insuranceBase: 5_500_000 as number | null,
+  fixedTax: 0,
   partTimeTaxRate: 10,
   taxBrackets: [] as { upTo: number | null; rate: number }[],
   personalDeduction: null as number | null,
@@ -176,9 +178,9 @@ function payrollRows(month: string) {
     const ptSession = p.position === 'marketing' ? 0 : Math.round(d.taught * 41_000)
     const groupPay = p.position === 'marketing' ? 0 : d.classes * s.classRate
     const gross = p.base_salary + memberCommission + marketing + ptImmediate + ptSession + groupPay
-    const insurance = p.has_insurance ? Math.round((p.base_salary * s.insuranceRate) / 100) : 0
-    const taxPending = p.tax_mode === 'progressive' && s.taxBrackets.length === 0
-    const tax = p.tax_mode === 'flat10' ? Math.round((gross * s.partTimeTaxRate) / 100) : 0
+    const insurance = p.has_insurance ? Math.round(((s.insuranceBase ?? p.base_salary) * s.insuranceRate) / 100) : 0
+    const taxPending = false
+    const tax = p.tax_mode === 'flat10' ? Math.round((gross * s.partTimeTaxRate) / 100) : p.tax_mode === 'progressive' && s.taxBrackets.length === 0 ? s.fixedTax : 0
     return {
       user_id: u.user_id, name: u.name, position: p.position, base_salary: p.base_salary,
       member_sales: d.member, member_commission: memberCommission, marketing_commission: marketing,
