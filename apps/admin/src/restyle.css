@@ -457,3 +457,12 @@
 .ipad-foot { position: fixed; left: 0; right: 0; bottom: 14px; display: flex; justify-content: center; gap: 12px; font-size: 15px; color: var(--muted); }
 .ipad-foot-link { all: unset; cursor: pointer; color: #1f5fbf; text-decoration: underline; }
 .ipad-foot-link:focus-visible { outline: 2px solid var(--brand-deep); outline-offset: 2px; }
+
+.set-wrap { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+.set-formula { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: 10px 14px; color: var(--muted); }
+.set-formula b { color: var(--ink); }
+.set-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+.set-grid .flow-card { background: var(--surface); height: 100%; }
+.set-sep { border: 0; border-top: 1px solid var(--line); margin: 6px 0; width: 100%; }
+@media (max-width: 900px) { .set-grid { grid-template-columns: minmax(0, 1fr); } }
+#ps-insb, #ps-ftax { max-width: 170px; min-width: 150px; }
