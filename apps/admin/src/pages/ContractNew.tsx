@@ -6,6 +6,7 @@ import { METHODS, METHOD_LABEL, PACKAGE_CATEGORIES, PACKAGE_CATEGORY, isPtCatego
 import { BANKS, bankReady, loadBank, transferContent, vietQrUrl } from '../lib/bank'
 import { createIpadSession, getBranchIpad, getIpadSession, ipadUrl, setIpadStage } from '../lib/ipad'
 import { QRImage } from '../components/QRImage'
+import { IpadPairBox } from '../components/IpadPairBox'
 import { PROMO_OPTIONS, addDays, defaultStart, memberBanner, priceHint, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
 import type { ProcessedPhoto } from '../lib/photo'
 import { useAuth } from '../context/AuthContext'
@@ -232,6 +233,11 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   }, [step, ipadToken])
 
   useEffect(() => {
+    if (!ipadToken || !ipadPaired) return
+    return () => { setIpadStage(ipadToken, 'idle', null).catch(() => {}) }
+  }, [ipadToken, ipadPaired])
+
+  useEffect(() => {
     if (!ipadToken || step !== 3) return
     const id = window.setInterval(() => {
       getIpadSession(ipadToken).then((r) => {
@@ -242,8 +248,10 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   }, [ipadToken, step])
 
   const ipadPanel = ipadToken && ipadPaired ? (
-    <div className="ipad-box"><div><div className="cell-main">Đã gửi lên iPad quầy lễ tân</div><div className="hint-muted">Khách thao tác trên iPad đã kết nối.</div></div></div>
+    <div className="ipad-box"><div><div className="cell-main">Đã gửi lên iPad quầy lễ tân</div><div className="hint-muted">Mã QR chuyển khoản và bước ký tên đều hiện trên iPad.</div></div></div>
   ) : ipadToken ? (
+    <>
+      <IpadPairBox branchId={branch} token={null} onChanged={() => { setIpadPaired(false); setIpadToken('') }} />
     <div className="ipad-box">
       <QRImage text={ipadUrl(ipadToken)} size={110} />
       <div>
@@ -252,6 +260,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
         <Button small onClick={() => navigator.clipboard?.writeText(ipadUrl(ipadToken)).then(() => toast('Đã sao chép liên kết iPad')).catch(() => {})}>Sao chép liên kết</Button>
       </div>
     </div>
+    </>
   ) : null
 
   const footer =
