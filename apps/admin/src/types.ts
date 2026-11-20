@@ -374,6 +374,7 @@ export interface PtStatClient {
   sessions_left: number | null
   taught_in_month: number
   end_date: string | null
+  session_pay: number
 }
 export interface PtStatClass { id: string; title: string; start_at: string }
 export interface PtStatSale {
@@ -395,6 +396,9 @@ export interface PtStatRow {
   member_sales: number
   pt_sales: number
   sales: PtStatSale[]
+  class_rate: number
+  group_pay: number
+  session_pay: number
 }
 export interface PtStats { month: string; rows: PtStatRow[] }
 

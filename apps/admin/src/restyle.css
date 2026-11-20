@@ -445,3 +445,6 @@
 .flow-card .table td:nth-child(2) input { width: 146px; }
 .flow-card .table td:nth-child(3) input { width: 64px; }
 .flow-split .input { width: 84px; }
+
+.pt-bar { width: 100%; min-width: 140px; height: 10px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.pt-bar-fill { height: 100%; background: var(--ok); border-radius: 999px; }

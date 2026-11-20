@@ -43,8 +43,21 @@ function PtCard({ row, month }: { row: PtStatRow; month: string }) {
       </button>
       {open && (
         <div id={bodyId} style={{ borderTop: '1px solid var(--line)', padding: '12px 16px', display: 'grid', gap: 16 }}>
+          <section aria-label={`Doanh số của ${row.name}`}>
+            <h3 style={h3}>Doanh số thực thu trong tháng</h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+              <Stat label="Doanh số gói PT" value={fmtMoney(row.pt_sales)} />
+              <Stat label="Doanh số gói member" value={fmtMoney(row.member_sales)} />
+              <Stat label="Tổng doanh số" value={fmtMoney(ptSalesTotal(row))} />
+            </div>
+          </section>
+
           <section aria-label={`Khách hàng đang dạy của ${row.name}`}>
-            <h3 style={h3}>Khách hàng đang dạy</h3>
+            <h3 style={h3}>
+              Khách hàng đang dạy ({row.clients.length})
+              <span className="cell-sub"> - hoa hồng dạy 1-1 đã đạt trong tháng: </span>
+              <b>{fmtMoney(row.session_pay)}</b>
+            </h3>
             {row.clients.length === 0 ? (
               <EmptyState title="Chưa có khách đang dạy" />
             ) : (
@@ -53,24 +66,31 @@ function PtCard({ row, month }: { row: PtStatRow; month: string }) {
                   <thead>
                     <tr>
                       <th>Khách hàng</th>
-                      <th>Mã</th>
                       <th>Gói</th>
-                      <th className="num">Đã dạy tháng này / còn lại</th>
-                      <th className="num">Tổng buổi</th>
+                      <th style={{ minWidth: 180 }}>Tiến trình buổi tập</th>
+                      <th className="num">Hoa hồng dạy đã đạt</th>
                       <th>Hết hạn</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {row.clients.map((c) => (
-                      <tr key={c.contract_id}>
-                        <td>{c.member_name}</td>
-                        <td>{c.member_code}</td>
-                        <td>{c.package_name}</td>
-                        <td className="num">{c.taught_in_month} / {c.sessions_left ?? 0}</td>
-                        <td className="num">{c.sessions_total ?? '-'}</td>
-                        <td>{fmtDate(c.end_date)}</td>
-                      </tr>
-                    ))}
+                    {row.clients.map((c) => {
+                      const total = c.sessions_total ?? 0
+                      const done = total > 0 ? Math.max(0, Math.min(total, total - (c.sessions_left ?? 0))) : 0
+                      const pctDone = total > 0 ? Math.round((done / total) * 100) : 0
+                      return (
+                        <tr key={c.contract_id}>
+                          <td><span className="cell-main">{c.member_name}</span><div className="cell-sub">{c.member_code}</div></td>
+                          <td>{c.package_name}</td>
+                          <td>
+                            <div className="pt-bar" role="progressbar" aria-label={`Tiến trình ${c.member_name}`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={pctDone} title={`${done}/${total} buổi`}>
+                              <div className="pt-bar-fill" style={{ width: `${pctDone}%` }} />
+                            </div>
+                          </td>
+                          <td className="num">{fmtMoney(c.session_pay)}</td>
+                          <td>{fmtDate(c.end_date)}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -78,7 +98,11 @@ function PtCard({ row, month }: { row: PtStatRow; month: string }) {
           </section>
 
           <section aria-label={`Lớp PT nhóm của ${row.name}`}>
-            <h3 style={h3}>Lớp PT nhóm đã dạy ({row.group_classes})</h3>
+            <h3 style={h3}>
+              Lớp PT nhóm đã dạy ({row.group_classes})
+              <span className="cell-sub"> - hoa hồng lớp nhóm: </span>
+              <b>{fmtMoney(row.group_pay)}</b>
+            </h3>
             {row.classes.length === 0 ? (
               <div className="cell-sub">Không có lớp nào trong tháng {month}.</div>
             ) : (
@@ -86,39 +110,6 @@ function PtCard({ row, month }: { row: PtStatRow; month: string }) {
                 {row.classes.map((k) => (
                   <Chip key={k.id}>{k.title} - {fmtDate(k.start_at)}</Chip>
                 ))}
-              </div>
-            )}
-          </section>
-
-          <section aria-label={`Doanh số của ${row.name}`}>
-            <h3 style={h3}>
-              Doanh số bán gói: {fmtMoney(ptSalesTotal(row))}
-              <span className="cell-sub"> (gói member {fmtMoney(row.member_sales)}, gói PT {fmtMoney(row.pt_sales)})</span>
-            </h3>
-            {row.sales.length === 0 ? (
-              <div className="cell-sub">Chưa có khoản thực thu nào trong tháng {month}.</div>
-            ) : (
-              <div className="table-wrap" style={wrap}>
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Khách hàng</th>
-                      <th>Gói</th>
-                      <th>Loại</th>
-                      <th className="num">Thực thu</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {row.sales.map((s) => (
-                      <tr key={s.contract_id}>
-                        <td>{s.member_name}</td>
-                        <td>{s.package_name}</td>
-                        <td>{s.kind === 'pt' ? 'Gói PT' : 'Gói member'}</td>
-                        <td className="num">{fmtMoney(s.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             )}
           </section>

@@ -28,9 +28,9 @@ describe('pt stats', () => {
   it('shows headline numbers collapsed and the tables when expanded', async () => {
     render(<PtStatsSection month="2026-11" />)
     await waitFor(() => expect(screen.getByText('Khánh')).toBeTruthy())
-    expect(screen.queryByText('Khách hàng đang dạy', { selector: 'h3' })).toBeNull()
+    expect(screen.queryByText(/Khách hàng đang dạy/, { selector: 'h3' })).toBeNull()
     fireEvent.click(screen.getAllByRole('button', { expanded: false })[0])
-    expect(screen.getByText('Khách hàng đang dạy', { selector: 'h3' })).toBeTruthy()
+    expect(screen.getByText(/Khách hàng đang dạy/, { selector: 'h3' })).toBeTruthy()
     expect(screen.getByText('Học viên Khánh 1')).toBeTruthy()
   })
 })

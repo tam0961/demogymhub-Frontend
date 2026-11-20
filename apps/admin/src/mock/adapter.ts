@@ -1671,10 +1671,10 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     if (url === '/payroll/pt-stats' && method === 'get') {
       const month = String(params.month ?? '')
       const mk = (id: string, name: string, position: string, n: number) => {
-        const clients = Array.from({ length: n }, (_, i) => ({ contract_id: `${id}-c${i}`, contract_code: `HD${i + 1}`, member_id: `${id}-m${i}`, member_code: `HV${100 + i}`, member_name: `Học viên ${name} ${i + 1}`, package_name: 'PT 1:1 - 20 buổi', sessions_total: 20, sessions_left: 12 - i, taught_in_month: 4 + i, end_date: '2027-02-28' }))
+        const clients = Array.from({ length: n }, (_, i) => ({ contract_id: `${id}-c${i}`, contract_code: `HD${i + 1}`, member_id: `${id}-m${i}`, member_code: `HV${100 + i}`, member_name: `Học viên ${name} ${i + 1}`, package_name: 'PT 1:1 - 20 buổi', sessions_total: 20, sessions_left: 12 - i, taught_in_month: 4 + i, session_pay: (4 + i) * 90_000, end_date: '2027-02-28' }))
         const sales = n ? [{ contract_id: `${id}-s1`, contract_code: 'HD900', member_name: 'Nguyễn Văn Khách', package_name: 'PT 1:1 - 20 buổi', kind: 'pt' as const, amount: 12_000_000 }, { contract_id: `${id}-s2`, contract_code: 'HD901', member_name: 'Lê Thị Mới', package_name: 'MEMBER 3 THÁNG', kind: 'member' as const, amount: 3_000_000 }] : []
         const classes = n > 1 ? [{ id: `${id}-k1`, title: 'PT nhóm', start_at: `${month}-05T18:00:00+07:00` }, { id: `${id}-k2`, title: 'PT nhóm', start_at: `${month}-12T18:00:00+07:00` }] : []
-        return { user_id: id, name, position, clients, sessions_taught: clients.reduce((a, c) => a + c.taught_in_month, 0), group_classes: classes.length, classes, member_sales: sales.filter((x) => x.kind === 'member').reduce((a, x) => a + x.amount, 0), pt_sales: sales.filter((x) => x.kind === 'pt').reduce((a, x) => a + x.amount, 0), sales }
+        return { user_id: id, name, position, clients, sessions_taught: clients.reduce((a, c) => a + c.taught_in_month, 0), group_classes: classes.length, class_rate: 100_000, group_pay: classes.length * 100_000, session_pay: clients.reduce((a, c) => a + c.session_pay, 0), classes, member_sales: sales.filter((x) => x.kind === 'member').reduce((a, x) => a + x.amount, 0), pt_sales: sales.filter((x) => x.kind === 'pt').reduce((a, x) => a + x.amount, 0), sales }
       }
       return ok({ month, rows: [mk('pr-khanh', 'Khánh', 'pt_fulltime', 2), mk('pr-trang', 'Trang', 'pt_fulltime', 1), mk('pr-thinh', 'Thịnh', 'pt_parttime', 0)] })
     }
