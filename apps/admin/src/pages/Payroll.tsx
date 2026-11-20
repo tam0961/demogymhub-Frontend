@@ -9,7 +9,7 @@ import { ConfirmDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, MoneyInput, PageHeader, Panel, Segmented, Select, Textarea, type Column } from '../components/ui'
-import { PayrollSimulator, PayrollStructure, type PayrollFilter } from './PayrollStructure'
+import { PayrollSimulator, type PayrollFilter } from './PayrollStructure'
 import type { PayrollPosition, PayrollPreview, PayrollProfile, PayrollRow, PayrollSettings, PayrollStaff, PayrollTaxMode, PayrollTier } from '../types'
 
 const DEFAULT_PROFILE: PayrollProfile = { position: 'other', base_salary: 0, has_insurance: true, tax_mode: 'progressive', dependents: 0, active: false }
@@ -28,7 +28,7 @@ function NumInput({ id, value, onChange, label }: { id?: string; value: number; 
   return <Input id={id} aria-label={label} inputMode="decimal" value={text} onChange={(e) => { setText(e.target.value); onChange(parseNum(e.target.value)) }} />
 }
 
-type PayrollTab = 'sheet' | 'structure' | 'sim' | 'settings'
+type PayrollTab = 'sheet' | 'sim' | 'settings'
 
 export default function Payroll() {
   const { can } = usePermission()
@@ -40,11 +40,10 @@ export default function Payroll() {
     <>
       <PageHeader
         title="Lương nhân viên"
-        sub="Bảng lương theo tháng, cơ cấu tỷ lệ và cài đặt, chỉ chủ xem"
-        action={<Segmented<PayrollTab> ariaLabel="Chọn mục" options={[{ value: 'sheet', label: 'Bảng lương' }, { value: 'structure', label: 'Cơ cấu & Bảng tỷ lệ' }, { value: 'sim', label: 'Tính thử lương' }, { value: 'settings', label: 'Cài đặt lương' }]} value={tab} onChange={setTab} />}
+        sub="Bảng lương theo tháng, tính thử và cài đặt, chỉ chủ xem"
+        action={<Segmented<PayrollTab> ariaLabel="Chọn mục" options={[{ value: 'sheet', label: 'Bảng lương' }, { value: 'sim', label: 'Tính thử lương' }, { value: 'settings', label: 'Cài đặt lương' }]} value={tab} onChange={setTab} />}
       />
       {tab === 'sheet' && <SheetTab canManage={canManage} />}
-      {tab === 'structure' && <PayrollStructure filter={filter} onFilter={setFilter} onSimulate={() => setTab('sim')} />}
       {tab === 'sim' && <PayrollSimulator position={simPos} onPosition={setFilter} />}
       {tab === 'settings' && <SettingsTab canManage={canManage} />}
     </>
@@ -408,9 +407,11 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
         <>
           <div style={{ height: 16 }} />
           <Panel title="Bảng tỷ lệ" note="Hoa hồng lũy tiến từng phần theo doanh số thực thu trong tháng">
+            <div className="tier-grid">
             <TierEditor title="Bảng 1: Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
             <TierEditor title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} split={split} disabled={disabled} />
             <TierEditor title="Bảng 4: Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
+            </div>
             <div className="form-grid">
               <Field label="Gói PT: phần nhận liền (0 đến 1)" htmlFor="ps-imm" hint="Mặc định 0,4: trả ngay trong tháng ký hợp đồng"><NumInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
               <Field label="Gói PT: phần chia theo buổi (0 đến 1)" htmlFor="ps-ses" hint="Mặc định 0,6: chia đều cho số buổi của gói"><NumInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
@@ -419,16 +420,6 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               <Field label="Mức lương đóng bảo hiểm (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
               <Field label="Thuế TNCN cố định (đồng/tháng)" htmlFor="ps-ftax" hint="Nhân viên chính thức, mặc định 0, không giảm trừ"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
               <Field label="Thuế PT Parttime (% tổng thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
-            </div>
-          </Panel>
-
-          <div style={{ height: 16 }} />
-          <Panel title="Thuế lũy tiến (tùy chọn)" note="Chỉ dùng khi nhập bậc thuế">
-            <div className="view-note" role="note">Chưa nhập bậc thuế thì nhân viên chọn kiểu "Biểu lũy tiến" bị trừ số thuế cố định ở trên.</div>
-            <TierEditor title="Các bậc thuế TNCN" tiers={settings.taxBrackets.length ? settings.taxBrackets : [{ upTo: null, rate: 0 }]} onChange={(t) => set({ taxBrackets: t })} resizable disabled={disabled} />
-            <div className="form-grid">
-              <Field label="Giảm trừ bản thân (đồng/tháng)" htmlFor="ps-pd"><MoneyInput id="ps-pd" disabled={disabled} value={settings.personalDeduction ?? ''} onValueChange={(d) => set({ personalDeduction: d ? Number(d) : null })} placeholder="Chưa nhập" /></Field>
-              <Field label="Giảm trừ mỗi người phụ thuộc (đồng/tháng)" htmlFor="ps-dd"><MoneyInput id="ps-dd" disabled={disabled} value={settings.dependentDeduction ?? ''} onValueChange={(d) => set({ dependentDeduction: d ? Number(d) : null })} placeholder="Chưa nhập" /></Field>
             </div>
           </Panel>
 

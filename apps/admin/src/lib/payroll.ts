@@ -9,7 +9,7 @@ export const POSITION_LABEL: Record<PayrollPosition, string> = {
 }
 
 export const TAX_MODE_LABEL: Record<PayrollTaxMode, string> = {
-  progressive: 'Biểu lũy tiến',
+  progressive: 'Thuế cố định',
   flat10: '10% tổng thu nhập',
   none: 'Không thuế',
 }
