@@ -5,6 +5,25 @@ import { fmtDateTime } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { Button, Chip, Field, Input, Panel, Select, useToast } from '../components/ui'
 
+const TPL_KEYS = ['morning', 'afternoon', 'leaf', 'hourly', 'done', 'late'] as const
+type TplKey = (typeof TPL_KEYS)[number]
+const TPL_LABEL: Record<TplKey, string> = {
+  morning: 'Checklist Ca Sáng (10:00)',
+  afternoon: 'Checklist Ca Chiều (16:45)',
+  leaf: 'Việc định kỳ ngày 15 và 30 (lau lá cây)',
+  hourly: 'Nhắc định kỳ (8h, 12h, 14h, 18h, 20h)',
+  done: 'Bot xác nhận khi có người nhắn "xong"',
+  late: 'Nhắc khi quá hạn xác nhận',
+}
+const TPL_VARS: Record<TplKey, string> = {
+  morning: '{deadline} hạn xác nhận, {bot} tên bot, {ca} tên ca, {date} ngày',
+  afternoon: '{deadline} hạn xác nhận, {bot} tên bot, {ca} tên ca, {date} ngày',
+  leaf: '{date} ngày',
+  hourly: '{date} ngày',
+  done: '{name} người xác nhận, {ca} tên ca, {time} giờ xác nhận',
+  late: '{ca} tên ca, {deadline} hạn xác nhận, {bot} tên bot',
+}
+
 interface Cfg {
   enabled: boolean
   has_token: boolean
@@ -13,6 +32,10 @@ interface Cfg {
   branch_id: string
   group_trainer: string
   group_windows: string
+  clean_on: boolean
+  clean_group: string
+  clean_tpl: Record<TplKey, string>
+  clean_tpl_default: Record<TplKey, string>
   state: { lastPollAt: string | null; lastError: string | null; lastItemAt: string | null; chats: { id: string; type: string; name: string; at: string }[] }
 }
 
@@ -21,7 +44,7 @@ export default function ZaloBotPanel() {
   const toast = useToast()
   const [cfg, setCfg] = useState<Cfg | null>(null)
   const [token, setToken] = useState('')
-  const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '' })
+  const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '', clean_on: false, clean_group: '', clean_tpl: {} as Record<string, string> })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -33,6 +56,7 @@ export default function ZaloBotPanel() {
         enabled: data.data.enabled, bot_name: data.data.bot_name, pt_group: data.data.pt_group,
         branch_id: data.data.branch_id || (user?.branches.length === 1 ? user.branches[0].id : ''),
         group_trainer: data.data.group_trainer, group_windows: data.data.group_windows,
+        clean_on: data.data.clean_on, clean_group: data.data.clean_group, clean_tpl: { ...data.data.clean_tpl },
       })
     } catch (e) {
       setErr(apiError(e).message)
@@ -47,7 +71,9 @@ export default function ZaloBotPanel() {
     setErr('')
     setBusy(true)
     try {
-      await api.put('/zalo/bot/config', { ...form, token: token || undefined })
+      const tpl: Record<string, string> = {}
+      if (cfg) for (const k of TPL_KEYS) if (form.clean_tpl[k] && form.clean_tpl[k] !== cfg.clean_tpl_default[k]) tpl[k] = form.clean_tpl[k]
+      await api.put('/zalo/bot/config', { ...form, clean_tpl: tpl, token: token || undefined })
       setToken('')
       toast('Đã lưu thiết lập bot Zalo báo ca')
       await load()
@@ -70,13 +96,13 @@ export default function ZaloBotPanel() {
     }
   }
 
-  if (!cfg) return <Panel title="Zalo Bot báo ca">{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</Panel>
+  if (!cfg) return <Panel title="Zalo Bot báo ca và vệ sinh">{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</Panel>
 
   const groups = cfg.state.chats.filter((c) => c.type.toUpperCase() === 'GROUP')
   const alive = cfg.state.lastPollAt && Date.now() - Date.parse(cfg.state.lastPollAt) < 90_000
 
   return (
-    <Panel title="Zalo Bot báo ca">
+    <Panel title="Zalo Bot báo ca và vệ sinh">
       <p className="cell-sub">Đọc tin báo ca và lịch off trong nhóm PT rồi ghi vào Lịch PT 1:1, nhắc giờ trong nhóm. Chỉ bật bot ở một nơi: tắt phần nhận tin của bot Cloudflare cũ trước.</p>
       {err && <div className="form-error" role="alert">{err}</div>}
       <form onSubmit={save}>
@@ -116,9 +142,42 @@ export default function ZaloBotPanel() {
           {cfg.state.lastItemAt && <> Tin gần nhất: {fmtDateTime(cfg.state.lastItemAt)}.</>}
           {cfg.state.lastError && <span className="form-error"> Lỗi: {cfg.state.lastError}</span>}
         </div>
+        <h3 style={{ margin: '16px 0 4px', fontSize: 15 }}>Bot vệ sinh</h3>
+        <p className="cell-sub">Gửi checklist Ca Sáng 10:00 và Ca Chiều 16:45 vào nhóm vệ sinh, hạn xác nhận 1 giờ 15 phút. Nhân viên nhắn "xong" thì bot ghi tên và giờ. Nhắc kiểm tra toilet, dẹp tạ lúc 8h, 12h, 14h, 18h, 20h. Dùng chung token và tên bot ở trên.</p>
+        <div className="form-grid">
+          <Field label="Mã nhóm vệ sinh" htmlFor="zb-cgroup" hint="Nhắn tin tag bot trong nhóm vệ sinh, nhóm sẽ hiện ở dưới.">
+            <Input id="zb-cgroup" value={form.clean_group} onChange={(e) => set({ clean_group: e.target.value })} />
+          </Field>
+        </div>
+        {groups.length > 0 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '8px 0' }}>
+            <span className="cell-sub">Nhóm bot đã thấy:</span>
+            {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.clean_group ? 'primary' : 'secondary'} onClick={() => set({ clean_group: g.id })}>{g.name || g.id}</Button>)}
+          </div>
+        )}
+        <label className="check" style={{ display: 'block', margin: '8px 0' }}>
+          <input type="checkbox" checked={form.clean_on} onChange={(e) => set({ clean_on: e.target.checked })} /> Bật bot vệ sinh
+        </label>
+        <div className="zns-grid">
+          {TPL_KEYS.map((k) => (
+            <div key={k} className="zns-card">
+              <span className="cell-main">{TPL_LABEL[k]}</span>
+              <textarea
+                className="input"
+                aria-label={`Mẫu tin: ${TPL_LABEL[k]}`}
+                rows={k === 'morning' || k === 'afternoon' ? 14 : 4}
+                value={form.clean_tpl[k] ?? cfg.clean_tpl_default[k]}
+                onChange={(e) => set({ clean_tpl: { ...form.clean_tpl, [k]: e.target.value } })}
+              />
+              <div className="cell-sub">Biến: {TPL_VARS[k]}</div>
+              <div><Button small type="button" onClick={() => set({ clean_tpl: { ...form.clean_tpl, [k]: cfg.clean_tpl_default[k] } })}>Khôi phục mẫu gốc</Button></div>
+            </div>
+          ))}
+        </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
           <Button type="button" onClick={() => call('/zalo/bot/send-test', 'Đã gửi tin thử vào nhóm')}>Gửi tin thử vào nhóm</Button>
+          <Button type="button" onClick={() => call('/zalo/bot/send-test-clean', 'Đã gửi tin thử vào nhóm vệ sinh')}>Gửi tin thử nhóm vệ sinh</Button>
           <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
         </div>
       </form>

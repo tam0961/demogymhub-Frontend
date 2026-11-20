@@ -546,3 +546,6 @@
 
 .pd-formula { background: var(--brand-soft); border: 1px solid var(--brand-deep); border-radius: var(--r-md); padding: 10px 12px; font-size: 16px; }
 .pd-formula { font-size: 15px; }
+.zns-grid { max-width: none; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1300px) { .zns-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1000px) { .zns-grid { grid-template-columns: minmax(0, 1fr); } }
