@@ -26,6 +26,7 @@ import PrintTemplates from './pages/PrintTemplates'
 import PtDesk from './pages/PtDesk'
 import RevenueServices from './pages/RevenueServices'
 import ContractProgress from './pages/ContractProgress'
+import OpsStats from './pages/OpsStats'
 import MarketingStats from './pages/MarketingStats'
 import IpadPage from './pages/IpadPage'
 import Reports from './pages/Reports'
@@ -74,6 +75,7 @@ export default function App() {
         <Route path="pt/desk" element={<PermRoute permission="pt_sessions.read"><PtDesk /></PermRoute>} />
         <Route path="reports/services" element={<PermRoute permission="reports.view"><RevenueServices /></PermRoute>} />
         <Route path="reports/progress" element={<PermRoute permission="reports.view"><ContractProgress /></PermRoute>} />
+        <Route path="reports/ops" element={<PermRoute permission="reports.view"><OpsStats /></PermRoute>} />
         <Route path="pt/classes" element={<PermRoute permission="pt_sessions.read"><PtClasses /></PermRoute>} />
         <Route path="debt" element={<PermRoute permission="contracts.read"><Debt /></PermRoute>} />
         <Route path="day-tickets" element={<PermRoute permission="day_tickets.read"><DayTickets /></PermRoute>} />

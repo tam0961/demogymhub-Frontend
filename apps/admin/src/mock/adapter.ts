@@ -1462,6 +1462,23 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const total = items.reduce((s, i) => s + i.revenue, 0)
     return ok({ days: Number(config.params?.days ?? 30), total, groups: [{ key: 'gym', revenue: items.filter((i) => i.group === 'gym').reduce((s, i) => s + i.revenue, 0) }, { key: 'pt', revenue: items.filter((i) => i.group === 'pt').reduce((s, i) => s + i.revenue, 0) }], items })
   }
+  if (url === '/reports/health') {
+    need('reports.view')
+    return ok({ score: 72, grade: 'Tốt', renew_rate: null, parts: [{ key: 'revenue', label: 'Doanh thu', score: 20.8 }, { key: 'members', label: 'Hội viên', score: 17.5 }, { key: 'collection', label: 'Thu tiền', score: 22.1 }, { key: 'operations', label: 'Vận hành', score: 11.6 }] })
+  }
+  if (url === '/reports/alerts') {
+    need('reports.view')
+    return ok([
+      { key: 'expiring_30', label: 'Hợp đồng hết hạn trong 30 ngày', count: 14, impact: 38500000, detail: '5 hội viên bỏ tập hơn 14 ngày', tone: 'warn' },
+      { key: 'debt', label: 'Hợp đồng còn nợ', count: 4, impact: 5900000, detail: '1 hợp đồng quá hạn', tone: 'bad' },
+      { key: 'unsigned', label: 'Hợp đồng chưa ký hoặc chưa kích hoạt', count: 2, impact: 3200000, detail: '', tone: 'warn' },
+    ])
+  }
+  if (url === '/reports/capacity') {
+    need('reports.view')
+    const heatmap = Array.from({ length: 7 }, (_, d) => Array.from({ length: 24 }, (_, h) => (h >= 6 && h <= 21 ? ((d + 1) * (h % 5) * 2) % 17 : 0)))
+    return ok({ days: 30, total_checkins: heatmap.flat().reduce((s, x) => s + x, 0), avg_per_day: 21.4, heatmap, peak: { from_hour: 17, to_hour: 19, count: 96 }, pt_funnel: { booked: 40, attended: 31, no_show: 5, cancelled: 4, completion_rate: 0.775 }, day_tickets: { count: 6, amount: 600000 } })
+  }
   if (url === '/reports/contract-progress') {
     need('reports.view')
     const recent = contracts.slice(0, 12).map((c, i) => ({ id: c.id, code: c.code, status: c.status === 'active' ? 'active' : c.status === 'frozen' ? 'frozen' : c.status === 'signed' ? 'signed' : 'draft', created_at: c.created_at, package: c.package.name, member: { name: c.member.name, code: c.member.code }, progress: ((i * 17) % 100) / 100 }))
