@@ -7,7 +7,7 @@ import { IpadPairBox, useBranchIpad } from './IpadPairBox'
 import { Button } from './ui'
 import type { PtSession } from '../types'
 
-export function PtSignModal({ session, onClose, onConfirmed }: { session: PtSession; onClose: () => void; onConfirmed: (s: PtSession) => void }) {
+export function PtSignModal({ session, onClose, onConfirmed, onCancel }: { session: PtSession; onClose: () => void; onConfirmed: (s: PtSession) => void; onCancel?: (s: PtSession) => void }) {
   const { branchId } = useBranch()
   const branch = session.branch_id ?? branchId ?? ''
   const { token, loaded, refresh } = useBranchIpad(branch)
@@ -15,6 +15,10 @@ export function PtSignModal({ session, onClose, onConfirmed }: { session: PtSess
   const sessionRef = useRef(session)
   const confirmedRef = useRef(onConfirmed)
   confirmedRef.current = onConfirmed
+  const cancelRef = useRef(onCancel)
+  cancelRef.current = onCancel
+
+  useEffect(() => () => { if (!done.current) cancelRef.current?.(sessionRef.current) }, [])
 
   useEffect(() => {
     if (!token) return

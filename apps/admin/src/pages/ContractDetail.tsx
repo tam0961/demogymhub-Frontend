@@ -2,20 +2,21 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
+import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, isPtCategory, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
 import { PT_RULE_HINT, hasHsd } from '../lib/pt'
 import { contractValues, renderDocHtml, templateKeyOf } from '../lib/printDoc'
 import { usePermission } from '../context/usePermission'
 import { FormDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
 import { PayModal, PendingPanel } from '../components/PayModal'
+import { PtSignModal } from '../components/PtSignModal'
 import { SignaturePad } from '../components/SignaturePad'
 import { useToast } from '../components/Toast'
 import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, type Column } from '../components/ui'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { TicketModal } from '../components/TicketModal'
 import { StaffModal } from '../components/StaffModal'
-import type { Contract, Member, Payment } from '../types'
+import type { Contract, Member, Payment, PtSession } from '../types'
 
 export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | 'bundle_of_id'> }) {
   return (
@@ -57,6 +58,7 @@ export default function ContractDetail() {
   const [error, setError] = useState('')
   const [dlg, setDlg] = useState<Dlg>(null)
   const [busy, setBusy] = useState(false)
+  const [ptSign, setPtSign] = useState<PtSession | null>(null)
   const [dErr, setDErr] = useState('')
   const [sig, setSig] = useState<string | null>(null)
   const [days, setDays] = useState('7')
@@ -66,6 +68,31 @@ export default function ContractDetail() {
     if (!memberId || !can('members.read')) return
     api.get(`/members/${memberId}`).then((r) => setMem(r.data.data)).catch(() => {})
   }, [memberId, can])
+
+  const startPtSession = async () => {
+    if (!c?.pt?.id) return
+    setBusy(true)
+    try {
+      const r = await api.post<{ data: PtSession }>('/pt/sessions', { member_id: c.member_id, trainer_id: c.pt.id, contract_id: c.id, start_at: new Date().toISOString(), duration_min: 60, branch_id: c.branch_id, quick: true })
+      setPtSign(r.data.data)
+    } catch (e) {
+      toast(apiError(e).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const discardPtSession = (s: PtSession) => { api.post(`/pt/sessions/${s.id}/discard`).catch(() => {}) }
+
+  const completePtSession = async (s: PtSession) => {
+    try {
+      await api.post(`/pt/sessions/${s.id}/complete`)
+      toast('Đã xác nhận buổi tập, đã trừ 1 buổi')
+      load()
+    } catch (e) {
+      toast(apiError(e).message)
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -193,6 +220,9 @@ export default function ContractDetail() {
             {a.sign && <Button variant={variant('sign')} onClick={() => setDlg('sign')}>Ký hợp đồng</Button>}
             {a.activate && <Button variant={variant('activate')} onClick={() => setDlg('activate')}>Kích hoạt</Button>}
             {a.activateBlockedByDebt && <Button onClick={() => setDlg('activate')}>Kích hoạt (chưa đủ tiền)</Button>}
+            {c.status === 'active' && isPtCategory(c.package.category) && c.pt?.id && (c.sessions_left ?? 0) > 0 && can('pt_sessions.complete') && (
+              <Button variant="primary" disabled={busy} onClick={startPtSession}>Hoàn thành buổi</Button>
+            )}
             {a.pay && <Button variant={variant('pay')} onClick={() => setDlg('pay')}>Thu tiền</Button>}
             {a.renew && <Button onClick={renew} disabled={busy}>Gia hạn</Button>}
             {a.ticket && <Button onClick={() => setDlg('ticket')}>Lập phiếu</Button>}
@@ -223,6 +253,7 @@ export default function ContractDetail() {
         </Panel>
       </div>
 
+      {ptSign && <PtSignModal session={ptSign} onClose={() => setPtSign(null)} onConfirmed={completePtSession} onCancel={discardPtSession} />}
       {dlg === 'sign' && (
         <Modal
           title="Ký hợp đồng"
