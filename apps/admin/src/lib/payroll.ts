@@ -1,4 +1,4 @@
-import type { PayrollPosition, PayrollRow, PayrollTaxMode, PayrollTier } from '../types'
+import type { PayrollPosition, PayrollRow, PayrollSettings, PayrollTaxMode, PayrollTier } from '../types'
 
 export const POSITION_LABEL: Record<PayrollPosition, string> = {
   pt_fulltime: 'PT Fulltime',
@@ -57,4 +57,128 @@ export function grossOf(r: Pick<PayrollRow, 'base_salary' | 'member_commission' 
 
 export function netOf(r: Pick<PayrollRow, 'gross' | 'insurance' | 'tax' | 'penalty' | 'adjustment'>): number {
   return r.gross - r.insurance - r.tax - r.penalty + r.adjustment
+}
+
+export type SimPosition = 'pt_fulltime' | 'pt_parttime' | 'marketing'
+export const SIM_POSITIONS: SimPosition[] = ['pt_fulltime', 'pt_parttime', 'marketing']
+
+export interface Applies {
+  memberTiers: boolean
+  marketingTiers: boolean
+  ptFund: boolean
+  ptSession: boolean
+  groupClass: boolean
+  insurance: boolean
+  flatTax: boolean
+}
+
+/** Khoản nào áp dụng cho vị trí nào (khớp calc.ts của backend). */
+export function appliesTo(pos: SimPosition): Applies {
+  const pt = pos !== 'marketing'
+  return { memberTiers: true, marketingTiers: pos === 'marketing', ptFund: true, ptSession: pt, groupClass: pt, insurance: pos !== 'pt_parttime', flatTax: pos === 'pt_parttime' }
+}
+
+/** Lũy tiến từng phần (Bảng 1, Bảng 4, biểu thuế). */
+export function marginal(amount: number, tiers: PayrollTier[]): number {
+  if (amount <= 0) return 0
+  let prev = 0
+  let total = 0
+  for (const t of tiers) {
+    const top = t.upTo ?? Number.POSITIVE_INFINITY
+    const slice = Math.min(amount, top) - prev
+    if (slice > 0) total += (slice * t.rate) / 100
+    if (amount <= top) break
+    prev = top
+  }
+  return Math.round(total)
+}
+
+/** Một tỷ lệ cho cả tháng (Bảng 2): bậc đầu tiên có cận trên lớn hơn số tiền. */
+export function flatRate(amount: number, tiers: PayrollTier[]): number {
+  if (amount <= 0 || !tiers.length) return 0
+  for (const t of tiers) if (t.upTo === null || amount < t.upTo) return t.rate
+  return tiers[tiers.length - 1].rate
+}
+
+export interface SimInput {
+  position: SimPosition
+  baseSalary: number
+  memberSales: number
+  gymMemberTotal: number
+  ptSales: number
+  ptTotalSessions: number
+  ptSessionsTaught: number
+  groupClasses: number
+  penalty: number
+}
+
+export interface SimResult {
+  base: number
+  memberCommission: number
+  marketingCommission: number
+  ptRate: number
+  ptFund: number
+  ptImmediate: number
+  ptSessionUnit: number
+  ptSessionPay: number
+  groupPay: number
+  gross: number
+  insurance: number
+  tax: number
+  penalty: number
+  deductions: number
+  net: number
+}
+
+/** Tính thử lương, cùng công thức với computeRow trong backend. Số buổi dạy được chia theo tổng buổi của gói. */
+export function computeSim(i: SimInput, s: PayrollSettings): SimResult {
+  const a = appliesTo(i.position)
+  const base = Math.max(0, Math.round(i.baseSalary))
+  const memberCommission = marginal(i.memberSales, s.memberTiers)
+  const marketingCommission = a.marketingTiers ? marginal(i.gymMemberTotal, s.marketingTiers) : 0
+  const ptRate = flatRate(i.ptSales, s.ptTiers)
+  const ptFund = (ptRate / 100) * i.ptSales
+  const ptImmediate = Math.round(s.ptImmediateShare * ptFund)
+  const ptSessionUnit = a.ptSession && i.ptTotalSessions > 0 ? (s.ptSessionShare * ptFund) / i.ptTotalSessions : 0
+  const ptSessionPay = a.ptSession ? Math.round(ptSessionUnit * i.ptSessionsTaught) : 0
+  const groupPay = a.groupClass ? i.groupClasses * s.classRate : 0
+  const gross = base + memberCommission + marketingCommission + ptImmediate + ptSessionPay + groupPay
+  const insurance = a.insurance ? Math.round(((s.insuranceBase ?? base) * s.insuranceRate) / 100) : 0
+  let tax = 0
+  if (a.flatTax) tax = Math.round((gross * s.partTimeTaxRate) / 100)
+  else if (!s.taxBrackets.length) tax = Math.max(0, Math.round(s.fixedTax))
+  else tax = marginal(Math.max(0, gross - insurance - (s.personalDeduction ?? 0)), s.taxBrackets)
+  const deductions = insurance + tax + i.penalty
+  return { base, memberCommission, marketingCommission, ptRate, ptFund, ptImmediate, ptSessionUnit, ptSessionPay, groupPay, gross, insurance, tax, penalty: i.penalty, deductions, net: gross - deductions }
+}
+
+/** Nhãn khoảng của một bậc: "Dưới 15 triệu", "15 – 25 triệu", "Trên 35 triệu". */
+export function bandLabel(tiers: PayrollTier[], index: number): string {
+  const t = tiers[index]
+  if (!t) return ''
+  const from = index === 0 ? 0 : (tiers[index - 1].upTo ?? 0)
+  if (index === 0 && t.upTo != null) return `Dưới ${millions(t.upTo)}`
+  if (t.upTo == null) return `Trên ${millions(from)}`
+  return `${millions(from)} – ${millions(t.upTo)}`
+}
+
+/** Nhãn bậc lũy tiến (Bảng 1): "0 – 15 triệu", "> 15 – 25 triệu", "Trên 35 triệu". */
+export function progressiveLabel(tiers: PayrollTier[], index: number): string {
+  const t = tiers[index]
+  if (!t) return ''
+  const from = index === 0 ? 0 : (tiers[index - 1].upTo ?? 0)
+  if (t.upTo == null) return `Trên ${millions(from)}`
+  return `${index === 0 ? '0' : `> ${millions(from).replace(' triệu', '')}`} – ${millions(t.upTo)}`
+}
+
+const INSURANCE_SHARES = [
+  { key: 'BHXH', rate: 8 },
+  { key: 'BHTN', rate: 1 },
+  { key: 'BHYT', rate: 1.5 },
+] as const
+
+/** Tách bảo hiểm NLĐ thành BHXH, BHTN, BHYT theo tỷ lệ 8 : 1 : 1,5 trên mức đóng. */
+export function insuranceParts(base: number, totalRate: number) {
+  const k = totalRate / 10.5
+  return INSURANCE_SHARES.map((p) => ({ key: p.key, rate: p.rate * k, amount: Math.round((base * p.rate * k) / 100) }))
 }
