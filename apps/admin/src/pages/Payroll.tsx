@@ -316,6 +316,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [savingRow, setSavingRow] = useState('')
+  const [names, setNames] = useState<Record<string, string>>({})
 
   const load = useCallback(async () => {
     setErr('')
@@ -324,6 +325,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
       setSettings(s.data.data)
       setStaff(p.data.data)
       setEdits({})
+      setNames({})
     } catch (e) {
       setErr(apiError(e).message)
     }
@@ -336,8 +338,8 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
   const saveRow = async (u: PayrollStaff) => {
     setSavingRow(u.user_id)
     try {
-      await api.put(`/payroll/profiles/${u.user_id}`, profileOf(u))
-      toast(`Đã lưu hồ sơ lương ${u.name}`)
+      await api.put(`/payroll/profiles/${u.user_id}`, { ...profileOf(u), name: (names[u.user_id] ?? u.name).trim() || u.name })
+      toast(`Đã lưu hồ sơ lương ${(names[u.user_id] ?? u.name).trim() || u.name}`)
       await load()
     } catch (e) {
       toast(apiError(e).message, true)
@@ -368,8 +370,7 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
     <>
       {err && <div className="form-error" role="alert">{err}</div>}
 
-      <div className="settings-top">
-        <div className="settings-staff">
+      <div className="settings-staff">
       <Panel title="Nhân sự" note="Chọn vị trí: PT Fulltime và Marketing có bảo hiểm, PT Parttime chịu thuế 10%" flush>
         <div className="table-wrap">
           <table className="table">
@@ -385,10 +386,10 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               {staff.length === 0 && <tr><td colSpan={4} className="hint-muted">Chưa có nhân viên</td></tr>}
               {staff.map((u) => {
                 const p = profileOf(u)
-                const dirty = !!edits[u.user_id]
+                const dirty = !!edits[u.user_id] || (names[u.user_id] !== undefined && names[u.user_id] !== u.name)
                 return (
                   <tr key={u.user_id}>
-                    <td><span className="cell-main">{u.name}</span><div className="cell-sub">{u.email}{u.branch_codes.length ? ` - ${u.branch_codes.join(', ')}` : ''}</div></td>
+                    <td><Input aria-label={`Họ và tên ${u.email}`} disabled={disabled} value={names[u.user_id] ?? u.name} onChange={(e) => setNames((n) => ({ ...n, [u.user_id]: e.target.value }))} style={{ minWidth: 180 }} /><div className="cell-sub">{u.branch_codes.length ? u.branch_codes.join(', ') : ''}</div></td>
                     <td>
                       <Select aria-label={`Vị trí ${u.name}`} disabled={disabled} value={p.position} onChange={(e) => patchProfile(u, positionDefaults(e.target.value as PayrollPosition))}>
                         {POSITIONS.map((k) => <option key={k} value={k}>{POSITION_LABEL[k]}</option>)}
@@ -403,66 +404,99 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
           </table>
         </div>
       </Panel>
-        </div>
 
-      {settings && (
-        <div className="settings-rates">
-          <Panel title="Bảng 1: Hoa hồng bán gói Member" note="Dùng chung cho cả 3 nhóm, lũy tiến từng phần theo doanh số thực thu trong tháng">
-            <TierEditor bare title="Bảng 1: Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
-          </Panel>
-        </div>
-      )}
       </div>
 
       {settings && (
-        <>
-          <div className="settings-row">
-            <div className="settings-box">
-              <Panel title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1" note="Theo doanh số gói PT trong tháng">
-                <TierEditor bare title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
-              </Panel>
-            </div>
-            <div className="settings-box">
-              <Panel title="Bảng 4: Hoa hồng doanh số Member" note="Riêng Marketing">
-                <TierEditor bare title="Bảng 4: Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
-              </Panel>
-            </div>
-          </div>
+        <section className="flow" aria-label="Sơ đồ tính lương">
+          <h3 className="flow-title">Sơ đồ tính lương</h3>
 
-          <div className="settings-row">
-            <div className="settings-box settings-box-sm">
-              <Panel title="Gói PT" note="Chia quỹ hoa hồng gói PT">
-                <div className="stack-fields">
-                  <Field label="Nhận liền (%)" htmlFor="ps-imm" hint="Mặc định 40%: trả ngay trong tháng ký"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
-                  <Field label="Chia theo buổi (%)" htmlFor="ps-ses" hint="Mặc định 60%: chia đều theo số buổi"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
-                </div>
-              </Panel>
-            </div>
-            <div className="settings-box settings-box-sm">
-              <Panel title="Lớp nhóm" note="Chỉ PT">
-                <div className="stack-fields">
-                  <Field label="Đơn giá mỗi buổi" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
-                </div>
-              </Panel>
-            </div>
-            <div className="settings-box settings-box-sm">
-              <Panel title="Bảo hiểm NLĐ" note="Nhân viên chính thức">
-                <div className="stack-fields">
-                  <Field label="Tỷ lệ (% mức đóng)" htmlFor="ps-ins" hint="BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
-                  <Field label="Mức lương đóng (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
-                </div>
-              </Panel>
-            </div>
-            <div className="settings-box settings-box-sm">
-              <Panel title="Thuế TNCN" note="Không tính giảm trừ">
-                <div className="stack-fields">
-                  <Field label="Cố định (đồng/tháng)" htmlFor="ps-ftax" hint="Nhân viên chính thức, mặc định 0"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
-                  <Field label="PT Parttime (% tổng thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
-                </div>
-              </Panel>
+          <div className="flow-stage">
+            <div className="flow-label"><span className="flow-num">1</span>Đầu vào cố định</div>
+            <div className="flow-cards">
+              <div className="flow-card">
+                <b>Lương cơ bản trọn gói</b>
+                <p className="hint-muted">Đã gồm phụ cấp, không chia ngày công. Nhập theo từng nhân viên ở bảng Nhân sự phía trên.</p>
+              </div>
             </div>
           </div>
-        </>
+          <div className="flow-arrow" aria-hidden="true">↓</div>
+
+          <div className="flow-stage">
+            <div className="flow-label"><span className="flow-num">2</span>Hoa hồng hiệu suất</div>
+            <div className="flow-cards">
+              <div className="flow-card">
+                <div className="flow-tag">Cả 3 nhóm</div>
+                <b>Bảng 1: Bán gói Member</b>
+                <p className="hint-muted">Lũy tiến từng phần theo doanh số thực thu trong tháng.</p>
+                <TierEditor bare title="Bảng 1: Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
+              </div>
+              <div className="flow-card">
+                <div className="flow-tag">Riêng Marketing</div>
+                <b>Bảng 4: Doanh số Member</b>
+                <p className="hint-muted">Tính theo tổng doanh số Member trong tháng.</p>
+                <TierEditor bare title="Bảng 4: Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
+              </div>
+              <div className="flow-card">
+                <div className="flow-tag">PT, Marketing nếu có bán</div>
+                <b>Bảng 2: Quỹ hoa hồng gói PT</b>
+                <p className="hint-muted">Quỹ = doanh số gói PT x tỷ lệ bậc, rẽ hai nhánh.</p>
+                <TierEditor bare title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
+                <div className="flow-split">
+                  <Field label="Nhận liền khi ký (%)" htmlFor="ps-imm"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
+                  <Field label="Chia theo buổi dạy (%)" htmlFor="ps-ses"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
+                </div>
+              </div>
+              <div className="flow-card">
+                <div className="flow-tag">Chỉ PT</div>
+                <b>Hoa hồng lớp nhóm</b>
+                <p className="hint-muted">Tính theo số buổi đứng lớp thực tế.</p>
+                <Field label="Đơn giá mỗi buổi" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
+              </div>
+            </div>
+          </div>
+          <div className="flow-arrow" aria-hidden="true">↓</div>
+
+          <div className="flow-stage">
+            <div className="flow-label"><span className="flow-num">3</span>Tổng hợp</div>
+            <div className="flow-card flow-sum">
+              <b>TỔNG THU NHẬP (GROSS)</b>
+              <p>= Lương cơ bản + HH Member + HH gói PT (nhận liền) + HH dạy 1-1 (chia buổi) + HH lớp nhóm</p>
+            </div>
+          </div>
+          <div className="flow-arrow" aria-hidden="true">↓</div>
+
+          <div className="flow-stage">
+            <div className="flow-label"><span className="flow-num">4</span>Khấu trừ</div>
+            <div className="flow-cards">
+              <div className="flow-card">
+                <div className="flow-tag">Nhân viên chính thức</div>
+                <b>Bảo hiểm NLĐ</b>
+                <p className="hint-muted">BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%</p>
+                <Field label="Tỷ lệ (% mức đóng)" htmlFor="ps-ins"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
+                <Field label="Mức lương đóng (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
+              </div>
+              <div className="flow-card">
+                <div className="flow-tag">Không tính giảm trừ</div>
+                <b>Thuế TNCN</b>
+                <Field label="Nhân viên chính thức: cố định (đồng/tháng)" htmlFor="ps-ftax"><MoneyInput id="ps-ftax" disabled={disabled} value={settings.fixedTax} onValueChange={(d) => set({ fixedTax: Number(d) || 0 })} placeholder="0 ₫" /></Field>
+                <Field label="PT Parttime (% tổng thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
+              </div>
+              <div className="flow-card">
+                <b>Phạt đi trễ, vi phạm</b>
+                <p className="hint-muted">Nhập theo từng tháng ở tab Bảng lương, trừ trực tiếp.</p>
+              </div>
+            </div>
+          </div>
+          <div className="flow-arrow" aria-hidden="true">↓</div>
+
+          <div className="flow-stage">
+            <div className="flow-card flow-sum">
+              <b>THỰC NHẬN (NET)</b>
+              <p>= GROSS − khấu trừ</p>
+            </div>
+          </div>
+        </section>
       )}
 
       {settings && canManage && (

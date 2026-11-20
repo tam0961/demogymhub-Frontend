@@ -401,3 +401,22 @@
 .settings-box-sm { flex: 1 1 220px; }
 .stack-fields { display: flex; flex-direction: column; gap: 12px; }
 .stack-fields .input { max-width: 180px; }
+
+.flow { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.flow-title { margin: 0 0 4px; font-size: 18px; }
+.flow-stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 14px 16px; }
+.flow-label { display: flex; align-items: center; gap: 8px; font-weight: 700; margin-bottom: 10px; }
+.flow-num { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 13px; }
+.flow-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; align-items: start; }
+.flow-card { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-md); padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.flow-card p { margin: 0; }
+.flow-tag { align-self: flex-start; font-size: 12px; font-weight: 700; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 1px 10px; }
+.flow-sum { background: var(--surface); border: 2px solid var(--ink); text-align: center; }
+.flow-split { display: flex; flex-wrap: wrap; gap: 12px; }
+.flow-split .input { max-width: 120px; }
+.flow-card .input { max-width: 200px; }
+.flow-arrow { text-align: center; font-size: 22px; color: var(--muted); line-height: 1; }
+.flow-card .table-wrap { overflow-x: visible; }
+.flow-card .table td:nth-child(2) input { width: 120px; }
+.flow-card .table td:nth-child(3) input { width: 64px; }
+.flow-card .table th, .flow-card .table td { white-space: nowrap; padding: 5px 8px; font-size: 13px; }
