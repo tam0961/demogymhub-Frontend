@@ -564,3 +564,5 @@
 .bot-box .check { margin: 0; }
 .bot-box .form-grid { grid-template-columns: minmax(0, 1fr); }
 .bot-box .segmented .seg[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
+.bot-row { display: flex; gap: 8px; align-items: center; }
+.bot-row .input { flex: 1 1 auto; min-width: 0; }

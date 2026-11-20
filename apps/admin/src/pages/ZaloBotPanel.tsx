@@ -3,6 +3,7 @@ import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { useAuth } from '../context/AuthContext'
 import { Button, Field, Input, Panel, Segmented, useToast } from '../components/ui'
+import { ConfirmDialog } from '../components/Dialogs'
 
 const TPL_KEYS = ['morning', 'afternoon', 'leaf', 'hourly', 'done', 'late'] as const
 type TplKey = (typeof TPL_KEYS)[number]
@@ -49,6 +50,7 @@ export default function ZaloBotPanel() {
   const [form, setForm] = useState({ enabled: false, bot_name: 'Bot AI TH Gym', pt_group: '', branch_id: '', group_trainer: '', group_windows: '', clean_on: false, clean_group: '', clean_tpl: {} as Record<string, string>, shoot_on: false, shoot_group: '', shoot_boss: 'emma' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [offAsk, setOffAsk] = useState<'main' | 'clean' | 'shoot' | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -68,17 +70,24 @@ export default function ZaloBotPanel() {
   useEffect(() => { load() }, [load])
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }))
+  const FIELD = { main: 'enabled', clean: 'clean_on', shoot: 'shoot_on' } as const
+  const OFF_TEXT = { main: 'Bot sẽ ngừng nhận tin và ngừng gửi nhắc ở tất cả các nhóm.', clean: 'Bot sẽ ngừng gửi checklist và nhắc vệ sinh vào nhóm vệ sinh.', shoot: 'Bot sẽ ngừng nhắc đăng ký và nhắc lịch quay trong nhóm quay.' }
+  const flip = (kind: 'main' | 'clean' | 'shoot', on: boolean) => {
+    if (on) set({ [FIELD[kind]]: true })
+    else setOffAsk(kind)
+  }
 
-  const save = async (e?: FormEvent) => {
+  const save = async (e?: FormEvent, patch: Partial<typeof form> = {}) => {
     e?.preventDefault()
     setErr('')
     setBusy(true)
     try {
+      const f = { ...form, ...patch }
       const tpl: Record<string, string> = {}
-      if (cfg) for (const k of TPL_KEYS) if (form.clean_tpl[k] && form.clean_tpl[k] !== cfg.clean_tpl_default[k]) tpl[k] = form.clean_tpl[k]
-      await api.put('/zalo/bot/config', { ...form, clean_tpl: tpl, token: token || undefined })
+      if (cfg) for (const k of TPL_KEYS) if (f.clean_tpl[k] && f.clean_tpl[k] !== cfg.clean_tpl_default[k]) tpl[k] = f.clean_tpl[k]
+      await api.put('/zalo/bot/config', { ...f, clean_tpl: tpl, token: token || undefined })
       setToken('')
-      toast('Đã lưu thiết lập bot Zalo báo ca')
+      toast('Đã lưu thiết lập bot Zalo')
       await load()
       return true
     } catch (er) {
@@ -111,7 +120,7 @@ export default function ZaloBotPanel() {
         <div className="bot-box">
           <div className="bot-head">
             <h3>Kết nối bot</h3>
-            <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.enabled ? 'on' : 'off'} onChange={(v) => set({ enabled: v === 'on' })} />
+            <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.enabled ? 'on' : 'off'} onChange={(v) => flip('main', v === 'on')} />
           </div>
           <Field label="Token bot" htmlFor="zb-token" hint={cfg.has_token ? 'Đã lưu, để trống để giữ nguyên.' : undefined}>
             <Input id="zb-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />
@@ -120,7 +129,10 @@ export default function ZaloBotPanel() {
         <div className="bot-box">
           <h3>Bot báo ca/off</h3>
           <Field label="Mã nhóm PT" htmlFor="zb-group" hint="Nhắn tin tag bot trong nhóm, nhóm sẽ hiện ở dưới.">
-            <Input id="zb-group" value={form.pt_group} onChange={(e) => set({ pt_group: e.target.value })} />
+            <div className="bot-row">
+              <Input id="zb-group" value={form.pt_group} onChange={(e) => set({ pt_group: e.target.value })} />
+              <Button type="button" onClick={() => call('/zalo/bot/send-test', 'Đã gửi tin thử vào nhóm')}>Gửi thử</Button>
+            </div>
           </Field>
           {groups.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -129,10 +141,16 @@ export default function ZaloBotPanel() {
           )}
         </div>
         <div className="bot-box">
-        <h3>Bot vệ sinh</h3>
+        <div className="bot-head">
+          <h3>Bot vệ sinh</h3>
+          <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot vệ sinh" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.clean_on ? 'on' : 'off'} onChange={(v) => flip('clean', v === 'on')} />
+        </div>
         <div className="form-grid">
           <Field label="Mã nhóm vệ sinh" htmlFor="zb-cgroup" hint="Nhắn tin tag bot trong nhóm vệ sinh, nhóm sẽ hiện ở dưới.">
-            <Input id="zb-cgroup" value={form.clean_group} onChange={(e) => set({ clean_group: e.target.value })} />
+            <div className="bot-row">
+              <Input id="zb-cgroup" value={form.clean_group} onChange={(e) => set({ clean_group: e.target.value })} />
+              <Button type="button" onClick={() => call('/zalo/bot/send-test-clean', 'Đã gửi tin thử vào nhóm vệ sinh')}>Gửi thử</Button>
+            </div>
           </Field>
         </div>
         {groups.length > 0 && (
@@ -141,13 +159,18 @@ export default function ZaloBotPanel() {
             {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.clean_group ? 'primary' : 'secondary'} onClick={() => set({ clean_group: g.id })}>{g.name || g.id}</Button>)}
           </div>
         )}
-        <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot vệ sinh" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.clean_on ? 'on' : 'off'} onChange={(v) => set({ clean_on: v === 'on' })} />
         </div>
         <div className="bot-box">
-        <h3>Bot buổi quay với Emma</h3>
+        <div className="bot-head">
+          <h3>Bot buổi quay với Emma</h3>
+          <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot buổi quay" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.shoot_on ? 'on' : 'off'} onChange={(v) => flip('shoot', v === 'on')} />
+        </div>
         <div className="form-grid">
           <Field label="Mã nhóm quay" htmlFor="zb-sgroup" hint="Nhắn tin tag bot trong nhóm quay, nhóm sẽ hiện ở dưới.">
-            <Input id="zb-sgroup" value={form.shoot_group} onChange={(e) => set({ shoot_group: e.target.value })} />
+            <div className="bot-row">
+              <Input id="zb-sgroup" value={form.shoot_group} onChange={(e) => set({ shoot_group: e.target.value })} />
+              <Button type="button" onClick={() => call('/zalo/bot/send-test-shoot', 'Đã gửi tin thử vào nhóm quay')}>Gửi thử</Button>
+            </div>
           </Field>
         </div>
         {groups.length > 0 && (
@@ -156,14 +179,10 @@ export default function ZaloBotPanel() {
             {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.shoot_group ? 'primary' : 'secondary'} onClick={() => set({ shoot_group: g.id })}>{g.name || g.id}</Button>)}
           </div>
         )}
-        <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot buổi quay" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.shoot_on ? 'on' : 'off'} onChange={(v) => set({ shoot_on: v === 'on' })} />
         </div>
       </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
           <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
-          <Button type="button" onClick={() => call('/zalo/bot/send-test', 'Đã gửi tin thử vào nhóm')}>Gửi tin thử vào nhóm</Button>
-          <Button type="button" onClick={() => call('/zalo/bot/send-test-clean', 'Đã gửi tin thử vào nhóm vệ sinh')}>Gửi tin thử nhóm vệ sinh</Button>
-          <Button type="button" onClick={() => call('/zalo/bot/send-test-shoot', 'Đã gửi tin thử vào nhóm quay')}>Gửi tin thử nhóm quay</Button>
           <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
         </div>
     </Panel>
@@ -190,6 +209,16 @@ export default function ZaloBotPanel() {
         <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu tin nhắn mẫu'}</Button>
       </div>
     </Panel>
+    {offAsk && (
+      <ConfirmDialog
+        title="Tắt bot?"
+        message={OFF_TEXT[offAsk]}
+        confirmLabel="Tắt bot"
+        danger
+        onConfirm={() => { const patch = { [FIELD[offAsk]]: false }; set(patch); setOffAsk(null); void save(undefined, patch) }}
+        onClose={() => setOffAsk(null)}
+      />
+    )}
     </form>
   )
 }
