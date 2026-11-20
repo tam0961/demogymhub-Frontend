@@ -62,6 +62,7 @@ export default function ScanPopup() {
   const since = useRef<string | null>(null)
   const [queue, setQueue] = useState<ScanItem[]>([])
   const [bridgeOk, setBridgeOk] = useState<boolean | null>(null)
+  const [paused, setPaused] = useState<boolean | null>(null)
   const cur = queue[0]
 
   useEffect(() => {
@@ -74,10 +75,11 @@ export default function ScanPopup() {
         try {
           const params: Record<string, string | number> = { wait: 20 }
           if (since.current) params.since = since.current
-          const { data } = await api.get<{ data: { now: string; items: ScanItem[]; bridge_ok: boolean | null } }>('/attendance/scans', { params, timeout: 35000 })
+          const { data } = await api.get<{ data: { now: string; items: ScanItem[]; bridge_ok: boolean | null; paused?: boolean | null } }>('/attendance/scans', { params, timeout: 35000 })
           if (!alive) return
           since.current = data.data.now
           setBridgeOk(data.data.bridge_ok)
+          setPaused(data.data.paused ?? null)
           if (data.data.items.length) setQueue((q) => [...q, ...data.data.items])
         } catch {
           await sleep(2000)
@@ -97,7 +99,7 @@ export default function ScanPopup() {
     return () => clearTimeout(t)
   }, [cur, next])
 
-  const warn = bridgeOk === false ? <div className="scan-offline" role="alert">Cầu nối máy chấm công đang tắt. Khách quét mặt sẽ không hiện popup và không tự check-in. Hãy mở lại chay-quet.bat trên máy này.</div> : null
+  const warn = paused ? <div className="scan-offline scan-paused" role="status">Kết nối máy chấm công đang tạm dừng. Khách quét mặt sẽ không hiện popup và không tự check-in. Vào Thiết lập, Thiết bị, bấm "Tiếp tục kết nối" để bật lại.</div> : bridgeOk === false ? <div className="scan-offline" role="alert">Cầu nối máy chấm công đang tắt. Khách quét mặt sẽ không hiện popup và không tự check-in. Hãy mở lại chay-quet.bat trên máy này.</div> : null
   if (!cur) return warn
   const m = cur.member
   const v = verdict(cur)

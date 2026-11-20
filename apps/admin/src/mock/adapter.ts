@@ -1600,6 +1600,12 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return ok({ now: new Date().toISOString(), items: first ? [{ id: 'sc1', employee_no: 'HV0389', scanned_at: new Date().toISOString(), result: 'allowed', reason: null, member: { id: 'm1', code: 'HV0389', name: 'Lê Thị Ngọc Trang', phone: '0907557550', has_photo: false, photo_version: null, package_name: 'MEMBER 3 THÁNG + 1', end_date: '2027-01-05', state: 'ok', sessions_left: null, debt: 400000 } }] : [] })
   }
   if (url === '/attendance/summary') return ok(attRows)
+  const devPause = url.match(/^\/attendance\/devices\/([^/]+)\/pause$/)
+  if (devPause && method === 'put') {
+    const d = attDevices.find((x) => x.id === devPause[1]) as { paused?: boolean } | undefined
+    if (d) d.paused = (body as { paused: boolean }).paused
+    return ok({ id: devPause[1], paused: (body as { paused: boolean }).paused })
+  }
   if (url === '/attendance/devices' && method === 'get') return ok(attDevices)
   if (url === '/attendance/devices' && method === 'post') {
     const b = body as { name: string; branch_id?: string }

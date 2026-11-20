@@ -471,3 +471,5 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .delta-ok { color: var(--ok); font-weight: 600; }
 .delta-bad { color: var(--bad); font-weight: 600; }
 .delta-flat { color: var(--muted); font-weight: 600; }
+
+.scan-paused { background: var(--warn); }
