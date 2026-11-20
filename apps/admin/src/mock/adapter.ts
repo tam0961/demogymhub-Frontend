@@ -82,6 +82,9 @@ const botCfg = {
   clean_tpl: { morning: 'Checklist Ca Sáng', afternoon: 'Checklist Ca Chiều', leaf: 'Lau lá cây ngày {date}', hourly: 'Nhắc vệ sinh định kỳ', done: '{name} đã xác nhận xong {ca} lúc {time}', late: '{ca} quá hạn xác nhận ({deadline})' } as Record<string, string>,
   state: { lastPollAt: null as string | null, lastError: null as string | null, lastItemAt: null as string | null, chats: [{ id: 'zgr-demo1', type: 'GROUP', name: 'Nhóm PT TH Gym', at: new Date().toISOString() }] },
 }
+const invoiceCfg = { live: false, base: 'https://demo-sinvoice.viettel.vn:8443', supplierCode: '', invoiceType: '', templateCode: '', user: '', vat: 10, sellerName: 'TH Gym & Fitness', sellerTaxCode: '', sellerAddress: '', sellerPhone: '', sellerEmail: '', sellerBank: '', sellerAccount: '' }
+let invoiceHasPass = false
+const invoiceRows: { id: string; contract_id: string | null; status: 'test' | 'issued' | 'failed'; invoice_no: string | null; buyer_name: string; net: number; tax: number; total: number; error: string | null; created_at: string }[] = []
 const attDevices = [{ id: 'dv1', name: 'Cổng chính', branch_id: 'b-nb', branch_name: 'Chi nhánh Nhà Bè', device_key: 'a1b2c3d4e5f60718293a4b5c6d7e8f90', last_seen_at: null as string | null }]
 const attDay = (d: number, a: string, b: string | null) => {
   const day = new Date(Date.now() - d * 86400000).toISOString().slice(0, 10)
@@ -1580,6 +1583,10 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     if (method === 'put') Object.assign(sheetsCfg, body)
     return ok(sheetsCfg)
   }
+  if (url === '/marketing/auto/config' && (method === 'get' || method === 'put')) return ok({ fb: { connected: false, account: '', name: '', currency: '', synced: 0, err: '' }, gg: { key: 'mockggkey000000000000000000000000', account: '', name: '', synced: 0 }, gbp: { key: 'mockgbpkey00000000000000000000000', name: '', synced: 0, last: null }, rules: [{ k: 'nhà bè', b: 'nb' }], def_branch: 'q7', counts: { campaigns: 0, daily: 0 } })
+  if (url === '/marketing/auto/fb-sync' && method === 'post') return ok({ ok: false, err: 'Chưa nhập token hoặc ID tài khoản quảng cáo', config: { fb: { connected: false, account: '', name: '', currency: '', synced: 0, err: '' }, gg: { key: 'mockggkey000000000000000000000000', account: '', name: '', synced: 0 }, gbp: { key: 'mockgbpkey00000000000000000000000', name: '', synced: 0, last: null }, rules: [], def_branch: 'q7', counts: { campaigns: 0, daily: 0 } } })
+  if (url === '/marketing/auto/lead-keys' && method === 'get') return ok([])
+  if (url === '/marketing/auto/lead-keys' && method === 'post') return ok({ id: 'lk1', key: 'mockleadkey0000000000000000000000000', branch_id: 'b-nb', label: 'KH Gym' })
   if (url === '/marketing/ads') {
     if (method === 'put') {
       const p = body.platform as keyof typeof mktAds
@@ -1609,6 +1616,28 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     if (b.refresh_token) znsCfg.has_refresh_token = true
     return ok(znsCfg)
   }
+  if (url === '/invoices/config' && method === 'get') return ok({ cfg: invoiceCfg, has_pass: invoiceHasPass, vat_rates: [0, 5, 8, 10] })
+  if (url === '/invoices/config' && method === 'put') {
+    const { pass, ...rest } = body as typeof invoiceCfg & { pass?: string }
+    if (!/^https:\/\//i.test(rest.base)) { fail(config, 400, 'BASE_HTTPS', 'Địa chỉ máy chủ Viettel phải bắt đầu bằng https://'); return ok(null) }
+    Object.assign(invoiceCfg, rest)
+    if (pass) invoiceHasPass = true
+    return ok({ cfg: invoiceCfg, has_pass: invoiceHasPass, vat_rates: [0, 5, 8, 10] })
+  }
+  if (url === '/invoices/config/public' && method === 'get') return ok({ live: invoiceCfg.live, vat: invoiceCfg.vat, vat_rates: [0, 5, 8, 10] })
+  if (url === '/invoices/issue' && method === 'post') {
+    const b = body as { contract_id?: string; buyer: { name?: string; legalName?: string }; items: { name: string; gross: number; vat?: number }[] }
+    const buyer = (b.buyer.legalName || b.buyer.name || '').trim()
+    if (!buyer) { fail(config, 400, 'INVOICE_INVALID', 'Chưa có tên người mua'); return ok(null) }
+    const items = b.items.map((x, i) => { const vat = x.vat ?? invoiceCfg.vat; const net = Math.round(x.gross / (1 + vat / 100)); return { line: i + 1, name: x.name, unit: 'Gói', qty: 1, vat, gross: x.gross, net, tax: x.gross - net, unitPrice: net } })
+    const net = items.reduce((a, x) => a + x.net, 0)
+    const tax = items.reduce((a, x) => a + x.tax, 0)
+    const live = invoiceCfg.live
+    const row = { id: `inv${invoiceRows.length + 1}`, contract_id: b.contract_id ?? null, status: (live ? 'issued' : 'test') as 'test' | 'issued', invoice_no: live ? `C26TAA${invoiceRows.length + 1}` : null, buyer_name: buyer, net, tax, total: net + tax, error: null, created_at: new Date().toISOString() }
+    invoiceRows.unshift(row)
+    return ok({ id: row.id, status: row.status, live, note: live ? null : 'Chế độ chạy thử: đã tính và kiểm tra, chưa gửi cho Viettel.', invoice_no: row.invoice_no, reservation_code: null, calc: { items, net, tax, total: net + tax }, words: 'Một triệu một trăm nghìn đồng' })
+  }
+  if (url === '/invoices' && method === 'get') return ok(invoiceRows.filter((r) => r.contract_id === (params as { contract_id?: string }).contract_id).map(({ contract_id: _c, ...r }) => r))
   if (url === '/zalo/logs') return ok(znsLogs)
   if (url === '/zalo/test') return ok({ status: znsCfg.has_access_token ? 'sent' : 'skipped', error: znsCfg.has_access_token ? undefined : 'not configured' })
   if (url === '/zalo/run-reminders') return ok({ sent: 2 })

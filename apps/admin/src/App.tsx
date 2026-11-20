@@ -20,6 +20,7 @@ import PtClasses from './pages/PtClasses'
 import PublicBooking from './pages/PublicBooking'
 import PtOne from './pages/PtOne'
 import ZnsSettings from './pages/ZnsSettings'
+import InvoiceSettings from './pages/InvoiceSettings'
 import BankSettings from './pages/BankSettings'
 import SheetSettings from './pages/SheetSettings'
 import PrintTemplates from './pages/PrintTemplates'
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="pt" element={<Navigate to="/pt/one" replace />} />
         <Route path="settings/bank" element={<PermRoute permission="roles.read"><BankSettings /></PermRoute>} />
         <Route path="settings/zns" element={<PermRoute permission="roles.read"><ZnsSettings /></PermRoute>} />
+        <Route path="settings/invoice" element={<PermRoute permission="roles.read"><InvoiceSettings /></PermRoute>} />
         <Route path="settings/sheets" element={<PermRoute permission="roles.read"><SheetSettings /></PermRoute>} />
         <Route path="settings/print" element={<PermRoute permission="roles.read"><PrintTemplates /></PermRoute>} />
         <Route path="marketing/stats" element={<PermRoute permission="reports.view"><MarketingStats /></PermRoute>} />

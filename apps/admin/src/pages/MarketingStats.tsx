@@ -6,14 +6,15 @@ import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { Button, Chip, Field, Input, MoneyInput, PageHeader, Panel, Select, Tabs, useToast } from '../components/ui'
+import { MarketingAutoPanel } from '../components/MarketingAutoPanel'
 import ZnsSettings from './ZnsSettings'
 import type { Lead, ListResp } from '../types'
 
 type Channel = 'facebook_ads' | 'google_ads' | 'google_maps'
 type Platform = 'facebook' | 'google_ads' | 'maps'
 type Tab = 'overview' | 'ads' | 'zalo' | 'api'
-type AdsTab = Platform | 'general'
-interface Metric { month: string; channel: Channel; spend: number; impressions: number; clicks: number; leads: number; note: string }
+type AdsTab = Platform | 'general' | 'auto'
+interface Metric { month: string; channel: Channel; spend: number; impressions: number; clicks: number; leads: number; note: string; source?: 'auto' | 'manual' }
 type AdsCfg = Record<Platform, { account_id: string; has_token: boolean }>
 interface ZnsLog { id: string; event: string; phone: string; status: string; error: string | null; created_at: string }
 
@@ -107,7 +108,7 @@ function ConnectForm({ platform, cfg, canEdit, onSaved }: { platform: Platform; 
       const { data } = await api.put<{ data: AdsCfg }>('/marketing/ads', { platform, account_id: accountId.trim(), token: token.trim() || undefined })
       setToken('')
       onSaved(data.data)
-      toast('Đã lưu thông tin kết nối. Hệ thống chưa kéo số liệu tự động, hãy nhập số liệu ở mục Chung.')
+      toast(platform === 'facebook' ? 'Đã lưu thông tin kết nối. Hệ thống tự kéo số liệu Facebook mỗi 15 phút, xem mục Kết nối tự động.' : 'Đã lưu thông tin kết nối. Google gửi số liệu vào qua mục Kết nối tự động.')
     } catch (e2) {
       setErr(apiError(e2).message)
     } finally {
@@ -125,7 +126,7 @@ function ConnectForm({ platform, cfg, canEdit, onSaved }: { platform: Platform; 
           </Field>
           {err && <div className="form-error" role="alert">{err}</div>}
           <div><Button type="submit" variant="primary" disabled={!canEdit || busy || !accountId.trim()}>{busy ? 'Đang lưu...' : 'Lưu và kéo số liệu'}</Button></div>
-          <p className="hint-muted">Hiện hệ thống chỉ lưu thông tin kết nối. Việc kéo số liệu tự động từ nền tảng chưa được nối; số liệu tháng nhập tay ở mục Chung.</p>
+          <p className="hint-muted">{platform === 'facebook' ? 'Facebook được kéo tự động mỗi 15 phút. Tháng nào đã có số liệu tự động thì thay cho số nhập tay.' : 'Google gửi số liệu vào bằng khóa riêng ở mục Kết nối tự động. Tháng chưa có số liệu thì nhập tay ở mục Chung.'}</p>
           <details>
             <summary>Cách lấy token (khoảng 10 phút)</summary>
             <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>{def.guide.map((g) => <li key={g}>{g}</li>)}</ol>
@@ -281,9 +282,10 @@ export default function MarketingStats() {
 
       {tab === 'ads' && (
         <>
-          <Tabs<AdsTab> tabs={[{ value: 'facebook', label: 'Facebook' }, { value: 'google_ads', label: 'Google Ads' }, { value: 'maps', label: 'Hồ sơ Google Maps' }, { value: 'general', label: 'Chung' }]} value={adsTab} onChange={setAdsTab} />
+          <Tabs<AdsTab> tabs={[{ value: 'facebook', label: 'Facebook' }, { value: 'google_ads', label: 'Google Ads' }, { value: 'maps', label: 'Hồ sơ Google Maps' }, { value: 'auto', label: 'Kết nối tự động' }, { value: 'general', label: 'Chung' }]} value={adsTab} onChange={setAdsTab} />
           <div style={{ height: 12 }} />
-          {adsTab !== 'general' && <ConnectForm key={adsTab} platform={adsTab} cfg={ads[adsTab]} canEdit={canEdit} onSaved={setAds} />}
+          {adsTab === 'auto' && <MarketingAutoPanel canEdit={canEdit} />}
+          {adsTab !== 'general' && adsTab !== 'auto' && <ConnectForm key={adsTab} platform={adsTab} cfg={ads[adsTab]} canEdit={canEdit} onSaved={setAds} />}
           {adsTab === 'general' && (
             <>
               <p className="hint-muted" style={{ marginTop: 0 }}>Nhập số liệu quảng cáo tháng {monthLabel} theo từng kênh cho đến khi có kết nối tự động.</p>

@@ -10,6 +10,7 @@ import { FormDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
 import { PayModal, PendingPanel } from '../components/PayModal'
 import { PtSignModal } from '../components/PtSignModal'
+import { InvoiceModal } from '../components/InvoiceModal'
 import { SignaturePad } from '../components/SignaturePad'
 import { useToast } from '../components/Toast'
 import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, type Column } from '../components/ui'
@@ -47,7 +48,7 @@ export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | '
   )
 }
 
-type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | 'staff' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
+type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | 'staff' | 'invoice' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
 
 export default function ContractDetail() {
   const { id } = useParams()
@@ -229,6 +230,7 @@ export default function ContractDetail() {
             {a.freeze && <Button onClick={() => setDlg('freeze')}>Bảo lưu</Button>}
             {a.unfreeze && <Button onClick={() => run(() => post('unfreeze'), 'Đã kết thúc bảo lưu')}>Hủy bảo lưu</Button>}
             {a.pdf && <Button onClick={pdf}>Xem PDF</Button>}
+            {can('payments.create') && c.status !== 'cancelled' && c.paid_amount > 0 && <Button onClick={() => setDlg('invoice')}>Lập hóa đơn VAT</Button>}
             {a.cancel && <Button variant="danger" onClick={() => setDlg('cancel')}>Hủy hợp đồng</Button>}
           </div>
         </Panel>
@@ -253,6 +255,7 @@ export default function ContractDetail() {
         </Panel>
       </div>
 
+      {dlg === 'invoice' && <InvoiceModal contract={c} onClose={close} />}
       {ptSign && <PtSignModal session={ptSign} onClose={() => setPtSign(null)} onConfirmed={completePtSession} onCancel={discardPtSession} />}
       {dlg === 'sign' && (
         <Modal

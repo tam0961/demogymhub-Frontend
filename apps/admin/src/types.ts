@@ -458,3 +458,16 @@ export interface InbodyRecord {
   created_by_name: string | null
   created_at: string
 }
+
+export interface InvoiceCfg {
+  live: boolean; base: string; supplierCode: string; invoiceType: string; templateCode: string; user: string; vat: number
+  sellerName: string; sellerTaxCode: string; sellerAddress: string; sellerPhone: string; sellerEmail: string; sellerBank: string; sellerAccount: string
+}
+export interface InvoiceCfgResp { cfg: InvoiceCfg; has_pass: boolean; vat_rates: number[] }
+export interface InvoicePublicCfg { live: boolean; vat: number; vat_rates: number[] }
+export interface InvoiceCalc {
+  items: { line: number; name: string; unit: string; qty: number; vat: number; gross: number; net: number; tax: number; unitPrice: number }[]
+  net: number; tax: number; total: number
+}
+export interface InvoiceIssued { id: string; status: 'test' | 'issued'; live: boolean; note: string | null; invoice_no: string | null; reservation_code: string | null; calc: InvoiceCalc; words: string }
+export interface InvoiceRow { id: string; status: 'test' | 'issued' | 'failed'; invoice_no: string | null; buyer_name: string; net: number; tax: number; total: number; error: string | null; created_at: string }
