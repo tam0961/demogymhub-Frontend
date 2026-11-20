@@ -13,7 +13,8 @@ import { QRImage } from '../components/QRImage'
 import { FaceModal, type FaceResult } from '../components/FaceModal'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { FaceDeviceSend, FaceJobsLine, useFaceJobs } from '../components/FaceDeviceSend'
-import { BranchTag, Button, Chip, DataTable, Field, Icon, Input, Segmented, Select, useToast, type Column } from '../components/ui'
+import { InbodyPanel } from '../components/InbodyPanel'
+import { BranchTag, Button, Chip, DataTable, Field, Icon, Input, Segmented, Select, Tabs, useToast, type Column } from '../components/ui'
 import type { Branch, CheckinItem, Contract, Gender, ListResp, Me, Member, MemberStatus, Payment, PtEligibility } from '../types'
 
 const PAGE = 100
@@ -397,6 +398,7 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
   const [faceOpen, setFaceOpen] = useState(false)
   const [payFor, setPayFor] = useState<Contract | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [tab, setTab] = useState<'info' | 'inbody'>('info')
   const branch = member.branch ?? user?.branches.find((b) => b.id === member.branch_id)
 
   useEffect(() => {
@@ -460,9 +462,11 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
         </dl>
       </div>
       <FaceJobsLine jobs={faceJobs.jobs} />
-      {error && <div className="form-error" role="alert">{error}</div>}
-      {!data && !error && <div className="hint-muted">Đang tải...</div>}
-      {data && (
+      {can('inbody.read') && <Tabs tabs={[{ value: 'info', label: 'Thông tin' }, { value: 'inbody', label: 'InBody' }]} value={tab} onChange={setTab} />}
+      {tab === 'inbody' && can('inbody.read') && <InbodyPanel memberId={member.id} />}
+      {error && tab === 'info' && <div className="form-error" role="alert">{error}</div>}
+      {!data && !error && tab === 'info' && <div className="hint-muted">Đang tải...</div>}
+      {data && tab === 'info' && (
         <>
           <h3 className="prof-sec">Hợp đồng</h3>
           {data.contracts.length === 0 && <div className="hint-muted">Chưa có hợp đồng</div>}

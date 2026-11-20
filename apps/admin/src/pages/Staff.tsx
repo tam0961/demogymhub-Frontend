@@ -369,7 +369,7 @@ function StaffFormModal({ staff, onClose, onSaved }: { staff: StaffRow | null; o
         <form id="staff-form" onSubmit={submit}>
           {err && <div className="form-error" role="alert">{err}</div>}
           <div className="form-grid">
-            <Field label="Họ tên" htmlFor="sf-name" full><Input id="sf-name" value={f.name} onChange={(e) => set({ name: e.target.value })} /></Field>
+            <Field label="Họ và tên" htmlFor="sf-name" hint="Nhập đầy đủ họ và tên, ví dụ Nguyễn Văn Khánh." full><Input id="sf-name" value={f.name} onChange={(e) => set({ name: e.target.value })} /></Field>
             <Field label="Số điện thoại" htmlFor="sf-phone" error={phoneBad ? 'Số điện thoại chưa đúng' : undefined}>
               <Input id="sf-phone" inputMode="tel" invalid={phoneBad} value={f.phone} onChange={(e) => set({ phone: e.target.value })} />
             </Field>

@@ -1,7 +1,7 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from 'axios'
 import { ptUsageDeadline } from '../lib/pt'
 import { shiftMonth } from '../lib/staff'
-import type { StaffPosition, StaffRow, Ticket, Lead, PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
+import type { DayTicket, InbodyRecord, StaffPosition, StaffRow, Ticket, Lead, PtSession, AuditRow, BundledContract, CheckinItem, Contract, Me, Member, PayMethod, Payment, Pkg, PtContract, PtEligibility, RoleRow, SessionRow, Shift } from '../types'
 
 const branches = [
   { id: 'b-q2', code: 'Q2', name: 'Chi nhánh Quận 2' },
@@ -18,8 +18,10 @@ const P = {
   checkins: ['checkins.create', 'checkins.read'],
   pt: ['pt_sessions.read', 'pt_sessions.create', 'pt_sessions.complete', 'pt_sessions.cancel'],
   leads: ['leads.read', 'leads.create', 'leads.update'],
+  day: ['day_tickets.read', 'day_tickets.create'],
+  inbody: ['inbody.read', 'inbody.create'],
 }
-const MANAGER_EXTRA = ['contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
+const MANAGER_EXTRA = ['inbody.delete', 'contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
 const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage', 'devices.manage', 'payroll.read', 'payroll.manage', 'staff.read', 'staff.manage']
 
 const ptTrainers = [{ id: 'pt1', name: 'PT Đạt', branches: [{ id: 'b-nb', name: 'Chi nhánh Nhà Bè' }] }, { id: 'pt2', name: 'PT Tuấn', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }, { id: 'pt3', name: 'PT Ánh', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }]
@@ -286,6 +288,8 @@ const payments: Payment[] = []
 const shifts: Shift[] = []
 const checkins: (CheckinItem & { branch_id: string; direction: string })[] = []
 const audit: AuditRow[] = []
+const dayTickets: DayTicket[] = []
+const inbodyRows: InbodyRecord[] = []
 
 function pkgOf(id: string) {
   return packages.find((p) => p.id === id) as Pkg
@@ -854,6 +858,64 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     if (String(body.image_base64).length > 400 * 1024) fail(config, 413, 'PHOTO_TOO_LARGE', 'Ảnh quá lớn')
     photos.set(pm0[1], { content_type: body.content_type, image_base64: body.image_base64, version: Date.now() })
     return ok(memberOut(m as Member))
+  }
+  if (url === '/day-tickets' && method === 'get') {
+    need('day_tickets.read')
+    const from = String(params.from ?? params.date ?? iso().slice(0, 10))
+    const to = String(params.to ?? params.date ?? from)
+    const rows = dayTickets.filter((t) => myBranch(t.branch_id) && t.issued_on >= from && t.issued_on <= to).slice().sort((a, b) => b.created_at.localeCompare(a.created_at))
+    return ok(rows, { meta: { from, to, count: rows.length, total: rows.reduce((x, t) => x + t.amount, 0), price: 100000 } })
+  }
+  if (url === '/day-tickets' && method === 'post') {
+    need('day_tickets.create')
+    const phone = String(body.phone ?? '').replace(/[\s.\-()]/g, '')
+    if (!String(body.name ?? '').trim() || !/^\+?\d{9,15}$/.test(phone) || !['cash', 'transfer', 'card', 'momo'].includes(body.method)) fail(config, 400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ')
+    const bid = String(body.branch_id || branchFilter || me.branches[0]?.id)
+    if (!me.branches.some((b) => b.id === bid)) fail(config, 403, 'FORBIDDEN', 'Không đủ quyền')
+    const mem = members.find((x) => x.phone === phone)
+    if (mem && contracts.some((c) => c.member_id === mem.id && c.status === 'active' && (!c.end_date || c.end_date >= iso().slice(0, 10)))) fail(config, 409, 'MEMBER_HAS_CONTRACT', `Số điện thoại thuộc hội viên ${mem.name} đang còn hợp đồng, không bán vé lẻ`)
+    if (dayTickets.some((t) => t.phone === phone && t.issued_on === iso().slice(0, 10) && !t.checked_out_at)) fail(config, 409, 'TICKET_ACTIVE', 'Số điện thoại này đã có vé hôm nay và vẫn đang trong phòng tập')
+    if (body.method === 'cash' && !shifts.some((x) => x.user_id === me.id && !x.closed_at)) fail(config, 409, 'SHIFT_REQUIRED', 'Cần mở ca trước khi thu tiền mặt')
+    const t: DayTicket = { id: nid('dt'), name: String(body.name).trim(), phone, branch_id: bid, issued_on: iso().slice(0, 10), amount: 100000, method: body.method === 'momo' ? 'ewallet' : body.method, payment_id: nid('pay'), payment_status: 'confirmed', checked_out_at: null, created_at: iso(), created_by: me.id, created_by_name: me.name }
+    dayTickets.unshift(t)
+    log(me.email, 'day_ticket.sold', t.phone)
+    return ok(t)
+  }
+  const dtc = url.match(/^\/day-tickets\/([^/]+)\/checkout$/)
+  if (dtc && method === 'post') {
+    need('day_tickets.create')
+    const t = dayTickets.find((x) => x.id === dtc[1])
+    if (!t) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
+    if (t!.checked_out_at) fail(config, 409, 'INVALID_STATE', 'Khách đã ra về')
+    t!.checked_out_at = iso()
+    return ok(t)
+  }
+  const ibm = url.match(/^\/members\/([^/]+)\/inbody(?:\/([^/]+))?$/)
+  if (ibm) {
+    const m = members.find((x) => x.id === ibm[1])
+    if (!m || !myBranch((m as Member).branch_id)) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
+    if (method === 'get') {
+      need('inbody.read')
+      return ok(inbodyRows.filter((r) => r.member_id === ibm[1]).sort((a, b) => b.measured_on.localeCompare(a.measured_on) || b.created_at.localeCompare(a.created_at)))
+    }
+    if (method === 'post') {
+      need('inbody.create')
+      const lim: [string, number, number][] = [['weight', 20, 300], ['height', 100, 250], ['body_fat', 1, 70], ['muscle', 5, 150]]
+      const bad = lim.some(([k, lo, hi]) => !(typeof body[k] === 'number' && body[k] >= lo && body[k] <= hi))
+      if (bad || (body.measured_on && body.measured_on > iso().slice(0, 10))) fail(config, 400, 'VALIDATION_ERROR', 'Chỉ số không hợp lệ')
+      const r: InbodyRecord = { id: nid('ib'), member_id: ibm[1], measured_on: body.measured_on ?? iso().slice(0, 10), weight: body.weight, height: body.height, body_fat: body.body_fat, muscle: body.muscle, source: 'manual', note: body.note ?? null, created_by: me.id, created_by_name: me.name, created_at: iso() }
+      inbodyRows.push(r)
+      log(me.email, 'inbody.created', (m as Member).code)
+      return ok(r)
+    }
+    if (method === 'delete') {
+      need('inbody.create')
+      const i = inbodyRows.findIndex((r) => r.id === ibm[2] && r.member_id === ibm[1])
+      if (i < 0) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy')
+      if (inbodyRows[i].created_by !== me.id && !isSuper && !me.permissions.includes('inbody.delete')) fail(config, 403, 'FORBIDDEN', 'Không đủ quyền')
+      inbodyRows.splice(i, 1)
+      return ok({ ok: true })
+    }
   }
   const pe = url.match(/^\/members\/([^/]+)\/pt-eligibility$/)
   if (pe && method === 'get') {

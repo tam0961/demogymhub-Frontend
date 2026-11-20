@@ -380,3 +380,36 @@ export interface StaffDetail { staff: StaffRow; trend: StaffTrendPoint[]; client
 export interface StaffForm {
   name: string; phone: string; position: StaffPosition; branch_id: string; hired_on: string; employee_no: string; note: string
 }
+
+export type DayTicketMethod = 'cash' | 'transfer' | 'card' | 'momo'
+export interface DayTicket {
+  id: string
+  name: string
+  phone: string
+  branch_id: string
+  issued_on: string
+  amount: number
+  method: PayMethod
+  payment_id: string
+  payment_status: PayStatus
+  checked_out_at: string | null
+  created_at: string
+  created_by: string | null
+  created_by_name: string | null
+}
+export interface DayTicketList { data: DayTicket[]; meta: { from: string; to: string; count: number; total: number; price: number } }
+
+export interface InbodyRecord {
+  id: string
+  member_id: string
+  measured_on: string
+  weight: number
+  height: number
+  body_fat: number
+  muscle: number
+  source: string
+  note: string | null
+  created_by: string | null
+  created_by_name: string | null
+  created_at: string
+}
