@@ -9,7 +9,7 @@ import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { FormDialog } from '../components/Dialogs'
 import { BranchTag, Button, Chip, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, useToast } from '../components/ui'
-import type { CheckinItem, CheckinResult, CheckinStats, Dashboard, ListResp, TodayTasks } from '../types'
+import type { CheckinItem, CheckinResult, CheckinStats, Dashboard, ListResp, Member, TodayTasks } from '../types'
 
 const REFRESH_MS = 30000
 const WEEKDAYS = ['Chủ nhật', 'Thứ hai', 'Thứ ba', 'Thứ tư', 'Thứ năm', 'Thứ sáu', 'Thứ bảy']
@@ -23,6 +23,8 @@ export default function Today() {
   const inputRef = useRef<HTMLInputElement>(null)
   const branches = useMemo(() => user?.branches ?? [], [user])
   const [code, setCode] = useState('')
+  const [matches, setMatches] = useState<Member[]>([])
+  const [searching, setSearching] = useState(false)
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<CheckinResult | null>(null)
   const [err, setErr] = useState('')
@@ -57,25 +59,51 @@ export default function Today() {
     return () => clearInterval(t)
   }, [load])
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    const v = code.trim()
-    if (!v) return
+  useEffect(() => {
+    const k = code.trim()
+    if (k.length < 2) { setMatches([]); return }
+    setSearching(true)
+    const t = setTimeout(() => {
+      api.get('/members', { params: { q: k, branch_id: branchId ?? undefined, limit: 6 } })
+        .then((r) => setMatches(r.data.data as Member[]))
+        .catch(() => setMatches([]))
+        .finally(() => setSearching(false))
+    }, 250)
+    return () => clearTimeout(t)
+  }, [code, branchId])
+
+  const checkin = async (memberId: string) => {
     setBusy(true)
     setErr('')
     try {
-      const { data } = await api.post('/checkins', { member_code: v, direction: 'in' })
+      const { data } = await api.post('/checkins', { member_id: memberId, direction: 'in' })
       setRes(data.data)
+      const r: CheckinResult = data.data
+      if (r.member) {
+        try {
+          const pv = await api.get('/attendance/scan-preview', { params: { member_id: r.member.id } })
+          window.dispatchEvent(new CustomEvent('gh-scan-popup', { detail: { id: `manual-${Date.now()}`, employee_no: r.member.code, scanned_at: new Date().toISOString(), result: r.result, reason: r.reason, member: pv.data.data.member } }))
+        } catch { /* popup là phần phụ: bỏ qua nếu lỗi */ }
+      }
       load()
     } catch (x) {
       setRes(null)
-      const a = apiError(x)
-      setErr(a.status === 404 ? 'Không tìm thấy hội viên với mã này' : a.message)
+      setErr(apiError(x).message)
     } finally {
       setBusy(false)
       setCode('')
+      setMatches([])
       inputRef.current?.focus()
     }
+  }
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault()
+    const v = code.trim()
+    if (!v) return
+    if (matches.length === 1) checkin(matches[0].id)
+    else if (matches.length > 1) setErr('Có nhiều hội viên khớp, hãy bấm chọn đúng người trong danh sách')
+    else setErr(searching ? 'Đang tìm hội viên...' : 'Không tìm thấy hội viên với tên hoặc số điện thoại này')
   }
 
   const doOverride = async (reason: string) => {
@@ -108,9 +136,19 @@ export default function Today() {
         <>
           <form className="checkin-box" onSubmit={submit}>
             <label className="checkin-label" htmlFor="checkin-code"><Icon name="checkin" size={22} />Check-in</label>
-            <input id="checkin-code" ref={inputRef} className="input" placeholder="Nhập số điện thoại hoặc mã hội viên" autoFocus autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
+            <input id="checkin-code" ref={inputRef} className="input" placeholder="Nhập tên hoặc số điện thoại hội viên" autoFocus autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
             <button type="submit" className="go" disabled={busy}>{busy ? 'Đang kiểm tra...' : 'Check-in'}</button>
           </form>
+          {matches.length > 0 && (
+            <div className="match-list" role="listbox" aria-label="Hội viên khớp">
+              {matches.map((m) => (
+                <button key={m.id} type="button" role="option" aria-selected={false} className="match-item" disabled={busy} onClick={() => checkin(m.id)}>
+                  <span className="cell-main">{m.name}</span>
+                  <span className="cell-sub">{m.code} · {m.phone}</span>
+                </button>
+              ))}
+            </div>
+          )}
           {user?.checkin_branch && (
             <div className="checkin-at-static">
               <span>Check-in tại</span>
