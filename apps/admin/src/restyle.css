@@ -440,3 +440,8 @@
 .settings-staff .table td:first-child input { width: 220px; max-width: 100%; }
 .settings-staff .table td:nth-child(2) select { width: 150px; }
 .settings-staff .table td:nth-child(3) input { width: 150px; }
+
+.flow-card .table input { font-size: 14px; padding-left: 8px; padding-right: 8px; }
+.flow-card .table td:nth-child(2) input { width: 146px; }
+.flow-card .table td:nth-child(3) input { width: 64px; }
+.flow-split .input { width: 84px; }
