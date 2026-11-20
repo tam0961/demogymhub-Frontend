@@ -436,20 +436,17 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               <TierEditor bare title="Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
             </div>
             <div className="flow-card">
-              <div className="flow-tag">Chỉ PT</div>
               <b>Hoa hồng lớp nhóm</b>
               <p className="hint-muted">Tính theo số buổi đứng lớp thực tế.</p>
               <Field label="Đơn giá mỗi buổi" htmlFor="ps-class"><MoneyInput id="ps-class" disabled={disabled} value={settings.classRate} onValueChange={(d) => set({ classRate: Number(d) || 0 })} /></Field>
               <p className="hint-muted">Ví dụ: dạy 10 buổi nhận {fmtMoney(10 * settings.classRate)}.</p>
             </div>
             <div className="flow-card">
-              <div className="flow-tag">Nhân viên chính thức</div>
               <b>Bảo hiểm NLĐ</b>
-              <p className="hint-muted">BHXH 8% + BHTN 1% + BHYT 1,5% = 10,5%</p>
-              <div className="flow-split">
-                <Field label="Tỷ lệ (% mức đóng)" htmlFor="ps-ins"><NumInput id="ps-ins" value={settings.insuranceRate} onChange={(n) => set({ insuranceRate: n })} /></Field>
-                <Field label="Mức lương đóng (đồng/tháng)" htmlFor="ps-insb" hint="Để trống thì tính trên lương cơ bản"><MoneyInput id="ps-insb" disabled={disabled} value={settings.insuranceBase ?? ''} onValueChange={(d) => set({ insuranceBase: d ? Number(d) : null })} placeholder="Theo lương cơ bản" /></Field>
-              </div>
+              <dl className="kv">
+                <dt>Tỷ lệ</dt><dd>{String(settings.insuranceRate).replace('.', ',')}%</dd>
+                <dt>Mức lương đóng</dt><dd>{settings.insuranceBase != null ? fmtMoney(settings.insuranceBase) : 'Theo lương cơ bản'}</dd>
+              </dl>
             </div>
             <div className="flow-card">
               <div className="flow-tag">Không tính giảm trừ</div>
