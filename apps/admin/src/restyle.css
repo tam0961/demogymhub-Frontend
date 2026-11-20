@@ -391,3 +391,9 @@
 .settings-rates { flex: 1 1 520px; min-width: 0; }
 .settings-staff .table td:nth-child(2) select { width: 140px; min-width: 0; }
 .settings-staff .table td:nth-child(3) input { width: 120px; }
+
+.settings-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-top: 16px; }
+.settings-box { flex: 1 1 360px; min-width: 0; }
+.settings-rates .table-wrap, .settings-box .table-wrap { overflow-x: visible; }
+.settings-rates .table td:nth-child(2) input, .settings-box .table td:nth-child(2) input { width: 120px; }
+.settings-rates .table td:nth-child(3) input, .settings-box .table td:nth-child(3) input { width: 64px; }

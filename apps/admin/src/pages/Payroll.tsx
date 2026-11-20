@@ -266,11 +266,11 @@ function DetailModal({ row, month, locked, canManage, onClose, onSaved }: { row:
   )
 }
 
-function TierEditor({ title, tiers, onChange, resizable, disabled }: { title: string; tiers: PayrollTier[]; onChange: (t: PayrollTier[]) => void; resizable?: boolean; disabled?: boolean }) {
+function TierEditor({ title, tiers, onChange, resizable, disabled, bare }: { title: string; tiers: PayrollTier[]; onChange: (t: PayrollTier[]) => void; resizable?: boolean; disabled?: boolean; bare?: boolean }) {
   const set = (i: number, patch: Partial<PayrollTier>) => onChange(tiers.map((t, k) => (k === i ? { ...t, ...patch } : t)))
   return (
     <div style={{ marginBottom: 16 }}>
-      <h4 style={{ margin: '0 0 6px' }}>{title}</h4>
+      {!bare && <h4 style={{ margin: '0 0 6px' }}>{title}</h4>}
       <div className="table-wrap">
         <table className="table">
           <thead>
@@ -407,12 +407,30 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
 
       {settings && (
         <div className="settings-rates">
-          <Panel title="Bảng tỷ lệ" note="Hoa hồng lũy tiến từng phần theo doanh số thực thu trong tháng">
-            <div className="tier-grid">
-            <TierEditor title="Bảng 1: Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
-            <TierEditor title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
-            <TierEditor title="Bảng 4: Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
+          <Panel title="Bảng 1: Hoa hồng bán gói Member" note="Dùng chung cho cả 3 nhóm, lũy tiến từng phần theo doanh số thực thu trong tháng">
+            <TierEditor bare title="Bảng 1: Hoa hồng bán gói Member (dùng chung)" tiers={settings.memberTiers} onChange={(t) => set({ memberTiers: t })} disabled={disabled} />
+          </Panel>
+        </div>
+      )}
+      </div>
+
+      {settings && (
+        <>
+          <div className="settings-row">
+            <div className="settings-box">
+              <Panel title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1" note="Theo doanh số gói PT trong tháng">
+                <TierEditor bare title="Bảng 2: Hoa hồng gói PT và dạy PT 1-1 (theo doanh số gói PT)" tiers={settings.ptTiers} onChange={(t) => set({ ptTiers: t })} disabled={disabled} />
+              </Panel>
             </div>
+            <div className="settings-box">
+              <Panel title="Bảng 4: Hoa hồng doanh số Member" note="Riêng Marketing">
+                <TierEditor bare title="Bảng 4: Hoa hồng doanh số Member (riêng Marketing)" tiers={settings.marketingTiers} onChange={(t) => set({ marketingTiers: t })} disabled={disabled} />
+              </Panel>
+            </div>
+          </div>
+
+          <div style={{ height: 16 }} />
+          <Panel title="Thông số khác">
             <div className="form-grid compact-form">
               <Field label="Gói PT: nhận liền (%)" htmlFor="ps-imm" hint="Mặc định 40%: trả ngay trong tháng ký hợp đồng"><PercentInput id="ps-imm" value={settings.ptImmediateShare} onChange={(n) => set({ ptImmediateShare: n })} /></Field>
               <Field label="Gói PT: chia theo buổi (%)" htmlFor="ps-ses" hint="Mặc định 60%: chia đều cho số buổi của gói"><PercentInput id="ps-ses" value={settings.ptSessionShare} onChange={(n) => set({ ptSessionShare: n })} /></Field>
@@ -423,9 +441,8 @@ function SettingsTab({ canManage }: { canManage: boolean }) {
               <Field label="Thuế PT Parttime (% tổng thu nhập)" htmlFor="ps-tax"><NumInput id="ps-tax" value={settings.partTimeTaxRate} onChange={(n) => set({ partTimeTaxRate: n })} /></Field>
             </div>
           </Panel>
-        </div>
+        </>
       )}
-      </div>
 
       {settings && canManage && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
