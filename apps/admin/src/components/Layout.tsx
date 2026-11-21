@@ -61,8 +61,8 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/reports/closing', label: 'Đối soát', icon: 'closing', perm: ['reports.view'] },
   ] },
   { title: 'Marketing', items: [
-    { to: '/leads', label: 'Khách tiềm năng', icon: 'users', perm: ['leads.read'] },
     { to: '/marketing/stats', label: 'Chỉ số marketing', icon: 'reports', perm: ['reports.view'] },
+    { to: '/leads', label: 'Khách tiềm năng', icon: 'users', perm: ['leads.read'] },
   ] },
   { title: 'Nhân sự', items: [
     { to: '/staff', label: 'Nhân viên', icon: 'users', perm: ['staff.read'] },
