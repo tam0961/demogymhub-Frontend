@@ -89,6 +89,8 @@ export const NAV_GROUPS: NavGroup[] = [
   ] },
 ]
 
+const SETTINGS_GROUP = 'Thiết lập'
+
 const ALL_ITEMS = NAV_GROUPS.flatMap((g) => g.items.map((i) => ({ ...i, group: g.title })))
 
 export function activeNavTo(path: string): string | null {
@@ -132,6 +134,17 @@ function Shell() {
         </Link>
         <nav className="nav" aria-label="Điều hướng">
           {groups.map((g) => {
+            if (g.title === SETTINGS_GROUP) {
+              const on = g.title === activeGroup
+              return (
+                <div key={g.title} className="nav-group">
+                  <Link to={g.items[0].to} className={on ? 'active' : ''} aria-current={on ? 'page' : undefined}>
+                    <Icon name="roles" size={18} />
+                    {g.title}
+                  </Link>
+                </div>
+              )
+            }
             const isOpen = !!opened[g.title]
             return (
               <div key={g.title} className="nav-group">
@@ -165,6 +178,13 @@ function Shell() {
       <div className="main">
         <Topbar onMenu={() => setOpen(true)} />
         <main className={`content${/^\/(settings|users|roles|audit)/.test(loc.pathname) ? ' compact' : ''}`} key={loc.pathname}>
+          {activeGroup === SETTINGS_GROUP && (
+            <nav className="tabs settings-tabs" aria-label="Thiết lập">
+              {groups.find((g) => g.title === SETTINGS_GROUP)?.items.map((n) => (
+                <Link key={n.to} to={n.to} className="tab" aria-selected={n.to === active} aria-current={n.to === active ? 'page' : undefined}>{n.label}</Link>
+              ))}
+            </nav>
+          )}
           <Outlet />
         </main>
       </div>

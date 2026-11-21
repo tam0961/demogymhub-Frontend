@@ -573,3 +573,6 @@
 .bot-box-wide { grid-column: 1 / -1; }
 .bot-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 12px; }
 @media (max-width: 900px) { .bot-fields { grid-template-columns: minmax(0, 1fr); } }
+
+.settings-tabs { margin-bottom: 14px; }
+.settings-tabs .tab { text-decoration: none; display: inline-flex; align-items: center; }

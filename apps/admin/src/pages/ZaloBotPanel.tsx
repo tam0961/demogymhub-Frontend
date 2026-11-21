@@ -184,12 +184,15 @@ export default function ZaloBotPanel() {
 
   if (!cfg) return <Panel title="Zalo Bot báo ca và vệ sinh">{err ? <div className="form-error" role="alert">{err}</div> : <p className="cell-sub">Đang tải...</p>}</Panel>
 
-  const groups = cfg.state.chats.filter((c) => c.type.toUpperCase() === 'GROUP')
-
   return (
     <form onSubmit={save}>
     <Panel title="Zalo Bot: cài đặt">
       {err && <div className="form-error" role="alert">{err}</div>}
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginBottom: 10 }}>
+        <Button type="button" onClick={() => { setDraft({ pt: { ...form.pt_tpl }, clean: { ...form.clean_tpl }, shoot: { ...form.shoot_tpl } }); setTplOpen(true) }}>Mẫu tin</Button>
+        <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
+        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
+      </div>
       <div className="bot-boxes">
         <div className="bot-box">
           <div className="bot-head">
@@ -206,17 +209,12 @@ export default function ZaloBotPanel() {
             <h3>Nhóm PT & Sale</h3>
             <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot nhóm PT và Sale" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.pt_on ? 'on' : 'off'} onChange={(v) => flip('pt', v === 'on')} />
           </div>
-          <Field label="Mã nhóm PT" htmlFor="zb-group" hint="Nhắn tin tag bot trong nhóm, nhóm sẽ hiện ở dưới.">
+          <Field label="Mã nhóm PT" htmlFor="zb-group">
             <div className="bot-row">
               <Input id="zb-group" value={form.pt_group} onChange={(e) => set({ pt_group: e.target.value })} />
               <Button type="button" onClick={() => call('/zalo/bot/send-test', 'Đã gửi tin thử vào nhóm')}>Gửi thử</Button>
             </div>
           </Field>
-          {groups.length > 0 && (
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.pt_group ? 'primary' : 'secondary'} onClick={() => set({ pt_group: g.id })}>{g.name || g.id}</Button>)}
-            </div>
-          )}
         </div>
         <div className="bot-box">
         <div className="bot-head">
@@ -224,18 +222,13 @@ export default function ZaloBotPanel() {
           <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot vệ sinh" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.clean_on ? 'on' : 'off'} onChange={(v) => flip('clean', v === 'on')} />
         </div>
         <div className="form-grid">
-          <Field label="Mã nhóm vệ sinh" htmlFor="zb-cgroup" hint="Nhắn tin tag bot trong nhóm vệ sinh, nhóm sẽ hiện ở dưới.">
+          <Field label="Mã nhóm vệ sinh" htmlFor="zb-cgroup">
             <div className="bot-row">
               <Input id="zb-cgroup" value={form.clean_group} onChange={(e) => set({ clean_group: e.target.value })} />
               <Button type="button" onClick={() => call('/zalo/bot/send-test-clean', 'Đã gửi tin thử vào nhóm vệ sinh')}>Gửi thử</Button>
             </div>
           </Field>
         </div>
-        {groups.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: 0 }}>
-            {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.clean_group ? 'primary' : 'secondary'} onClick={() => set({ clean_group: g.id })}>{g.name || g.id}</Button>)}
-          </div>
-        )}
         </div>
         <div className="bot-box">
         <div className="bot-head">
@@ -243,24 +236,14 @@ export default function ZaloBotPanel() {
           <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot buổi quay" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.shoot_on ? 'on' : 'off'} onChange={(v) => flip('shoot', v === 'on')} />
         </div>
         <div className="form-grid">
-          <Field label="Mã nhóm quay" htmlFor="zb-sgroup" hint="Nhắn tin tag bot trong nhóm quay, nhóm sẽ hiện ở dưới.">
+          <Field label="Mã nhóm quay" htmlFor="zb-sgroup">
             <div className="bot-row">
               <Input id="zb-sgroup" value={form.shoot_group} onChange={(e) => set({ shoot_group: e.target.value })} />
               <Button type="button" onClick={() => call('/zalo/bot/send-test-shoot', 'Đã gửi tin thử vào nhóm quay')}>Gửi thử</Button>
             </div>
           </Field>
         </div>
-        {groups.length > 0 && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: 0 }}>
-            {groups.map((g) => <Button key={g.id} small type="button" variant={g.id === form.shoot_group ? 'primary' : 'secondary'} onClick={() => set({ shoot_group: g.id })}>{g.name || g.id}</Button>)}
-          </div>
-        )}
         </div>
-      </div>
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 10 }}>
-        <Button type="button" onClick={() => { setDraft({ pt: { ...form.pt_tpl }, clean: { ...form.clean_tpl }, shoot: { ...form.shoot_tpl } }); setTplOpen(true) }}>Mẫu tin</Button>
-        <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
-        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
       </div>
       <div className="bot-box" style={{ marginTop: 10 }}>
         <h3>Báo cáo tháng</h3>
