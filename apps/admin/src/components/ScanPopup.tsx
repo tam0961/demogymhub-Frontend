@@ -185,7 +185,7 @@ export default function ScanPopup() {
             <div className="scan-foot">
               <Button onClick={() => go(`/members?q=${encodeURIComponent(m.code)}`)}>Mở hồ sơ</Button>
               {m.debt_contract && <Button onClick={() => go(`/contracts/${m.debt_contract!.id}`)}>Thu tiền</Button>}
-              {cur.result !== 'allowed' && m.contract_id && <Button onClick={() => go(`/contracts/${m.contract_id}`)}>Gia hạn</Button>}
+              {cur.result !== 'allowed' && <Button onClick={() => go(`/contracts/new?member_id=${m.id}`)}>Đăng ký mới</Button>}
             </div>
           </>
         ) : (

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, isPtCategory, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
@@ -53,7 +53,6 @@ type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | 
 
 export default function ContractDetail() {
   const { id } = useParams()
-  const nav = useNavigate()
   const { can } = usePermission()
   const toast = useToast()
   const [c, setC] = useState<Contract | null>(null)
@@ -151,19 +150,6 @@ export default function ContractDetail() {
     }
   }
 
-  const renew = async () => {
-    setBusy(true)
-    try {
-      const { data } = await post('renew')
-      toast('Đã tạo hợp đồng gia hạn (nháp)')
-      nav(`/contracts/${data.data.id}`)
-    } catch (e) {
-      toast(apiError(e).message, true)
-    } finally {
-      setBusy(false)
-    }
-  }
-
   const pays = c.payments ?? []
   const pendingSum = pays.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0)
 
@@ -226,7 +212,6 @@ export default function ContractDetail() {
               <Button variant="primary" disabled={busy} onClick={startPtSession}>Hoàn thành buổi</Button>
             )}
             {a.pay && <Button variant={variant('pay')} onClick={() => setDlg('pay')}>Thu tiền</Button>}
-            {a.renew && <Button onClick={renew} disabled={busy}>Gia hạn</Button>}
             {a.ticket && <Button onClick={() => setDlg('ticket')}>Lập phiếu</Button>}
             {a.freeze && <Button onClick={() => setDlg('freeze')}>Bảo lưu</Button>}
             {a.unfreeze && <Button onClick={() => run(() => post('unfreeze'), 'Đã kết thúc bảo lưu')}>Hủy bảo lưu</Button>}

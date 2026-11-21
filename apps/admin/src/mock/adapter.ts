@@ -12,7 +12,7 @@ const branches = [
 const P = {
   members: ['members.read', 'members.create', 'members.update'],
   packages: ['packages.read', 'packages.create', 'packages.update'],
-  contracts: ['contracts.create', 'contracts.read', 'contracts.sign', 'contracts.activate'],
+  contracts: ['contracts.create', 'contracts.read', 'contracts.sign', 'contracts.activate', 'contracts.edit'],
   payments: ['payments.create', 'payments.read', 'payments.refund_request'],
   shifts: ['shifts.open', 'shifts.close'],
   checkins: ['checkins.create', 'checkins.read'],
@@ -21,7 +21,7 @@ const P = {
   day: ['day_tickets.read', 'day_tickets.create'],
   inbody: ['inbody.read', 'inbody.create'],
 }
-const MANAGER_EXTRA = ['inbody.delete', 'contracts.edit', 'contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
+const MANAGER_EXTRA = ['inbody.delete', 'contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
 const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage', 'devices.manage', 'payroll.read', 'payroll.manage', 'staff.read', 'staff.manage']
 
 const ptTrainers = [{ id: 'pt1', name: 'PT Đạt', branches: [{ id: 'b-nb', name: 'Chi nhánh Nhà Bè' }] }, { id: 'pt2', name: 'PT Tuấn', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }, { id: 'pt3', name: 'PT Ánh', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }]

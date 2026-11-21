@@ -22,7 +22,7 @@ export const MATRIX: MatrixRow[] = [
   { label: 'Xem dữ liệu mọi chi nhánh', mode: 'none', keys: [] },
   { label: 'Chuyển đổi giữa các chi nhánh', mode: 'none', keys: [] },
   { label: 'Quản lý hội viên, ảnh và Face ID', mode: 'fixed', keys: ['members.read'] },
-  { label: 'Tạo hợp đồng, ký, kích hoạt', mode: 'fixed', keys: ['contracts.create'] },
+  { label: 'Tạo, sửa hợp đồng, ký, kích hoạt', mode: 'fixed', keys: ['contracts.create'] },
   { label: 'Check-in, mở và chốt ca', mode: 'fixed', keys: ['checkins.create'] },
   { label: 'Lịch PT 1:1 và lớp nhóm: xem, đặt, hủy', mode: 'fixed', keys: ['pt_sessions.create'] },
   { label: 'Thu tiền, lập phiếu thu', mode: 'fixed', keys: ['payments.create'] },

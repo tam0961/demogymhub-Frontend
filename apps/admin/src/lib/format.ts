@@ -108,7 +108,6 @@ export interface ContractActions {
   activate: boolean
   activateBlockedByDebt: boolean
   activateWithDebt: boolean
-  renew: boolean
   ticket: boolean
   freeze: boolean
   unfreeze: boolean
@@ -132,7 +131,6 @@ export function contractActions(c: Pick<Contract, 'status' | 'debt_amount'>, can
     activate,
     activateBlockedByDebt: blocked,
     activateWithDebt,
-    renew: (c.status === 'active' || c.status === 'expired') && can('contracts.create'),
     ticket: (c.status === 'active' || c.status === 'frozen' || c.status === 'expired') && can('contracts.create'),
     freeze: c.status === 'active' && can('contracts.freeze'),
     unfreeze: c.status === 'frozen' && can('contracts.freeze'),

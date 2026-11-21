@@ -353,7 +353,7 @@ export default function Reports() {
                 <div className="cell-sub">Còn {c.days_left} ngày, {c.package}</div>
                 <BranchTag branch={c.branch} />
               </div>
-              <Link className="btn" to={`/contracts/${c.id}`}>Gia hạn</Link>
+              <Link className="btn" to={`/contracts/new?member_id=${c.member.id}`}>Đăng ký mới</Link>
             </div>
           ))}
         </Panel>

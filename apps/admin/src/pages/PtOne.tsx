@@ -98,15 +98,6 @@ export default function PtOne() {
   const slots = Array.from({ length: Math.round((maxEnd - minStart) / 30) }, (_, i) => minStart + i * 30)
 
   const isOff = (c: { trainerId?: string; date: string }) => !!c.trainerId && offs.some((o) => o.trainer_id === c.trainerId && o.date === c.date)
-  const toggleOff = async (c: { trainerId?: string; date: string }, off: boolean) => {
-    if (!c.trainerId) return
-    try {
-      await api.put('/pt/off', { trainer_id: c.trainerId, date: c.date, off, branch_id: branchId ?? trainers.find((t) => t.id === c.trainerId)?.branches?.[0]?.id })
-      load()
-    } catch (e) {
-      toast(apiError(e).message)
-    }
-  }
 
   const live = rows.filter((r) => r.status !== 'cancelled')
   const isLate = (s: PtSession) => !!s.member && isLateCancel(s.start_at)
@@ -146,7 +137,6 @@ export default function PtOne() {
             <div key={c.key} className={`ptg-head${isOff(c) ? ' off' : ''}`} style={{ borderTopColor: c.color }}>
               <b>{c.title}</b>
               <small>{isOff(c) ? 'OFF' : `${c.items.filter((i) => i.status !== 'cancelled').length} buổi`}</small>
-              {mode === 'day' && can('pt_sessions.create') && <button type="button" className="ptg-off-btn" onClick={() => toggleOff(c, !isOff(c))}>{isOff(c) ? 'Bỏ OFF' : 'Báo OFF'}</button>}
             </div>
           ))}
           {cols.length === 0 && <div className="ptg-head"><small>Chưa có PT trong chi nhánh</small></div>}
