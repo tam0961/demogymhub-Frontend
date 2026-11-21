@@ -21,7 +21,7 @@ const P = {
   day: ['day_tickets.read', 'day_tickets.create'],
   inbody: ['inbody.read', 'inbody.create'],
 }
-const MANAGER_EXTRA = ['inbody.delete', 'contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
+const MANAGER_EXTRA = ['inbody.delete', 'contracts.edit', 'contracts.approve', 'contracts.freeze', 'contracts.cancel', 'payments.confirm', 'payments.refund', 'checkins.override', 'reports.view', 'reports.view_revenue', 'reports.export']
 const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage', 'devices.manage', 'payroll.read', 'payroll.manage', 'staff.read', 'staff.manage']
 
 const ptTrainers = [{ id: 'pt1', name: 'PT Đạt', branches: [{ id: 'b-nb', name: 'Chi nhánh Nhà Bè' }] }, { id: 'pt2', name: 'PT Tuấn', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }, { id: 'pt3', name: 'PT Ánh', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }]
@@ -1710,6 +1710,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/zalo/bot/check' || url === '/zalo/bot/send-test' || url === '/zalo/bot/send-test-clean' || url === '/zalo/bot/send-test-shoot') return ok({ ok: true, message: 'ok' })
   if (url === '/contracts/pt-staff') return ok([{ id: 'u-pt1', name: 'Vũ Bảo Khánh' }, { id: 'u-pt2', name: 'Ngô Thị Huyền Trang' }, { id: 'u-pt3', name: 'Thịnh' }])
   if (/^\/contracts\/[^/]+\/staff$/.test(url) && method === 'patch') return ok({})
+  if (/^\/contracts\/[^/]+$/.test(url) && method === 'patch') { need('contracts.edit'); return ok({}) }
   if (url === '/contracts/sale-staff') return ok([{ id: 'u-sale1', name: 'Ngô Thị Huyền Trang' }, { id: 'u-sale2', name: 'Vũ Bảo Khánh' }])
   if (url === '/attendance/face-jobs' && method === 'get') return ok([{ id: 'fj1', device_name: 'Máy Q7', status: 'done', message: null, created_at: new Date().toISOString() }])
   if (url === '/attendance/face-jobs' && method === 'post') return ok([{ id: 'fj2', status: 'pending' }])

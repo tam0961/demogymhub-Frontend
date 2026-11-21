@@ -86,7 +86,7 @@ export const METHOD_LABEL: Record<PayMethod, string> = { cash: 'Tiền mặt', t
 export const METHODS = Object.keys(METHOD_LABEL) as PayMethod[]
 
 export const EVENT_LABEL: Record<string, string> = {
-  created: 'Tạo hợp đồng', signed: 'Đã ký', activated: 'Kích hoạt', renewed: 'Gia hạn', frozen: 'Bảo lưu',
+  created: 'Tạo hợp đồng', edited: 'Sửa hợp đồng', signed: 'Đã ký', activated: 'Kích hoạt', renewed: 'Gia hạn', frozen: 'Bảo lưu',
   unfrozen: 'Hết bảo lưu', cancelled: 'Hủy hợp đồng', payment: 'Thanh toán', expired: 'Hết hạn',
   payment_created: 'Ghi nhận thu tiền', payment_confirmed: 'Đã thu tiền', payment_refunded: 'Đã hoàn tiền', refund_requested: 'Đề nghị hoàn tiền',
 }

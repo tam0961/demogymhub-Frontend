@@ -17,6 +17,7 @@ import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHead
 import { MemberAvatar } from '../components/MemberAvatar'
 import { TicketModal } from '../components/TicketModal'
 import { StaffModal } from '../components/StaffModal'
+import { EditContractModal } from '../components/EditContractModal'
 import type { Contract, Member, Payment, PtSession } from '../types'
 
 export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | 'bundle_of_id'> }) {
@@ -48,7 +49,7 @@ export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | '
   )
 }
 
-type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | 'staff' | 'invoice' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
+type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | 'staff' | 'edit' | 'invoice' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
 
 export default function ContractDetail() {
   const { id } = useParams()
@@ -229,6 +230,7 @@ export default function ContractDetail() {
             {a.ticket && <Button onClick={() => setDlg('ticket')}>Lập phiếu</Button>}
             {a.freeze && <Button onClick={() => setDlg('freeze')}>Bảo lưu</Button>}
             {a.unfreeze && <Button onClick={() => run(() => post('unfreeze'), 'Đã kết thúc bảo lưu')}>Hủy bảo lưu</Button>}
+            {can('contracts.edit') && c.status !== 'cancelled' && <Button onClick={() => setDlg('edit')}>Sửa hợp đồng</Button>}
             {a.pdf && <Button onClick={pdf}>Xem PDF</Button>}
             {can('payments.create') && c.status !== 'cancelled' && c.paid_amount > 0 && <Button onClick={() => setDlg('invoice')}>Lập hóa đơn VAT</Button>}
             {a.cancel && <Button variant="danger" onClick={() => setDlg('cancel')}>Hủy hợp đồng</Button>}
@@ -305,6 +307,7 @@ export default function ContractDetail() {
         </Modal>
       )}
 
+      {dlg === 'edit' && <EditContractModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
       {dlg === 'staff' && <StaffModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
       {dlg === 'ticket' && <TicketModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
 
