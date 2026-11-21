@@ -66,7 +66,7 @@ const znsCfg = {
   app_id: '', oa_id: '', test_phone: '', has_secret_key: false, has_access_token: false, has_refresh_token: false,
   events: {
     new_contract: { enabled: false, template_id: '', days: [] as number[], params: {} as Record<string, string> },
-    renewal: { enabled: false, template_id: '', days: [] as number[], params: {} as Record<string, string> },
+    payment_due: { enabled: false, template_id: '', days: [3, 0] as number[], params: {} as Record<string, string> },
     expiring: { enabled: true, template_id: '123456', days: [30, 14, 7], params: { ten_khach: 'customer_name', ngay_het_han: 'end_date' } as Record<string, string> },
     pt_signed: { enabled: false, template_id: '', days: [] as number[], params: {} as Record<string, string> },
   },

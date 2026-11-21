@@ -5,12 +5,12 @@ import { fmtDateTime } from '../lib/format'
 import ZaloBotPanel from './ZaloBotPanel'
 import { Button, Chip, Field, Input, PageHeader, Panel, Textarea, useToast } from '../components/ui'
 
-type EventKey = 'new_contract' | 'renewal' | 'expiring' | 'pt_signed'
+type EventKey = 'new_contract' | 'payment_due' | 'expiring' | 'pt_signed'
 
 interface EventDef { key: EventKey; label: string; hint: string; vars: string[]; hasDays?: boolean }
 const EVENTS: EventDef[] = [
   { key: 'new_contract', label: 'Đăng ký gói mới', hint: 'Gửi ngay khi hợp đồng mới được kích hoạt.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'gym_name'] },
-  { key: 'renewal', label: 'Gia hạn', hint: 'Gửi ngay khi hợp đồng gia hạn được kích hoạt.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'gym_name'] },
+  { key: 'payment_due', label: 'Nhắc thanh toán', hint: 'Gửi từ 9h cho hợp đồng còn nợ có ngày hẹn thanh toán. Số ngày là số ngày trước hạn, 0 là đúng ngày hẹn, mỗi mốc gửi một lần. Bỏ qua khách đã thanh toán đủ.', vars: ['customer_name', 'contract_code', 'package_name', 'amount_due', 'due_date', 'days_left', 'gym_name'], hasDays: true },
   { key: 'expiring', label: 'Nhắc hết hạn', hint: 'Gửi mỗi ngày từ 9h cho hợp đồng sắp hết hạn, mỗi mốc gửi một lần. Bỏ qua khách đã gia hạn.', vars: ['customer_name', 'contract_code', 'package_name', 'end_date', 'days_left', 'gym_name'], hasDays: true },
   { key: 'pt_signed', label: 'Khách ký xác nhận buổi PT', hint: 'Gửi ngay sau khi khách ký xác nhận buổi tập 1:1, kèm số buổi còn lại.', vars: ['customer_name', 'pt_name', 'session_time', 'sessions_left', 'gym_name'] },
 ]
@@ -77,9 +77,10 @@ export default function ZnsSettings({ embedded = false }: { embedded?: boolean }
     })),
   })
 
+  const badMin = (k: EventKey) => (k === 'payment_due' ? 0 : 1)
   const validate = () => {
-    const badDays = EVENTS.find((d) => d.hasDays && form.events[d.key].enabled && !parseDays(form.events[d.key].days).every((n) => Number.isInteger(n) && n >= 1 && n <= 90))
-    if (badDays) return `"${badDays.label}": các mốc ngày phải từ 1 đến 90, cách nhau bằng dấu phẩy`
+    const badDays = EVENTS.find((d) => d.hasDays && form.events[d.key].enabled && !parseDays(form.events[d.key].days).every((n) => Number.isInteger(n) && n >= (badMin(d.key)) && n <= 90))
+    if (badDays) return `"${badDays.label}": các mốc ngày phải từ ${badMin(badDays.key)} đến 90, cách nhau bằng dấu phẩy`
     const noTpl = EVENTS.find((d) => form.events[d.key].enabled && !form.events[d.key].templateId.trim())
     if (noTpl) return `"${noTpl.label}": cần nhập mã mẫu tin`
     return ''
@@ -168,7 +169,7 @@ export default function ZnsSettings({ embedded = false }: { embedded?: boolean }
                   </Field>
                   {d.hasDays && (
                     <Field label="Gửi trước (ngày)" htmlFor={`z-days-${d.key}`}>
-                      <Input id={`z-days-${d.key}`} placeholder="30, 14, 7" value={ev.days} onChange={(e) => setEv(d.key, { days: e.target.value })} />
+                      <Input id={`z-days-${d.key}`} placeholder={d.key === 'payment_due' ? '3, 0' : '30, 14, 7'} value={ev.days} onChange={(e) => setEv(d.key, { days: e.target.value })} />
                     </Field>
                   )}
                 </div>

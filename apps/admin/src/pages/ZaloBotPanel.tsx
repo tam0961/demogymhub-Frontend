@@ -188,21 +188,21 @@ export default function ZaloBotPanel() {
     <form onSubmit={save}>
     <Panel title="Zalo Bot: cài đặt">
       {err && <div className="form-error" role="alert">{err}</div>}
-      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginBottom: 10 }}>
-        <Button type="button" onClick={() => { setDraft({ pt: { ...form.pt_tpl }, clean: { ...form.clean_tpl }, shoot: { ...form.shoot_tpl } }); setTplOpen(true) }}>Mẫu tin</Button>
-        <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
-        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
-      </div>
       <div className="bot-boxes">
         <div className="bot-box">
           <div className="bot-head">
             <h3>Kết nối bot</h3>
             <Segmented<'on' | 'off'> ariaLabel="Bật hoặc tắt bot" options={[{ value: 'on', label: 'Bật' }, { value: 'off', label: 'Tắt' }]} value={form.enabled ? 'on' : 'off'} onChange={(v) => flip('main', v === 'on')} />
           </div>
-          <Field label="Token bot" htmlFor="zb-token" hint={cfg.has_token ? 'Đã lưu, để trống để giữ nguyên.' : undefined}>
+          <Field label="Token bot" htmlFor="zb-token">
             <Input id="zb-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} />
           </Field>
-          {cfg.has_token && <div className="cell-sub">Tên bot: <b>{cfg.bot_label || form.bot_name}</b></div>}
+          {cfg.has_token && (
+            <div className="cell-sub" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+              <span>Đã lưu, để trống để giữ nguyên.</span>
+              <span>Tên bot: <b>{cfg.bot_label || form.bot_name}</b></span>
+            </div>
+          )}
         </div>
         <div className="bot-box">
           <div className="bot-head">
@@ -244,6 +244,11 @@ export default function ZaloBotPanel() {
           </Field>
         </div>
         </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 10 }}>
+        <Button type="button" onClick={() => { setDraft({ pt: { ...form.pt_tpl }, clean: { ...form.clean_tpl }, shoot: { ...form.shoot_tpl } }); setTplOpen(true) }}>Mẫu tin</Button>
+        <Button type="button" onClick={() => call('/zalo/bot/check', 'Kết nối bot thành công')}>Kiểm tra kết nối</Button>
+        <Button type="submit" variant="primary" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu bot'}</Button>
       </div>
       <div className="bot-box" style={{ marginTop: 10 }}>
         <h3>Báo cáo tháng</h3>

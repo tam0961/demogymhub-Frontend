@@ -53,7 +53,7 @@ const blank = (month: string, channel: Channel): Metric => ({ month, channel, sp
 const num = (v: string) => Math.max(0, parseInt(v.replace(/\D/g, ''), 10) || 0)
 const pct = (a: number, b: number) => (b > 0 ? `${((a / b) * 100).toFixed(1)}%` : '-')
 const k = (n: number) => (n >= 1000 ? `${Math.round(n / 1000)}k` : String(n))
-const ZNS_EVENT: Record<string, string> = { new_contract: 'Đăng ký gói mới', renewal: 'Gia hạn', expiring: 'Nhắc hết hạn', pt_signed: 'Xác nhận buổi PT' }
+const ZNS_EVENT: Record<string, string> = { new_contract: 'Đăng ký gói mới', renewal: 'Gia hạn', payment_due: 'Nhắc thanh toán', expiring: 'Nhắc hết hạn', pt_signed: 'Xác nhận buổi PT' }
 
 function Dot({ code }: { code: string }) {
   return <span aria-hidden="true" style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 999, background: BRANCH_COLOR[code] ?? 'var(--brand)', marginRight: 6 }} />
