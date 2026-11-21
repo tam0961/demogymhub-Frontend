@@ -1478,7 +1478,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
         expiring_7: { total: 7, by_branch: [{ branch: 'Chi nhánh Quận 7', code: 'q7', count: 3 }, { branch: 'Chi nhánh Nhà Bè', code: 'nb', count: 4 }], spark: spark(5) },
         pt_active: { total: 9, members: 9, by_branch: [{ branch: 'Chi nhánh Quận 7', code: 'q7', count: 4 }, { branch: 'Chi nhánh Nhà Bè', code: 'nb', count: 5 }], spark: spark(2) },
       },
-      packages: { total: 55, rows: [{ name: 'Member 6 tháng', contracts: 12, share: 0.218 }, { name: 'Member 12 tháng', contracts: 11, share: 0.2 }, { name: 'Member 1 tháng', contracts: 10, share: 0.182 }, { name: 'PT 1:1 - 10 buổi', contracts: 9, share: 0.164 }] },
+      packages: { total: 55, rows: [{ name: 'Member 6 tháng', group: 'member', contracts: 12, share: 0.218 }, { name: 'Member 12 tháng', group: 'member', contracts: 11, share: 0.2 }, { name: 'Member 1 tháng', group: 'member', contracts: 10, share: 0.182 }, { name: 'PT 1:1 - 10 buổi', group: 'pt', contracts: 9, share: 0.164 }, { name: 'PT nhóm 20 buổi', group: 'group', contracts: 6, share: 0.11 }] },
       health: { score: 89, grade: 'Rất tốt', parts: [{ key: 'revenue', label: 'Doanh thu', score: 25 }, { key: 'members', label: 'Hội viên', score: 18 }, { key: 'collection', label: 'Thu tiền', score: 24 }, { key: 'operations', label: 'Vận hành', score: 22 }] },
       alerts: { expiring_30: { count: 20, impact: 53000000 }, unsigned: { count: 3, impact: 10000000 }, debt: { count: 4, impact: 5919000 }, refund_pending: { count: 1, impact: 2000000 }, renew_rate: 0.6 },
       recent_contracts: recent,
@@ -1495,11 +1495,12 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const items = [
       { name: 'Member 6 tháng', group: 'gym', contracts: 8, revenue: 31920000, average: 3990000, share: 0.353 },
       { name: 'PT 1:1 - 10 buổi', group: 'pt', contracts: 5, revenue: 27495000, average: 5499000, share: 0.304 },
+      { name: 'PT nhóm 20 buổi', group: 'group', contracts: 6, revenue: 10780000, average: 1796667, share: 0.1 },
       { name: 'Member 3 tháng', group: 'gym', contracts: 5, revenue: 9950000, average: 1990000, share: 0.11 },
       { name: 'Member 1 tháng', group: 'gym', contracts: 10, revenue: 6790000, average: 679000, share: 0.075 },
     ]
     const total = items.reduce((s, i) => s + i.revenue, 0)
-    return ok({ days: Number(config.params?.days ?? 30), total, groups: [{ key: 'gym', revenue: items.filter((i) => i.group === 'gym').reduce((s, i) => s + i.revenue, 0) }, { key: 'pt', revenue: items.filter((i) => i.group === 'pt').reduce((s, i) => s + i.revenue, 0) }], items })
+    return ok({ days: Number(config.params?.days ?? 30), total, groups: [{ key: 'gym', revenue: items.filter((i) => i.group === 'gym').reduce((s, i) => s + i.revenue, 0) }, { key: 'pt', revenue: items.filter((i) => i.group === 'pt').reduce((s, i) => s + i.revenue, 0) }, { key: 'group', revenue: items.filter((i) => i.group === 'group').reduce((s, i) => s + i.revenue, 0) }], items })
   }
   if (url === '/reports/health') {
     need('reports.view')

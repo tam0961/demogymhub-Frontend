@@ -18,7 +18,7 @@ interface Business {
   revenue: { total: number; rows: Row[] }
   collected: { total: number; rows: Row[] }
   cards: { member_active: Card; expiring_7: Card; pt_active: Card }
-  packages: { total: number; rows: { name: string; contracts: number; share: number }[] }
+  packages: { total: number; rows: { name: string; group?: 'member' | 'pt' | 'group'; contracts: number; share: number }[] }
   health: { score: number; grade: string; parts: { key: string; label: string; score: number }[] }
   alerts: {
     expiring_30: { count: number; impact: number }
@@ -31,7 +31,7 @@ interface Business {
   expiring_list: { id: string; member: { id: string; name: string }; package: string; end_date: string; days_left: number; branch: { code: string; name: string } | null }[]
   activity: { type: 'checkin' | 'payment' | 'lead'; at: string; text: string }[]
 }
-interface Services { total: number; groups: { key: 'gym' | 'pt'; revenue: number }[] }
+interface Services { total: number; groups: { key: 'gym' | 'pt' | 'group'; revenue: number }[] }
 
 const KINDS: { key: Kind; label: string; color: string }[] = [
   { key: 'member', label: 'Member', color: 'var(--c2)' },
@@ -211,8 +211,10 @@ export default function Reports() {
 
   const A = d.alerts
   const grade = { label: d.health.grade, tone: gradeTone(d.health.grade) }
-  const gymColor: Record<string, string> = { gym: 'var(--c1)', pt: 'var(--c2)' }
-  const svcLabel: Record<string, string> = { gym: 'Gym', pt: 'PT' }
+  const gymColor: Record<string, string> = { gym: 'var(--c1)', pt: 'var(--c2)', group: 'var(--c3)' }
+  const svcLabel: Record<string, string> = { gym: 'Member', pt: 'PT', group: 'Lớp nhóm' }
+  const GROUPS = [['member', 'Member'], ['pt', 'PT'], ['group', 'Lớp nhóm']] as const
+  const pkRows = GROUPS.flatMap(([g]) => d.packages.rows.filter((r) => (r.group ?? 'member') === g).map((r) => ({ ...r, group: g })))
   const period = mode === 'month' ? `tháng ${month}/${year}` : `năm ${year}`
 
   return (
@@ -257,14 +259,25 @@ export default function Reports() {
         <Panel title="Phân bố theo gói tập" note="Hợp đồng đang hiệu lực, theo từng gói">
           {d.packages.total === 0 ? <EmptyState title="Chưa có hợp đồng đang hiệu lực" /> : (
             <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
-              <Donut label="Phân bố theo gói" center={`${d.packages.total} HĐ`} parts={d.packages.rows.map((r) => ({ label: r.name, value: r.contracts }))} />
+              <Donut label="Phân bố theo gói" center={`${d.packages.total} HĐ`} parts={pkRows.map((r) => ({ label: r.name, value: r.contracts }))} />
               <ul className="plain-list" style={{ flex: 1, minWidth: 200 }}>
-                {d.packages.rows.slice(0, 8).map((r, i) => (
-                  <li key={r.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-                    <span><i className="ptg-sw" style={{ background: CH[i % CH.length], display: 'inline-block', marginRight: 8 }} />{r.name}</span>
-                    <span className="num">{r.contracts} hợp đồng <b>{pct(r.share)}</b></span>
-                  </li>
-                ))}
+                {GROUPS.map(([g, title]) => {
+                  const part = pkRows.map((r, i) => ({ r, i })).filter((x) => x.r.group === g)
+                  if (!part.length) return null
+                  return (
+                    <li key={g} style={{ listStyle: 'none' }}>
+                      <div className="cell-sub" style={{ padding: '6px 0 2px', fontWeight: 700 }}>{title}: {part.reduce((a, x) => a + x.r.contracts, 0)} hợp đồng</div>
+                      <ul className="plain-list">
+                        {part.slice(0, 4).map(({ r, i }) => (
+                          <li key={r.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                            <span><i className="ptg-sw" style={{ background: CH[i % CH.length], display: 'inline-block', marginRight: 8 }} />{r.name}</span>
+                            <span className="num">{r.contracts} hợp đồng <b>{pct(r.share)}</b></span>
+                          </li>
+                        ))}
+                      </ul>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}

@@ -5,11 +5,11 @@ import { fmtMoney } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { DataTable, PageHeader, Panel, Select, type Column } from '../components/ui'
 
-interface Item { name: string; group: 'gym' | 'pt'; contracts: number; revenue: number; average: number | null; share: number }
-interface Data { days: number; total: number; groups: { key: 'gym' | 'pt'; revenue: number }[]; items: Item[] }
+interface Item { name: string; group: 'gym' | 'pt' | 'group'; contracts: number; revenue: number; average: number | null; share: number }
+interface Data { days: number; total: number; groups: { key: 'gym' | 'pt' | 'group'; revenue: number }[]; items: Item[] }
 
 const RANGES = [{ v: 7, label: '7 ngày qua' }, { v: 30, label: '30 ngày qua' }, { v: 90, label: '90 ngày qua' }, { v: 365, label: '12 tháng qua' }]
-const GROUP: Record<string, { label: string; color: string }> = { gym: { label: 'Gym', color: 'var(--brand)' }, pt: { label: 'PT', color: 'var(--c2)' } }
+const GROUP: Record<string, { label: string; color: string }> = { gym: { label: 'Gym', color: 'var(--brand)' }, pt: { label: 'PT', color: 'var(--c2)' }, group: { label: 'Lớp nhóm', color: 'var(--c3)' } }
 const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')}%`
 const compact = (n: number) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} tr` : fmtMoney(n))
 
