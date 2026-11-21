@@ -34,9 +34,9 @@ interface Business {
 interface Services { total: number; groups: { key: 'gym' | 'pt'; revenue: number }[] }
 
 const KINDS: { key: Kind; label: string; color: string }[] = [
-  { key: 'member', label: 'Doanh thu member', color: 'var(--c2)' },
-  { key: 'pt', label: 'Doanh thu PT', color: 'var(--c3)' },
-  { key: 'group', label: 'Doanh thu Lớp', color: 'var(--c4)' },
+  { key: 'member', label: 'Member', color: 'var(--c2)' },
+  { key: 'pt', label: 'PT', color: 'var(--c3)' },
+  { key: 'group', label: 'Lớp nhóm', color: 'var(--c4)' },
 ]
 const CH = ['var(--c1)', 'var(--c2)', 'var(--c3)', 'var(--c4)', 'var(--c5)', 'var(--c6)']
 const STATUS: Record<string, { label: string; tone: ChipTone }> = {
