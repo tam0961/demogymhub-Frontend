@@ -2,23 +2,22 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, isPtCategory, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
+import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
 import { PT_RULE_HINT, hasHsd } from '../lib/pt'
 import { contractValues, renderDocHtml, templateKeyOf } from '../lib/printDoc'
 import { usePermission } from '../context/usePermission'
 import { FormDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
 import { PayModal, PendingPanel } from '../components/PayModal'
-import { PtSignModal } from '../components/PtSignModal'
 import { InvoiceModal } from '../components/InvoiceModal'
 import { SignaturePad } from '../components/SignaturePad'
 import { useToast } from '../components/Toast'
 import { BranchTag, Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, type Column } from '../components/ui'
 import { MemberAvatar } from '../components/MemberAvatar'
-import { TicketModal } from '../components/TicketModal'
 import { StaffModal } from '../components/StaffModal'
 import { EditContractModal } from '../components/EditContractModal'
-import type { Contract, Member, Payment, PtSession } from '../types'
+import { PaymentReceiptModal } from '../components/PaymentReceiptModal'
+import type { Contract, Member, Payment } from '../types'
 
 export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | 'bundle_of_id'> }) {
   return (
@@ -49,7 +48,7 @@ export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | '
   )
 }
 
-type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'ticket' | 'staff' | 'edit' | 'invoice' | { pending: Payment } | { refundReq: Payment } | { refund: Payment }
+type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'staff' | 'edit' | 'invoice' | { pending: Payment } | { receipt: Payment }
 
 export default function ContractDetail() {
   const { id } = useParams()
@@ -59,7 +58,6 @@ export default function ContractDetail() {
   const [error, setError] = useState('')
   const [dlg, setDlg] = useState<Dlg>(null)
   const [busy, setBusy] = useState(false)
-  const [ptSign, setPtSign] = useState<PtSession | null>(null)
   const [dErr, setDErr] = useState('')
   const [sig, setSig] = useState<string | null>(null)
   const [days, setDays] = useState('7')
@@ -69,31 +67,6 @@ export default function ContractDetail() {
     if (!memberId || !can('members.read')) return
     api.get(`/members/${memberId}`).then((r) => setMem(r.data.data)).catch(() => {})
   }, [memberId, can])
-
-  const startPtSession = async () => {
-    if (!c?.pt?.id) return
-    setBusy(true)
-    try {
-      const r = await api.post<{ data: PtSession }>('/pt/sessions', { member_id: c.member_id, trainer_id: c.pt.id, contract_id: c.id, start_at: new Date().toISOString(), duration_min: 60, branch_id: c.branch_id, quick: true })
-      setPtSign(r.data.data)
-    } catch (e) {
-      toast(apiError(e).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const discardPtSession = (s: PtSession) => { api.post(`/pt/sessions/${s.id}/discard`).catch(() => {}) }
-
-  const completePtSession = async (s: PtSession) => {
-    try {
-      await api.post(`/pt/sessions/${s.id}/complete`)
-      toast('Đã xác nhận buổi tập, đã trừ 1 buổi')
-      load()
-    } catch (e) {
-      toast(apiError(e).message)
-    }
-  }
 
   const load = useCallback(async () => {
     try {
@@ -164,8 +137,7 @@ export default function ContractDetail() {
       render: (p) => (
         <>
           {p.status === 'pending' && <Button small onClick={() => setDlg({ pending: p })}>{p.method === 'vietqr' ? 'Xem QR / xác nhận' : 'Xác nhận'}</Button>}
-          {p.status === 'confirmed' && can('payments.refund_request') && !p.refund_requested && <Button small onClick={() => setDlg({ refundReq: p })}>Đề nghị hoàn</Button>}
-          {p.status === 'confirmed' && can('payments.refund') && <Button small variant="danger" onClick={() => setDlg({ refund: p })}>Hoàn tiền</Button>}
+          <Button small onClick={() => setDlg({ receipt: p })}>Xem phiếu thu</Button>
         </>
       ),
     },
@@ -200,7 +172,7 @@ export default function ContractDetail() {
             {c.frozen_until && (<><dt>Bảo lưu đến</dt><dd>{fmtDate(c.frozen_until)}</dd></>)}
             <dt>Giảm giá</dt><dd>{fmtMoney(c.discount)}</dd>
             <dt>Nhân viên Sale</dt><dd>{c.sale?.name ?? <span className="hint-muted">Chưa gán</span>}</dd>
-            <dt>PT phụ trách</dt><dd>{c.pt?.name ?? <span className="hint-muted">Chưa gán</span>}{can('contracts.create') && c.status !== 'cancelled' && <> <Button small onClick={() => setDlg('staff')}>Đổi Sale, PT</Button></>}</dd>
+            <dt>PT phụ trách</dt><dd>{c.pt?.name ?? <span className="hint-muted">Chưa gán</span>}{can('contracts.create') && c.status !== 'cancelled' && <> <Button small onClick={() => setDlg('staff')}>Đổi PT</Button></>}</dd>
             {c.note && (<><dt>Ghi chú</dt><dd>{c.note}</dd></>)}
           </dl>
           {pendingSum > 0 && <div className="pending-box" role="status" style={{ marginTop: 12 }}><Chip tone="warn">Chờ xác nhận</Chip> {fmtMoney(pendingSum)} chưa tính vào đã thu.</div>}
@@ -208,11 +180,7 @@ export default function ContractDetail() {
             {a.sign && <Button variant={variant('sign')} onClick={() => setDlg('sign')}>Ký hợp đồng</Button>}
             {a.activate && <Button variant={variant('activate')} onClick={() => setDlg('activate')}>Kích hoạt</Button>}
             {a.activateBlockedByDebt && <Button onClick={() => setDlg('activate')}>Kích hoạt (chưa đủ tiền)</Button>}
-            {c.status === 'active' && isPtCategory(c.package.category) && c.pt?.id && (c.sessions_left ?? 0) > 0 && can('pt_sessions.complete') && (
-              <Button variant="primary" disabled={busy} onClick={startPtSession}>Hoàn thành buổi</Button>
-            )}
             {a.pay && <Button variant={variant('pay')} onClick={() => setDlg('pay')}>Thu tiền</Button>}
-            {a.ticket && <Button onClick={() => setDlg('ticket')}>Lập phiếu</Button>}
             {a.freeze && <Button onClick={() => setDlg('freeze')}>Bảo lưu</Button>}
             {a.unfreeze && <Button onClick={() => run(() => post('unfreeze'), 'Đã kết thúc bảo lưu')}>Hủy bảo lưu</Button>}
             {can('contracts.edit') && c.status !== 'cancelled' && <Button onClick={() => setDlg('edit')}>Sửa hợp đồng</Button>}
@@ -243,7 +211,6 @@ export default function ContractDetail() {
       </div>
 
       {dlg === 'invoice' && <InvoiceModal contract={c} onClose={close} />}
-      {ptSign && <PtSignModal session={ptSign} onClose={() => setPtSign(null)} onConfirmed={completePtSession} onCancel={discardPtSession} />}
       {dlg === 'sign' && (
         <Modal
           title="Ký hợp đồng"
@@ -294,7 +261,6 @@ export default function ContractDetail() {
 
       {dlg === 'edit' && <EditContractModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
       {dlg === 'staff' && <StaffModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
-      {dlg === 'ticket' && <TicketModal contract={c} onClose={close} onDone={() => { close(); load() }} />}
 
       {dlg === 'freeze' && (
         <FormDialog
@@ -331,28 +297,7 @@ export default function ContractDetail() {
         </Modal>
       )}
 
-      {dlg && typeof dlg === 'object' && 'refundReq' in dlg && (
-        <FormDialog
-          title="Đề nghị hoàn tiền"
-          confirmLabel="Gửi đề nghị"
-          error={dErr}
-          busy={busy}
-          onClose={close}
-          onSubmit={(reason) => run(() => api.post(`/payments/${dlg.refundReq.id}/refund-request`, { reason }), 'Đã gửi đề nghị hoàn tiền')}
-        />
-      )}
-
-      {dlg && typeof dlg === 'object' && 'refund' in dlg && (
-        <FormDialog
-          title={`Hoàn tiền ${fmtMoney(dlg.refund.amount)}`}
-          danger
-          confirmLabel="Hoàn tiền"
-          error={dErr}
-          busy={busy}
-          onClose={close}
-          onSubmit={(reason) => run(() => api.post(`/payments/${dlg.refund.id}/refund`, { reason }), 'Đã hoàn tiền')}
-        />
-      )}
+      {dlg && typeof dlg === 'object' && 'receipt' in dlg && <PaymentReceiptModal payment={dlg.receipt} contract={c} onClose={close} />}
     </>
   )
 }
