@@ -74,8 +74,7 @@ export default function Contracts() {
       render: (c) => (
         <>
           <div className="cell-main">{c.debt_amount > 0 ? <span className="text-bad">{fmtMoney(c.debt_amount)}</span> : <span className="hint-muted">-</span>}</div>
-          {c.debt_amount > 0 && c.due_date && <div className="cell-sub">Hạn thanh toán tiếp theo {fmtDate(c.due_date)}{(c.overdue_days ?? 0) > 0 && <> <Chip tone="bad">quá hạn {c.overdue_days} ngày</Chip></>}</div>}
-          <div className="cell-sub">{c.last_paid_at ? `Thanh toán ${fmtDate(c.last_paid_at)}` : 'Chưa thanh toán'}</div>
+          {c.debt_amount > 0 && c.due_date && <div className="cell-sub">TT {fmtDate(c.due_date)}{(c.overdue_days ?? 0) > 0 && <> <Chip tone="bad">quá hạn {c.overdue_days} ngày</Chip></>}</div>}
         </>
       ),
     },
