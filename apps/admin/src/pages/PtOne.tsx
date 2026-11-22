@@ -120,8 +120,8 @@ export default function PtOne() {
         <div className="ptg-controls">
           <Segmented<Mode> ariaLabel="Chế độ xem" options={[{ value: 'day', label: 'Hôm nay' }, { value: 'week', label: 'Lịch Tuần' }]} value={mode} onChange={(m) => { setMode(m); if (m === 'day') setDay(localISO(new Date())) }} />
           <Button onClick={() => setDay(addDays(day, mode === 'day' ? -1 : -7))} aria-label="Lùi">‹</Button>
-          <Input type="date" aria-label="Ngày" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
           {mode === 'day' && <span className="ptg-dayname">{dayText(day)}{day === localISO(new Date()) ? ' (hôm nay)' : ''}</span>}
+          <Input type="date" aria-label="Ngày" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
           <Button onClick={() => setDay(addDays(day, mode === 'day' ? 1 : 7))} aria-label="Tiến">›</Button>
           <Button onClick={() => setDay(localISO(new Date()))}>Hôm nay</Button>
           <RequirePermission permission="pt_sessions.create"><Button variant="primary" onClick={() => setAdding({ date: day })}>Thêm buổi PT</Button></RequirePermission>
@@ -136,7 +136,7 @@ export default function PtOne() {
           {cols.map((c) => (
             <div key={c.key} className={`ptg-head${isOff(c) ? ' off' : ''}`} style={{ borderTopColor: c.color }}>
               <b>{c.title}</b>
-              <small>{isOff(c) ? 'OFF' : `${c.items.filter((i) => i.status !== 'cancelled').length} buổi`}</small>
+              <small>{isOff(c) ? 'OFF' : `${new Set(c.items.filter((i) => i.status !== 'cancelled' && i.member).map((i) => i.member!.id)).size} khách`}</small>
             </div>
           ))}
           {cols.length === 0 && <div className="ptg-head"><small>Chưa có PT trong chi nhánh</small></div>}
