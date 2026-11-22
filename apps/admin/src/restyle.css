@@ -575,3 +575,5 @@
 
 .settings-tabs { margin-bottom: 14px; }
 .settings-tabs .tab { text-decoration: none; display: inline-flex; align-items: center; }
+
+.table th.col-due { white-space: normal; min-width: 110px; max-width: 130px; line-height: 1.25; }
