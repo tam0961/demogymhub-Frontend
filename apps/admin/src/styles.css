@@ -411,6 +411,8 @@ button.prof-row-click:hover { background: var(--brand-soft); }
 .members-table th, .members-table td, .members-table td.num, .members-table th.num { text-align: center; }
 .members-table .th-sort { justify-content: center; flex-direction: row; }
 .members-table .cell-person { justify-content: flex-start; text-align: left; }
+.members-table th.mb-name { text-align: left; }
+.members-table th.mb-name .th-sort { justify-content: flex-start; padding-left: 46px; }
 .members-table .mb-name { width: 22%; }
 
 /* column headers: brand yellow, black text */
