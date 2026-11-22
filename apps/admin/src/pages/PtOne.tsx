@@ -188,22 +188,20 @@ export default function PtOne() {
         <Kpi value={rows.filter((r) => r.status === 'completed').length} label="Hoàn thành, đã trừ buổi" />
         <Kpi value={rows.filter((r) => r.status === 'no_show' || r.status === 'cancelled').length} label="Vắng hoặc hủy" />
       </KpiRow>
-      <div className="ptg-legend">
-        {(['booked', 'done', 'noshow', 'cancel', 'blank'] as CardState[]).map((k) => (
-          <span key={k}><i className={`ptg-sw ptg-${k}`} />{STATE_LABEL[k]}</span>
-        ))}
-      </div>
-      {mode === 'day' && trainers.length > 0 && (
-        <div className="ptg-legend">
-          <span>Vạch màu bên trái ô là PT:</span>
-          {trainers.map((t) => <span key={t.id}><i className="ptg-sw" style={{ background: colorOf(t.id) }} />{t.name}</span>)}
+      <div className="ptg-rules">
+        <div>
+          <b>Điều kiện hoàn thành buổi</b>
+          <span>Buổi đã có khách và là buổi dạy trong ngày, không hoàn thành trước cho ngày sau. Khách còn gói member và gói PT còn hạn sử dụng, hợp đồng còn buổi. Khách ký xác nhận thì mới trừ 1 buổi, và chỉ trừ một lần.</span>
         </div>
-      )}
-
-      <p className="ptg-note">
-        Cột xám là PT báo OFF trong ngày. Màu ô là trạng thái buổi; vạch màu bên trái ô là PT. Ô nét đứt là ca PT đã báo nhưng chưa có khách: bấm vào để gán khách.
-        Bấm vào ô trống để thêm buổi, bấm vào một buổi để gán khách, hoàn thành, ghi vắng mặt, sửa lịch hoặc hủy.
-      </p>
+        <div>
+          <b>Điều kiện hủy buổi</b>
+          <span>Hủy trước giờ bắt đầu từ 90 phút trở lên: miễn phí, không trừ buổi. Hủy sát giờ, dưới 90 phút: tính là vắng mặt và trừ 1 buổi. Chỉ chủ hoặc quản lý được hủy miễn phí khi sát giờ.</span>
+        </div>
+        <div>
+          <b>Điều kiện vắng mặt</b>
+          <span>Dùng khi khách không đến buổi đã đặt. Buổi phải có khách và đang ở trạng thái đã đặt. Ghi vắng mặt sẽ trừ 1 buổi của khách.</span>
+        </div>
+      </div>
 
       {picked && !picked.member && picked.status === 'scheduled' && <PtFreeSlotModal session={picked} onClose={() => setPicked(null)} onAssigned={() => { toast('Đã chọn khách'); load() }} onComplete={(s) => { setPicked(null); setSigning(s) }} onNoShow={(s) => act(s, 'no-show')} />}
       {picked && (picked.member || picked.status !== 'scheduled') && (
