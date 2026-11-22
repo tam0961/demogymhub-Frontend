@@ -119,8 +119,8 @@ export default function PtOne() {
         <h1>Lịch PT 1-1</h1>
         <div className="ptg-controls">
           <Segmented<Mode> ariaLabel="Chế độ xem" options={[{ value: 'day', label: 'Hôm nay' }, { value: 'week', label: 'Lịch Tuần' }]} value={mode} onChange={(m) => { setMode(m); if (m === 'day') setDay(localISO(new Date())) }} />
+          {mode === 'day' && <span className="ptg-dayname">{dayText(day)}</span>}
           <Button onClick={() => setDay(addDays(day, mode === 'day' ? -1 : -7))} aria-label="Lùi">‹</Button>
-          {mode === 'day' && <span className="ptg-dayname">{dayText(day)}{day === localISO(new Date()) ? ' (hôm nay)' : ''}</span>}
           <Input type="date" aria-label="Ngày" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
           <Button onClick={() => setDay(addDays(day, mode === 'day' ? 1 : 7))} aria-label="Tiến">›</Button>
           <Button onClick={() => setDay(localISO(new Date()))}>Hôm nay</Button>
