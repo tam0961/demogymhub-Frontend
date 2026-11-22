@@ -8,7 +8,7 @@ import { usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
 import { ConfirmDialog } from '../components/Dialogs'
 import { MemberProfile } from './Members'
-import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, PageHeader, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
+import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
 import type { GroupClass, Contract, GroupReg, GroupRegStatus, GroupStats, GroupTemplate, ListResp, Member } from '../types'
 
 interface Trainer { id: string; name: string }
@@ -189,7 +189,10 @@ export default function PtClasses() {
   return (
     <>
       <div className="gcal-top">
-        <PageHeader title="Lịch lớp nhóm" />
+        <div className="page-head gcal-title-row">
+          <h1>Lịch lớp nhóm</h1>
+          <a className="gcal-link" href="https://booking.thgym.com" target="_blank" rel="noopener noreferrer">booking.thgym.com</a>
+        </div>
         <div className="toolbar gcal-nav">
           <Button small onClick={() => setWeek(addDays(week, -7))} aria-label="Tuần trước">‹</Button>
           <span className="cell-main">{dayLabel(week)} - {dayLabel(addDays(week, 6))}{week === mondayOf(today) ? ' (tuần này)' : ''}</span>

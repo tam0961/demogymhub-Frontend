@@ -529,3 +529,12 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .reg-table .table th:nth-child(6) { width: 10%; }
 .reg-table .table th:nth-child(7) { width: 8%; }
 .reg-table .table td { overflow: hidden; text-overflow: ellipsis; }
+
+.gcal-title-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; justify-content: flex-start; }
+.gcal-link { font-size: 15px; font-weight: 600; color: var(--brand-deep); text-decoration: underline; text-underline-offset: 3px; }
+.gcal-link:hover { color: var(--ink); }
+.gcal-title-row { align-items: center; gap: 16px; }
+.gcal-title-row h1 { text-transform: uppercase; margin: 0; }
+.gcal-link { font-size: 18px; text-transform: none; line-height: 1.2; }
+.page-head.gcal-title-row { align-items: center; margin-bottom: 0; }
+.page-head.gcal-title-row { align-items: baseline; }
