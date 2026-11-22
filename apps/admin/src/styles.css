@@ -507,3 +507,8 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .match-item:hover { background: var(--brand-soft); }
 
 .nm-line { white-space: nowrap; }
+
+.gcal-chips { flex-direction: column; flex-wrap: nowrap; align-items: center; gap: 4px; }
+.gcal-chip { white-space: nowrap; }
+.gcal-cell { height: 184px; overflow-y: auto; }
+.gcal-cell .gcal-empty { margin: auto; }
