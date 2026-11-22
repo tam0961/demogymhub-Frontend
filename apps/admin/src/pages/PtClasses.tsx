@@ -220,6 +220,10 @@ export default function PtClasses() {
       </KpiRow>
 
       <div className="even-cols">
+        <RegistrationsPanel regs={regs} act={act} />
+      </div>
+      <div style={{ height: 16 }} />
+      <div className="even-cols">
       <Panel title="Hội viên PT nhóm" count={`${groupMembers.length} hội viên`} flush>
         <DataTable columns={memberCols} rows={groupMembers} rowKey={(c) => c.id} loading={loading} error={error} emptyText="Chưa có hội viên PT nhóm" itemLabel="hội viên" />
       </Panel>
@@ -296,6 +300,50 @@ function MemberProfilePopup({ id, onClose }: { id: string; onClose: () => void }
   if (error) return <Modal title="Hội viên" onClose={onClose} footer={<Button onClick={onClose}>Đóng</Button>}><div className="form-error" role="alert">{error}</div></Modal>
   if (!m) return null
   return <MemberProfile member={m} canEdit={false} onEdit={() => {}} onUpdated={(u) => setM((p) => (p ? { ...p, ...u } : p))} onClose={onClose} />
+}
+
+function RegistrationsPanel({ regs, act }: { regs: GroupReg[]; act: (url: string, ok: string, body?: object) => void }) {
+  const { can } = usePermission()
+  const { user } = useAuth()
+  const [confirming, setConfirming] = useState<GroupReg | null>(null)
+  const override = !!user?.roles.some((r) => LOCK_OVERRIDE_ROLES.includes(r))
+  const rows = [...regs].sort((a, b) => a.class.start_at.localeCompare(b.class.start_at) || a.name.localeCompare(b.name))
+  const cols: Column<GroupReg>[] = [
+    { key: 'name', header: 'Tên', sortValue: (r) => r.name, render: (r) => <span className="cell-main">{r.name}</span> },
+    { key: 'phone', header: 'Số điện thoại', render: (r) => r.phone },
+    { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
+    { key: 'class', header: 'Lớp', sortValue: (r) => r.class.start_at, render: (r) => <><div className="cell-main">{classTitle(r.class.title)}{r.class.muscle_group ? ` + ${r.class.muscle_group}` : ''}</div><div className="cell-sub">{fmtDateTime(r.class.start_at)}</div></> },
+    { key: 'status', header: 'Tình trạng', sortValue: (r) => r.status, render: (r) => <Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip> },
+    {
+      key: 'act', header: '', className: 'actions',
+      render: (r) => {
+        if (!(r.status === 'booked' || r.status === 'waitlist') || !can('pt_sessions.cancel')) return null
+        const locked = Date.now() >= cancelLockAt(r.class.start_at) && !override
+        return <Button small variant="danger" disabled={locked} title={locked ? 'Đã khóa hủy từ 21h hôm trước' : undefined} onClick={() => setConfirming(r)}>Hủy</Button>
+      },
+    },
+  ]
+  return (
+    <>
+      <Panel title="Danh sách đăng ký" count={`${rows.length} đăng ký`} flush>
+        <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} emptyText="Chưa có đăng ký trong tuần" itemLabel="đăng ký" />
+      </Panel>
+      {confirming && (
+        <ConfirmDialog
+          title="Hủy đăng ký"
+          danger
+          confirmLabel="Xác nhận hủy"
+          message={confirming.status === 'waitlist' ? `Bỏ ${confirming.name} khỏi danh sách chờ của lớp này?` : `Hủy chỗ của ${confirming.name} trong lớp này? Buổi đã tạm trừ sẽ được trả lại cho khách.`}
+          onClose={() => setConfirming(null)}
+          onConfirm={() => {
+            const r = confirming
+            setConfirming(null)
+            act(`/pt/classes/registrations/${r.id}/cancel`, r.status === 'waitlist' ? 'Đã bỏ khỏi danh sách chờ' : 'Đã hủy chỗ, đã trả buổi cho khách')
+          }}
+        />
+      )}
+    </>
+  )
 }
 
 function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: GroupReg[]; act: (url: string, ok: string, body?: object) => void; onClose: () => void }) {
