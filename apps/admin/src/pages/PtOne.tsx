@@ -201,7 +201,7 @@ export default function PtOne() {
       )}
 
       <p className="ptg-note">
-        Màu ô là trạng thái buổi; vạch màu bên trái ô là PT. Ô nét đứt là ca PT đã báo nhưng chưa có khách: bấm vào để gán khách.
+        Cột xám là PT báo OFF trong ngày. Màu ô là trạng thái buổi; vạch màu bên trái ô là PT. Ô nét đứt là ca PT đã báo nhưng chưa có khách: bấm vào để gán khách.
         Bấm vào ô trống để thêm buổi, bấm vào một buổi để gán khách, hoàn thành, ghi vắng mặt, sửa lịch hoặc hủy.
       </p>
 

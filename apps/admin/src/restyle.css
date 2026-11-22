@@ -366,10 +366,11 @@
 .ptg-note { color: var(--muted); font-size: 13.5px; margin-bottom: 12px; }
 @media (max-width: 720px) { .ptg-controls { width: 100%; } .ptg-controls .btn-primary { width: 100%; } }
 
-.ptg-col.ptg-off { background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--surface) 6px 12px); }
+.ptg-col.ptg-off { background: #d6d6d2; }
 .ptg-col.ptg-off .ptg-cell { pointer-events: none; }
-.ptg-head.off b { text-decoration: line-through; color: var(--muted); }
-.ptg-head.off small { font-weight: 700; color: var(--muted); }
+.ptg-head.off { background: #d6d6d2; }
+.ptg-head.off b { color: #555; }
+.ptg-head.off small { font-weight: 800; color: #444; letter-spacing: 0.04em; }
 
 .app-ver { flex: 1; text-align: center; font-size: 13px; color: var(--muted); white-space: nowrap; }
 @media (max-width: 900px) { .app-ver { display: none; } }

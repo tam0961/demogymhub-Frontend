@@ -25,7 +25,7 @@ const MANAGER_EXTRA = ['inbody.delete', 'contracts.approve', 'contracts.freeze',
 const ALL = [...Object.values(P).flat(), ...MANAGER_EXTRA, 'roles.read', 'roles.assign', 'system.view_audit_log', 'system.manage_settings', 'attendance.read', 'attendance.manage', 'devices.manage', 'payroll.read', 'payroll.manage', 'staff.read', 'staff.manage']
 
 const ptTrainers = [{ id: 'pt1', name: 'PT Đạt', branches: [{ id: 'b-nb', name: 'Chi nhánh Nhà Bè' }] }, { id: 'pt2', name: 'PT Tuấn', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }, { id: 'pt3', name: 'PT Ánh', branches: [{ id: 'b-q7', name: 'Chi nhánh Quận 7' }] }]
-const mockOffs: { trainer_id: string; date: string }[] = []
+const mockOffs: { trainer_id: string; date: string }[] = (() => { const d = new Date(); const p2 = (n: number) => String(n).padStart(2, '0'); return [{ trainer_id: 'pt2', date: `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}` }] })()
 const ptDay = (h: number, m = 0) => { const d = new Date(); d.setHours(h, m, 0, 0); return d.toISOString() }
 const ptRow = (id: string, t: number, h: number, name: string | null, status: PtSession['status']): PtSession => ({ id, branch_id: 'b-nb', trainer: ptTrainers[t], member: name ? { id: 'm-' + id, code: 'M' + id, name, phone: '0900000000' } : null, contract_id: null, contract_code: null, sessions_left: null, start_at: ptDay(h), end_at: ptDay(h + 1), status, source: name ? 'manual' : 'zalo', note: null, completed_at: null })
 const ptSessions: PtSession[] = [ptRow('a', 0, 9, 'Nguyễn Minh Khoa', 'completed'), ptRow('b', 1, 10, null, 'scheduled'), ptRow('c', 1, 17, 'Tô Ngọc Diệp', 'scheduled'), ptRow('d', 0, 18, 'Trần Thị Thu Hà', 'cancelled'), ptRow('e', 2, 19, 'Lê Văn An', 'no_show')]
