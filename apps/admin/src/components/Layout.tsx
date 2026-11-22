@@ -49,8 +49,8 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/payments', label: 'Phiếu thu', icon: 'payments', perm: ['payments.read'] },
   ] },
   { title: 'Lịch PT', items: [
-    { to: '/pt/classes', label: 'Lịch lớp nhóm', icon: 'calendar', perm: ['pt_sessions.read'] },
     { to: '/pt/one', label: 'PT 1:1', icon: 'calendar', perm: ['pt_sessions.read'] },
+    { to: '/pt/classes', label: 'Lịch lớp nhóm', icon: 'calendar', perm: ['pt_sessions.read'] },
   ] },
   { title: 'Tài chính', items: [
     { to: '/packages', label: 'Gói dịch vụ', icon: 'packages', perm: ['packages.read'] },
