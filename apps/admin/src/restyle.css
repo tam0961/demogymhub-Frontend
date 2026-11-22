@@ -579,3 +579,12 @@
 
 table.table thead th { font-size: 14.5px; font-weight: 700; letter-spacing: 0.1px; }
 .th-sort { font-weight: 700; }
+
+@media (min-width: 900px) {
+  main.content:has(.contracts-table), main.content:has(.members-table) { height: calc(100vh - 46px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 12px; }
+  main.content:has(.contracts-table) > *, main.content:has(.members-table) > * { flex: none; }
+  main.content > .card.contracts-table, main.content > .card.members-table { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .contracts-table .dt, .members-table .dt { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .contracts-table .dt .table-wrap, .members-table .dt .table-wrap { flex: 1 1 auto; min-height: 0; max-height: none; overflow: auto; }
+  .contracts-table .dt > :not(.table-wrap), .members-table .dt > :not(.table-wrap) { flex: none; }
+}
