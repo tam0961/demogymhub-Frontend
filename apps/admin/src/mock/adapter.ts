@@ -1056,6 +1056,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     else if (body.start_at) { const d = new Date(row.end_at).getTime() - new Date(row.start_at).getTime(); row.start_at = new Date(body.start_at).toISOString(); row.end_at = new Date(new Date(body.start_at).getTime() + (body.duration_min ? body.duration_min * 60000 : d)).toISOString() }
     return ok(row)
   }
+  if (url === '/pt/classes/cancel-counts' && method === 'get') return ok(Object.fromEntries(MOCK_NAMES.map(([, phone], k) => [`m-${phone}`, k % 3])))
   if (url.startsWith('/pt/classes') && method === 'get') {
     const { classes: gc, regs: gr } = mockGroupWeek(String(params.from ?? ''), String(params.to ?? ''))
     if (url.endsWith('/registrations')) return ok(gr)

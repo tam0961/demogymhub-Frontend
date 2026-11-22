@@ -84,6 +84,7 @@ export default function PtClasses() {
   const [regs, setRegs] = useState<GroupReg[]>([])
   const [memberPopupId, setMemberPopupId] = useState<string | null>(null)
   const [groupMembers, setGroupMembers] = useState<Contract[]>([])
+  const [cancelCounts, setCancelCounts] = useState<Record<string, number>>({})
   const [stats, setStats] = useState<GroupStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -110,6 +111,7 @@ export default function PtClasses() {
       setClasses(c.data.data)
       setRegs(r.data.data)
       setStats(s.data.data)
+      api.get<{ data: Record<string, number> }>('/pt/classes/cancel-counts', { params: { branch_id: branchId ?? undefined } }).then((x) => setCancelCounts(x.data.data)).catch(() => setCancelCounts({}))
       api.get<{ data: Contract[] }>('/contracts', { params: { category: 'pt_group', limit: 100, branch_id: branchId ?? undefined } }).then((g) => setGroupMembers(g.data.data.filter((c) => ['active', 'expired', 'frozen'].includes(c.status)))).catch(() => setGroupMembers([]))
     } catch (e) {
       setError(apiError(e).message)
@@ -161,6 +163,7 @@ export default function PtClasses() {
     { key: 'pkg', header: 'Gói PT nhóm', sortValue: (c) => c.package.name, render: (c) => c.package.name },
     { key: 'left', header: 'Còn lại', numeric: true, sortValue: (c) => c.sessions_left ?? 0, render: (c) => c.sessions_total != null ? `${c.sessions_left ?? 0} / ${c.sessions_total} buổi` : '-' },
     { key: 'end', header: 'Hết hạn', numeric: true, sortValue: (c) => c.usage_deadline ?? c.end_date ?? '', render: (c) => fmtDate(c.usage_deadline ?? c.end_date) },
+    { key: 'cancels', header: 'Số lần hủy', numeric: true, sortValue: (c) => cancelCounts[c.member_id] ?? 0, render: (c) => ((cancelCounts[c.member_id] ?? 0) > 0 ? <span className="text-bad">{cancelCounts[c.member_id]}</span> : <span className="hint-muted">0</span>) },
     { key: 'status', header: 'Trạng thái', sortValue: (c) => c.status, render: (c) => <Chip tone={CONTRACT_STATUS[c.status].tone}>{CONTRACT_STATUS[c.status].label}</Chip> },
   ]
   const repSrc = reportScope === 'week' ? { classes, regs } : monthData
@@ -211,6 +214,13 @@ export default function PtClasses() {
       </div>
       <p className="gcal-note">Chỉ hiện các lớp đã có người đăng ký ("Hiện lớp trống" để xem cả lớp chưa ai đặt). Xanh là còn chỗ, vàng gần đầy, đỏ đã đầy. Bấm vào một ca để xem danh sách học viên, điểm danh, hủy đăng ký và các thao tác của lớp.</p>
 
+      <KpiRow>
+        <Kpi value={`${bookedSlots} / ${totalSlots}`} label="Ca có người đăng ký" />
+        <Kpi value={`${seatsTaken} / ${seatsAll}`} label="Chỗ đã đặt" note={`Mức lấp đầy ${seatsAll ? Math.round((seatsTaken / seatsAll) * 100) : 0}%`} />
+        <Kpi value={stats?.registrations.attended ?? 0} label="Đã học" note='Lượt được đánh dấu "Đã học" trong tuần' />
+        <Kpi value={stats?.registrations.cancelled ?? 0} label="Lượt hủy" note="Trong tuần đang xem" />
+      </KpiRow>
+
       <div className="even-cols">
       <Panel title="Hội viên PT nhóm" count={`${groupMembers.length} hội viên`} flush>
         <DataTable columns={memberCols} rows={groupMembers} rowKey={(c) => c.id} loading={loading} error={error} emptyText="Chưa có hội viên PT nhóm" itemLabel="hội viên" />
@@ -218,12 +228,6 @@ export default function PtClasses() {
       </div>
 
       <div style={{ height: 16 }} />
-      <KpiRow>
-        <Kpi value={`${bookedSlots} / ${totalSlots}`} label="Ca có người đăng ký" />
-        <Kpi value={`${seatsTaken} / ${seatsAll}`} label="Chỗ đã đặt" note={`Mức lấp đầy ${seatsAll ? Math.round((seatsTaken / seatsAll) * 100) : 0}%`} />
-        <Kpi value={stats?.registrations.attended ?? 0} label="Đã học" note='Lượt được đánh dấu "Đã học" trong tuần' />
-        <Kpi value={stats?.registrations.cancelled ?? 0} label="Lượt hủy" note="Trong tuần đang xem" />
-      </KpiRow>
 
       <div style={{ height: 16 }} />
       <section className="panel">
@@ -234,7 +238,7 @@ export default function PtClasses() {
             <button type="button" role="tab" className="tab" aria-selected={reportScope === 'month'} onClick={() => setReportScope('month')}>Cả tháng</button>
           </div>
         </div>
-        <DataTable columns={reportCols} rows={reportRows} rowKey={(r) => r.pt} emptyText="Chưa có ca dạy" itemLabel="PT" />
+        <DataTable columns={reportCols} rows={reportRows} rowKey={(r) => r.pt} emptyText="Chưa có ca dạy" itemLabel="PT" hidePager />
         <p className="gcal-note" style={{ padding: '0 16px 12px' }}>Ca đã dạy là ca đã kết thúc và có ít nhất một học viên đăng ký, không tính lượt hủy. Học viên (người) đếm theo số điện thoại, không đếm trùng.</p>
       </section>
 
