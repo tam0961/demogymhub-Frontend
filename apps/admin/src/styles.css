@@ -125,6 +125,8 @@ table.table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .contracts-table .table th, .contracts-table .table td, .contracts-table .table td.num, .contracts-table .table th.num { text-align: center; }
 .contracts-table .table .th-sort { justify-content: center; flex-direction: row; }
 .contracts-table .table th.col-check, .contracts-table .table td.col-check { text-align: center; }
+.contracts-table .table th.col-left, .contracts-table .table td.col-left { text-align: left; }
+.contracts-table .table th.col-left .th-sort { justify-content: flex-start; }
 .empty { padding: 36px 16px; text-align: center; color: var(--muted); }
 
 /* badges */
