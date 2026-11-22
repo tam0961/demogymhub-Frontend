@@ -538,3 +538,17 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .gcal-link { font-size: 18px; text-transform: none; line-height: 1.2; }
 .page-head.gcal-title-row { align-items: center; margin-bottom: 0; }
 .page-head.gcal-title-row { align-items: baseline; }
+
+.grp-members table.table { table-layout: fixed; min-width: 1000px; }
+.grp-members .table th:nth-child(1) { width: 20%; }
+.grp-members .table th:nth-child(2) { width: 12%; }
+.grp-members .table th:nth-child(3) { width: 20%; }
+.grp-members .table th:nth-child(4) { width: 14%; }
+.grp-members .table th:nth-child(5) { width: 11%; }
+.grp-members .table th:nth-child(6) { width: 10%; }
+.grp-members .table th:nth-child(7) { width: 6%; }
+.grp-members .table th:nth-child(8) { width: 7%; }
+.grp-members .table th:not(:first-child), .grp-members .table td:not(:first-child) { text-align: center; }
+.grp-members .table .th-sort { justify-content: center; flex-direction: row; }
+.grp-members .table th:first-child .th-sort { justify-content: flex-start; }
+.grp-members .table td { overflow: hidden; text-overflow: ellipsis; }

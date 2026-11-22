@@ -239,7 +239,9 @@ export default function PtClasses() {
       <div style={{ height: 16 }} />
       <div className="even-cols">
       <Panel title="Hội viên PT nhóm" count={`${groupMembers.length} hội viên`} flush>
+        <div className="grp-members">
         <DataTable columns={memberCols} rows={groupMembers} rowKey={(c) => c.id} loading={loading} error={error} emptyText="Chưa có hội viên PT nhóm" itemLabel="hội viên" />
+        </div>
       </Panel>
       </div>
 
