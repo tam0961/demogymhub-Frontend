@@ -394,6 +394,17 @@ export default function Members() {
 
 interface ProfileData { contracts: Contract[]; payments: Payment[]; checkins: CheckinItem[] }
 
+export function MemberProfilePopup({ id, onClose }: { id: string; onClose: () => void }) {
+  const [m, setM] = useState<Member | null>(null)
+  const [error, setError] = useState('')
+  useEffect(() => {
+    api.get<{ data: Member }>(`/members/${id}`).then((r) => setM(r.data.data)).catch((e) => setError(apiError(e).message))
+  }, [id])
+  if (error) return <Modal title="Hội viên" onClose={onClose} footer={<Button onClick={onClose}>Đóng</Button>}><div className="form-error" role="alert">{error}</div></Modal>
+  if (!m) return null
+  return <MemberProfile member={m} canEdit={false} onEdit={() => {}} onUpdated={(u) => setM((p) => (p ? { ...p, ...u } : p))} onClose={onClose} />
+}
+
 export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: { member: Member; canEdit: boolean; onEdit: () => void; onUpdated: (m: Member) => void; onClose: () => void }) {
   const { user } = useAuth()
   const { can } = usePermission()

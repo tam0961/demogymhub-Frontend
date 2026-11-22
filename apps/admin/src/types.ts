@@ -110,7 +110,7 @@ export interface Payment {
   created_at: string
   confirmed_at: string | null
   refund_requested?: boolean
-  contract?: { id: string; code: string; member?: { name: string } }
+  contract?: { id: string; code: string; member?: { id?: string; code?: string; name: string } }
 }
 export interface Contract {
   id: string

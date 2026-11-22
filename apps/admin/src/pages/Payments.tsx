@@ -8,8 +8,11 @@ import { useBranch } from '../context/BranchContext'
 import { useShift } from '../context/ShiftContext'
 import { Modal } from '../components/Modal'
 import { PendingPanel } from '../components/PayModal'
+import { PaymentReceiptModal } from '../components/PaymentReceiptModal'
+import { MemberProfilePopup } from './Members'
+import { api } from '../lib/api'
 import { Button, Chip, DataTable, Icon, Kpi, KpiRow, PageHeader, Segmented, Select, type Column } from '../components/ui'
-import type { PayMethod, Payment } from '../types'
+import type { Contract, PayMethod, Payment } from '../types'
 
 export function paymentsToCSV(rows: Payment[]) {
   return toCSV([
@@ -31,6 +34,17 @@ export default function Payments() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [pending, setPending] = useState<Payment | null>(null)
+  const [receipt, setReceipt] = useState<{ payment: Payment; contract: Contract } | null>(null)
+  const [memberId, setMemberId] = useState<string | null>(null)
+
+  const openReceipt = async (p: Payment) => {
+    try {
+      const { data } = await api.get<{ data: Contract }>(`/contracts/${p.contract_id}`)
+      setReceipt({ payment: p, contract: data.data })
+    } catch (e) {
+      setError(apiError(e).message)
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -59,10 +73,10 @@ export default function Payments() {
   const pendingSum = sum(filtered.filter((p) => p.status === 'pending'))
 
   const columns: Column<Payment>[] = [
-    { key: 'code', header: 'Mã phiếu thu', sortValue: (p) => paymentCode(p), render: (p) => <span className="cell-main">{paymentCode(p)}</span> },
+    { key: 'code', header: 'Mã phiếu thu', sortValue: (p) => paymentCode(p), render: (p) => <button type="button" className="cell-link cell-main" onClick={() => openReceipt(p)}>{paymentCode(p)}</button> },
     { key: 'at', header: 'Ngày', sortValue: (p) => p.created_at, render: (p) => fmtDate(p.created_at) },
-    { key: 'member', header: 'Hội viên', sortValue: (p) => p.contract?.member?.name, render: (p) => (p.contract?.member ? <div className="cell-main">{p.contract.member.name}</div> : <span className="hint-muted">Khách lẻ</span>) },
-    { key: 'contract', header: 'Hợp đồng', sortValue: (p) => p.contract?.code, render: (p) => p.contract?.code ?? p.contract_id },
+    { key: 'member', header: 'Hội viên', sortValue: (p) => p.contract?.member?.name, render: (p) => (p.contract?.member ? (p.contract.member.id ? <button type="button" className="cell-link cell-main" onClick={() => setMemberId(p.contract!.member!.id!)}>{p.contract.member.name}</button> : <div className="cell-main">{p.contract.member.name}</div>) : <span className="hint-muted">Khách lẻ</span>) },
+    { key: 'contract', header: 'Hợp đồng', sortValue: (p) => p.contract?.code, render: (p) => <button type="button" className="cell-link" onClick={() => nav(`/contracts/${p.contract_id}`)}>{p.contract?.code ?? p.contract_id}</button> },
     { key: 'method', header: 'Hình thức', sortValue: (p) => METHOD_LABEL[p.method], render: (p) => METHOD_LABEL[p.method] },
     { key: 'staff', header: 'Nhân viên thu', sortValue: (p) => p.created_by_name ?? '', render: (p) => p.created_by_name ?? <span className="hint-muted">-</span> },
     { key: 'amount', header: 'Số tiền', numeric: true, sortValue: (p) => p.amount, render: (p) => <span className="cell-main">{fmtMoney(p.amount)}</span> },
@@ -110,8 +124,7 @@ export default function Payments() {
           columns={columns}
           rows={filtered}
           rowKey={(p) => p.id}
-          onRowClick={(p) => nav(`/contracts/${p.contract_id}`)}
-          loading={loading}
+                    loading={loading}
           error={error}
           emptyText="Không có giao dịch"
           itemLabel="phiếu"
@@ -123,6 +136,8 @@ export default function Payments() {
           <PendingPanel payment={pending} onConfirmed={load} />
         </Modal>
       )}
+      {receipt && <PaymentReceiptModal payment={receipt.payment} contract={receipt.contract} onClose={() => setReceipt(null)} />}
+      {memberId && <MemberProfilePopup id={memberId} onClose={() => setMemberId(null)} />}
     </>
   )
 }
