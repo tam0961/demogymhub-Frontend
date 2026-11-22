@@ -318,28 +318,30 @@ function RegistrationsPanel({ regs, act }: { regs: GroupReg[]; act: (url: string
   const { user } = useAuth()
   const [confirming, setConfirming] = useState<GroupReg | null>(null)
   const override = !!user?.roles.some((r) => LOCK_OVERRIDE_ROLES.includes(r))
-  const rows = [...regs].sort((a, b) => a.class.start_at.localeCompare(b.class.start_at) || a.name.localeCompare(b.name))
+  const rows = [...regs].sort((a, b) => b.created_at.localeCompare(a.created_at) || a.name.localeCompare(b.name))
   const cols: Column<GroupReg>[] = [
-    { key: 'at', header: 'Đăng ký lúc', sortValue: (r) => r.created_at, render: (r) => fmtDateTime(r.created_at) },
+    { key: 'at', header: 'Time', sortValue: (r) => r.created_at, render: (r) => fmtDateTime(r.created_at) },
     { key: 'name', header: 'Tên', sortValue: (r) => r.name, render: (r) => <span className="cell-main">{r.name}</span> },
     { key: 'phone', header: 'Số điện thoại', render: (r) => r.phone },
     { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
     { key: 'class', header: 'Lớp', sortValue: (r) => r.class.start_at, render: (r) => <><div className="reg-when">{weekdayOf(r.class.start_at)}, {dmyLocal(r.class.start_at)} {fmtTime(r.class.start_at)}</div><div className="cell-sub">{classTitle(r.class.title)}{r.class.muscle_group ? ` + ${r.class.muscle_group}` : ''}</div></> },
-    { key: 'status', header: 'Tình trạng', sortValue: (r) => r.status, render: (r) => { const t = regTone(r); return <Chip tone={t.tone}>{t.label}</Chip> } },
+    { key: 'status', className: 'reg-status', header: 'Tình trạng', sortValue: (r) => r.status, render: (r) => { const t = regTone(r); return <Chip tone={t.tone}>{t.label}</Chip> } },
     {
-      key: 'act', header: '', className: 'actions',
+      key: 'act', header: '', className: 'reg-act',
       render: (r) => {
-        if (!(r.status === 'booked' || r.status === 'waitlist') || !can('pt_sessions.cancel')) return null
-        const locked = Date.now() >= cancelLockAt(r.class.start_at) && !override
-        return <Button small variant="danger" disabled={locked} title={locked ? 'Đã khóa hủy từ 21h hôm trước' : undefined} onClick={() => setConfirming(r)}>Hủy</Button>
+        if (!can('pt_sessions.cancel')) return null
+        const open = r.status === 'booked' || r.status === 'waitlist'
+        const locked = open && Date.now() >= cancelLockAt(r.class.start_at) && !override
+        const why = !open ? (r.status === 'cancelled' ? 'Đăng ký này đã hủy' : 'Lớp đã diễn ra, không hủy được') : locked ? 'Đã khóa hủy từ 21h hôm trước' : undefined
+        return <Button small variant="danger" disabled={!open || locked} title={why} onClick={() => setConfirming(r)}>Hủy</Button>
       },
     },
   ]
   return (
     <>
       <Panel title="Danh sách đăng ký" count={`${rows.length} đăng ký`} flush>
-        <div className="reg-table">
-          <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} emptyText="Chưa có đăng ký trong tuần" itemLabel="đăng ký" />
+        <div>
+          <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} pageSize={10} pageSizes={[10, 25, 50]} emptyText="Chưa có đăng ký trong tuần" itemLabel="đăng ký" />
         </div>
       </Panel>
       {confirming && (
