@@ -141,8 +141,8 @@ export function PtAddModal({ day, trainers, initial, onClose, onSaved }: { day: 
     setPicked([])
     setContracts([])
     if (!trainerId) return
-    api.get<ListResp<Contract>>('/contracts', { params: { category: kind, status: 'active', limit: 100, branch_id: trainerBranch } })
-      .then((r) => setContracts(r.data.data.filter((c) => c.sessions_total != null && (c.sessions_left ?? 0) > 0)))
+    api.get<ListResp<Contract>>('/contracts', { params: { category: kind, status: 'active', limit: 100, branch_id: trainerBranch, pt_user_id: trainerId } })
+      .then((r) => setContracts(r.data.data.filter((c) => c.sessions_total != null && (c.sessions_left ?? 0) > 0 && c.pt?.id === trainerId)))
       .catch(() => setContracts([]))
   }, [trainerId, kind, trainerBranch])
 
@@ -153,17 +153,21 @@ export function PtAddModal({ day, trainers, initial, onClose, onSaved }: { day: 
     setBusy(true)
     setError('')
     try {
-      const targets = picked.length ? contracts.filter((c) => picked.includes(c.id)) : [null]
-      for (const c of targets) {
-        await api.post('/pt/sessions', {
-          member_id: c?.member_id ?? null,
-          trainer_id: trainerId,
-          contract_id: c?.id ?? null,
-          start_at: `${date}T${hour}:${minute}:00+07:00`,
-          duration_min: 60,
-          branch_id: trainerBranch,
-        })
+      if (picked.length !== max) {
+        setError(kind === 'pt_1on1' ? 'Chọn 1 hội viên của PT này' : 'Buổi 1-2 phải chọn đủ 2 hội viên của PT này')
+        setBusy(false)
+        return
       }
+      const [a, b] = picked.map((id) => contracts.find((c) => c.id === id)!)
+      await api.post('/pt/sessions', {
+        member_id: a.member_id,
+        contract_id: a.id,
+        ...(b ? { partner: { member_id: b.member_id, contract_id: b.id } } : {}),
+        trainer_id: trainerId,
+        start_at: `${date}T${hour}:${minute}:00+07:00`,
+        duration_min: 60,
+        branch_id: trainerBranch,
+      })
       onSaved()
     } catch (err) {
       setError(apiError(err).message)
@@ -173,13 +177,13 @@ export function PtAddModal({ day, trainers, initial, onClose, onSaved }: { day: 
   }
 
   return (
-    <Modal title="Thêm buổi PT" onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="pt-add-form" disabled={busy || !trainerId}>{busy ? 'Đang lưu...' : 'Tạo buổi PT'}</Button></>}>
+    <Modal title="Thêm buổi PT" onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="pt-add-form" disabled={busy || !trainerId || picked.length !== max}>{busy ? 'Đang lưu...' : 'Tạo buổi PT'}</Button></>}>
       <form id="pt-add-form" className="form-grid" onSubmit={submit}>
         {error && <div className="form-error full" role="alert">{error}</div>}
         <Field label="Huấn luyện viên" htmlFor="pa-trainer" full>
           <Select id="pa-trainer" required value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
             <option value="" disabled>Chọn PT</option>
-            {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}{t.branches?.length ? ` (${t.branches.map((b) => b.name).join(', ')})` : ''}</option>)}
+            {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
           </Select>
         </Field>
         <Field label="Ngày" htmlFor="pa-date"><Input id="pa-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></Field>
@@ -196,10 +200,10 @@ export function PtAddModal({ day, trainers, initial, onClose, onSaved }: { day: 
         <Field label="Loại buổi" htmlFor="pa-kind" full>
           <Segmented<'pt_1on1' | 'pt_1on2'> fill ariaLabel="Loại buổi" value={kind} options={[{ value: 'pt_1on1', label: '1-1' }, { value: 'pt_1on2', label: '1-2' }]} onChange={setKind} />
         </Field>
-        <Field label="Hội viên dùng gói PT" htmlFor="pa-members" full hint="Mỗi hội viên trừ buổi từ gói PT riêng của mình khi buổi hoàn thành.">
+        <Field label={kind === 'pt_1on1' ? 'Hội viên của PT (chọn 1)' : 'Hội viên của PT (chọn đủ 2)'} htmlFor="pa-members" full hint={`Chỉ hiện hội viên đang gắn với PT này. ${kind === 'pt_1on1' ? 'Buổi 1-1 chọn 1 hội viên.' : 'Buổi 1-2 bắt buộc chọn đủ 2 hội viên.'} Mỗi hội viên trừ buổi từ gói PT riêng của mình khi buổi hoàn thành.`}>
           <div id="pa-members" className="ptm-list" role="group">
             {!trainerId && <div className="cell-sub">Chọn huấn luyện viên để xem danh sách hội viên</div>}
-            {trainerId && contracts.length === 0 && <div className="cell-sub">Chưa có hội viên còn buổi</div>}
+            {trainerId && contracts.length === 0 && <div className="cell-sub">PT này chưa có hội viên còn buổi {kind === 'pt_1on1' ? 'gói PT 1:1' : 'gói PT 1:2'}</div>}
             {contracts.map((c) => (
               <label key={c.id} className="ptm-row">
                 <input type="checkbox" checked={picked.includes(c.id)} disabled={!picked.includes(c.id) && picked.length >= max} onChange={() => toggle(c.id)} />

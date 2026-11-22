@@ -622,3 +622,5 @@ table.table thead th { font-size: 14.5px; font-weight: 700; letter-spacing: 0.1p
 .ptg-rules b { font-size: 13.5px; }
 .ptg-rules span { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
 @media (max-width: 900px) { .ptg-rules { grid-template-columns: 1fr; } }
+
+.ptg-stat-title { font-size: 15px; font-weight: 800; margin: 2px 0 8px; }

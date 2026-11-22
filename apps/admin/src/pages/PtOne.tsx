@@ -45,6 +45,8 @@ const cardState = (s: PtSession): CardState => {
   return !s.member && s.status === 'scheduled' ? 'blank' : map[s.status]
 }
 
+const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
+
 export default function PtOne() {
   const { branchId } = useBranch()
   const { can, hasRole } = usePermission()
@@ -182,8 +184,9 @@ export default function PtOne() {
         </div>
       </div>
 
+      <h2 className="ptg-stat-title">{mode === 'day' ? `Thống kê ngày ${dmy(day)}` : `Thống kê tuần ${dmy(from)} - ${dmy(to)}`}</h2>
       <KpiRow>
-        <Kpi value={live.length} label="Số buổi trong khoảng xem" />
+        <Kpi value={live.length} label={mode === 'day' ? 'Số buổi trong ngày' : 'Số buổi trong tuần'} />
         <Kpi value={rows.filter((r) => r.status === 'scheduled').length} label="Đã đặt, chưa dạy" />
         <Kpi value={rows.filter((r) => r.status === 'completed').length} label="Hoàn thành, đã trừ buổi" />
         <Kpi value={rows.filter((r) => r.status === 'no_show' || r.status === 'cancelled').length} label="Vắng hoặc hủy" />
