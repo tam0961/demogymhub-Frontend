@@ -170,11 +170,11 @@ export default function PtClasses() {
   const reportRows = buildReport(repSrc.classes, repSrc.regs)
   const reportCols: Column<PtReportRow>[] = [
     { key: 'pt', header: 'PT', sortValue: (r) => r.pt, render: (r) => <span className="cell-main">{r.pt}</span> },
-    { key: 'taught', header: 'Ca đã dạy', numeric: true, sortValue: (r) => r.taught, render: (r) => r.taught },
+    { key: 'taught', header: 'Lớp đã dạy', numeric: true, sortValue: (r) => r.taught, render: (r) => r.taught },
     { key: 'booked', header: 'Lượt học viên đã đặt', numeric: true, sortValue: (r) => r.booked, render: (r) => r.booked },
     { key: 'attended', header: 'Lượt "Đã học"', numeric: true, sortValue: (r) => r.attended, render: (r) => r.attended },
     { key: 'people', header: 'Học viên (người)', numeric: true, sortValue: (r) => r.people, render: (r) => r.people },
-    { key: 'upcoming', header: 'Ca sắp dạy', numeric: true, sortValue: (r) => r.upcoming, render: (r) => r.upcoming },
+    { key: 'upcoming', header: 'Lớp sắp dạy', numeric: true, sortValue: (r) => r.upcoming, render: (r) => r.upcoming },
   ]
 
   return (
@@ -239,7 +239,7 @@ export default function PtClasses() {
           </div>
         </div>
         <DataTable columns={reportCols} rows={reportRows} rowKey={(r) => r.pt} emptyText="Chưa có ca dạy" itemLabel="PT" hidePager />
-        <p className="gcal-note" style={{ padding: '0 16px 12px' }}>Ca đã dạy là ca đã kết thúc và có ít nhất một học viên đăng ký, không tính lượt hủy. Học viên (người) đếm theo số điện thoại, không đếm trùng.</p>
+        <p className="gcal-note" style={{ padding: '0 16px 12px' }}>Lớp đã dạy là lớp đã kết thúc và có ít nhất một học viên đăng ký, không tính lượt hủy. Học viên (người) đếm theo số điện thoại, không đếm trùng.</p>
       </section>
 
       {memberPopupId && <MemberProfilePopup id={memberPopupId} onClose={() => setMemberPopupId(null)} />}
