@@ -26,6 +26,7 @@ export interface Member {
   has_photo?: boolean
   photo_version?: number | null
   debt_amount?: number
+  debt_due_date?: string | null
   created_at: string
   branch?: Branch | null
   current_contract?: CurrentContract | null

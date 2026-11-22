@@ -382,6 +382,8 @@ function memberOut(m: Member): Member {
     branch: b ?? null,
     current_contract: c ? { id: c.id, code: c.code, status: c.status, package_name: c.package.name, package_type: c.package.type, start_date: c.start_date, end_date: c.end_date, sessions_left: c.sessions_left } : null,
     pt_contract: ptContract ? ptOut(ptContract) : null,
+    debt_amount: contracts.filter((x) => x.member_id === m.id && x.status !== 'cancelled' && x.status !== 'draft').reduce((a, x) => a + x.debt_amount, 0),
+    debt_due_date: contracts.filter((x) => x.member_id === m.id && x.debt_amount > 0 && x.due_date).map((x) => x.due_date as string).sort()[0] ?? null,
   }
 }
 const mockTickets: Ticket[] = []

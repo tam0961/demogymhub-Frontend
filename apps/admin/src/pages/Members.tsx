@@ -114,8 +114,17 @@ export function memberColumns(showBranch: boolean, branchOf: (m: Member) => Bran
         )
       },
     },
+    {
+      key: 'debt', className: 'mb-debt', header: 'Công nợ', numeric: true, sortValue: (m) => m.debt_amount ?? 0,
+      render: (m) => (
+        <>
+          <div className="cell-main">{(m.debt_amount ?? 0) > 0 ? <span className="text-bad">{fmtMoney(m.debt_amount ?? 0)}</span> : <span className="hint-muted">-</span>}</div>
+          {(m.debt_amount ?? 0) > 0 && m.debt_due_date && <div className="cell-sub">TT {fmtDate(m.debt_due_date)}</div>}
+        </>
+      ),
+    },
   )
-  const order = ['code', 'name', 'pkg', 'status', 'branch', 'created', 'end', 'hsd']
+  const order = ['code', 'name', 'pkg', 'status', 'branch', 'created', 'end', 'hsd', 'debt']
   return cols.sort((x, y) => order.indexOf(x.key) - order.indexOf(y.key))
 }
 

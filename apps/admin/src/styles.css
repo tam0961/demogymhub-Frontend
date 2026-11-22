@@ -399,16 +399,19 @@ button.prof-row-click:hover { background: var(--brand-soft); }
 .members-table .dt .table-wrap { max-height: none; overflow-x: auto; }
 .members-table table.table { table-layout: fixed; width: 100%; min-width: 1000px; }
 .members-table .col-check { width: 44px; }
-.members-table .mb-code { width: 9%; }
-.members-table .mb-name { width: 25%; }
-.members-table .mb-status { width: 11%; }
-.members-table .mb-pkg { width: 19%; }
-.members-table .mb-created { width: 11%; }
-.members-table .mb-end { width: 12%; }
-.members-table .mb-hsd { width: 11%; }
+.members-table .mb-code { width: 8%; }
+.members-table .mb-name { width: 22%; }
+.members-table .mb-status { width: 10%; }
+.members-table .mb-pkg { width: 16%; }
+.members-table .mb-created { width: 10%; }
+.members-table .mb-end { width: 11%; }
+.members-table .mb-hsd { width: 10%; }
+.members-table .mb-debt { width: 13%; }
 .members-table th { white-space: normal; line-height: 1.25; }
-.members-table th.mb-end, .members-table td.mb-end { padding-right: 32px; }
-.members-table .mb-name { width: 26%; }
+.members-table th, .members-table td, .members-table td.num, .members-table th.num { text-align: center; }
+.members-table .th-sort { justify-content: center; flex-direction: row; }
+.members-table .cell-person { justify-content: flex-start; text-align: left; }
+.members-table .mb-name { width: 22%; }
 
 /* column headers: brand yellow, black text */
 table.table thead th { background: var(--brand); color: var(--brand-ink); border-bottom: 1px solid var(--brand-deep); }
