@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { fmtTime } from '../lib/format'
@@ -95,9 +95,24 @@ export default function PtOne() {
     ? trainers.map((t) => ({ key: t.id, title: t.name.startsWith('PT') ? t.name : `PT ${t.name}`, color: colorOf(t.id), date: day, trainerId: t.id, items: rows.filter((r) => r.trainer.id === t.id && dayOf(r.start_at) === day) }))
     : days.map((d) => ({ key: d, title: shortDay(d), color: 'var(--line-strong)', date: d, trainerId: undefined as string | undefined, items: rows.filter((r) => dayOf(r.start_at) === d) }))
 
-  const minStart = Math.min(6 * 60, ...rows.map((r) => Math.floor(minutesOf(r.start_at) / 60) * 60))
-  const maxEnd = Math.max(22 * 60, ...rows.map((r) => Math.ceil(minutesOf(r.end_at) / 60) * 60))
+  const minStart = Math.min(8 * 60, ...rows.map((r) => Math.floor(minutesOf(r.start_at) / 60) * 60))
+  const maxEnd = Math.max(20 * 60, ...rows.map((r) => Math.ceil(minutesOf(r.end_at) / 60) * 60))
   const slots = Array.from({ length: Math.round((maxEnd - minStart) / 30) }, (_, i) => minStart + i * 30)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [row, setRow] = useState(ROW)
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const fit = () => {
+      const head = el.querySelector('.ptg-head') as HTMLElement | null
+      const avail = el.clientHeight - (head?.offsetHeight ?? 52) - 2
+      setRow(Math.max(18, Math.floor(avail / Math.max(1, slots.length))))
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [slots.length])
 
   const isOff = (c: { trainerId?: string; date: string }) => !!c.trainerId && offs.some((o) => o.trainer_id === c.trainerId && o.date === c.date)
 
@@ -132,8 +147,8 @@ export default function PtOne() {
 
       {error && <div className="form-error" role="alert">{error}</div>}
 
-      <div className="ptg-scroll">
-        <div className="ptg" style={{ gridTemplateColumns: `64px repeat(${Math.max(cols.length, 1)}, minmax(150px, 1fr))` }}>
+      <div className="ptg-scroll" ref={scrollRef}>
+        <div className="ptg" style={{ ['--ptg-row' as string]: `${row}px`, gridTemplateColumns: `64px repeat(${Math.max(cols.length, 1)}, minmax(150px, 1fr))` }}>
           <div className="ptg-corner" />
           {cols.map((c) => (
             <div key={c.key} className={`ptg-head${isOff(c) ? ' off' : ''}`} style={{ borderTopColor: c.color }}>
@@ -146,13 +161,13 @@ export default function PtOne() {
             {slots.map((m) => <div key={m} className={m % 60 === 0 ? 'ptg-hr' : 'ptg-half'}>{m % 60 === 0 ? `${pad(m / 60)}:00` : ':30'}</div>)}
           </div>
           {cols.map((c) => (
-            <div key={c.key} className={`ptg-col${isOff(c) ? ' ptg-off' : ''}`} style={{ height: slots.length * ROW }}>
+            <div key={c.key} className={`ptg-col${isOff(c) ? ' ptg-off' : ''}`} style={{ height: slots.length * row }}>
               {slots.map((m, i) => (
                 <button
                   key={m}
                   type="button"
                   className={`ptg-cell ${m % 60 === 0 ? '' : 'half'}`}
-                  style={{ top: i * ROW, height: ROW }}
+                  style={{ top: i * row, height: row }}
                   aria-label={`Thêm buổi ${pad(Math.floor(m / 60))}:${pad(m % 60)}`}
                   disabled={!can('pt_sessions.create') || isOff(c)}
                   onClick={() => setAdding({ trainerId: c.trainerId, date: c.date, time: `${pad(Math.floor(m / 60))}:${pad(m % 60)}` })}
@@ -160,8 +175,8 @@ export default function PtOne() {
               ))}
               {c.items.map((s) => {
                 const st = cardState(s)
-                const top = ((minutesOf(s.start_at) - minStart) / 30) * ROW
-                const h = Math.max(ROW, ((minutesOf(s.end_at) - minutesOf(s.start_at)) / 30) * ROW)
+                const top = ((minutesOf(s.start_at) - minStart) / 30) * row
+                const h = Math.max(row, ((minutesOf(s.end_at) - minutesOf(s.start_at)) / 30) * row)
                 return (
                   <button
                     key={s.id}

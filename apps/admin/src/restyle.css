@@ -341,7 +341,7 @@
 .ptg-head { border-top: 4px solid var(--line-strong); border-bottom: 1px solid var(--line); padding: 8px 6px; text-align: center; display: flex; flex-direction: column; gap: 2px; }
 .ptg-head small { color: var(--muted); }
 .ptg-axis { position: sticky; left: 0; z-index: 2; background: var(--surface); }
-.ptg-axis div { height: 26px; padding: 0 8px 0 10px; font-variant-numeric: tabular-nums; font-size: 13px; line-height: 26px; border-top: 1px solid var(--line); }
+.ptg-axis div { height: var(--ptg-row, 26px); padding: 0 8px 0 10px; font-variant-numeric: tabular-nums; font-size: 13px; line-height: var(--ptg-row, 26px); overflow: hidden; border-top: 1px solid var(--line); }
 .ptg-axis .ptg-hr { font-weight: 700; }
 .ptg-axis .ptg-half { font-size: 11px; color: var(--muted); border-top: 1px dashed var(--line); }
 .ptg-col { position: relative; border-left: 1px solid var(--line); }
