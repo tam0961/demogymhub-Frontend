@@ -12,6 +12,7 @@ export const TEMPLATE_LABEL: Record<string, string> = {
   contract_deposit: 'Hợp đồng cọc',
   freeze_form: 'Phiếu bảo lưu',
   transfer_form: 'Phiếu chuyển nhượng',
+  receipt: 'Phiếu thu',
 }
 const ORDER = Object.keys(TEMPLATE_LABEL)
 
@@ -35,6 +36,11 @@ export const PLACEHOLDERS: { key: string; label: string; sample: string }[] = [
   { key: 'nguoi_nhan', label: 'Người nhận chuyển nhượng', sample: 'Trần Thị Bình' },
   { key: 'sdt_nguoi_nhan', label: 'SĐT người nhận', sample: '0987654321' },
   { key: 'phi_chuyen_nhuong', label: 'Phí chuyển nhượng', sample: '500.000 ₫' },
+  { key: 'ma_phieu_thu', label: 'Mã phiếu thu', sample: 'PTPAY744' },
+  { key: 'ngay_thu', label: 'Ngày thu', sample: '19/11/2026 14:30' },
+  { key: 'so_tien', label: 'Số tiền thu', sample: '2.000.000 ₫' },
+  { key: 'hinh_thuc', label: 'Hình thức thanh toán', sample: 'Tiền mặt' },
+  { key: 'nhan_vien_thu', label: 'Nhân viên thu', sample: 'Lê Thu Hà' },
 ]
 
 const sampleValues = () => Object.fromEntries(PLACEHOLDERS.map((p) => [p.key, p.sample]))

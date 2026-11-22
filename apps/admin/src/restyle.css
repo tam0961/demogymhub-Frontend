@@ -588,3 +588,8 @@ table.table thead th { font-size: 14.5px; font-weight: 700; letter-spacing: 0.1p
   .contracts-table .dt .table-wrap, .members-table .dt .table-wrap { flex: 1 1 auto; min-height: 0; max-height: none; overflow: auto; }
   .contracts-table .dt > :not(.table-wrap), .members-table .dt > :not(.table-wrap) { flex: none; }
 }
+
+.modal.modal-receipt { width: min(860px, 94vw); max-width: 860px; }
+.receipt-grid { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(380px, 1.4fr); gap: 20px; align-items: start; }
+.receipt-frame { width: 100%; height: 540px; border: 1px solid var(--line); border-radius: var(--r-md); background: #fff; }
+@media (max-width: 820px) { .receipt-grid { grid-template-columns: 1fr; } }

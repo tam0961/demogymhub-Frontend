@@ -55,6 +55,7 @@ const printDefaults: Record<string, { title: string; body: string }> = {
   contract_pt: { title: 'HỢP ĐỒNG HUẤN LUYỆN CÁ NHÂN (PT)', body: 'Số hợp đồng: {{ma_hop_dong}}\nHội viên: {{ten_hoi_vien}}\nGói PT: {{goi_tap}}\nPT phụ trách: {{pt_phu_trach}}' },
   contract_deposit: { title: 'HỢP ĐỒNG ĐẶT CỌC', body: 'Số hợp đồng: {{ma_hop_dong}}\nHội viên: {{ten_hoi_vien}}\nĐã cọc: {{da_thanh_toan}} / {{tong_tien}}' },
   freeze_form: { title: 'PHIẾU BẢO LƯU HỢP ĐỒNG', body: 'Hợp đồng: {{ma_hop_dong}}\nHội viên: {{ten_hoi_vien}}\nSố ngày bảo lưu: {{so_ngay_bao_luu}}\nLý do: {{ly_do}}' },
+  receipt: { title: 'PHIẾU THU', body: 'TH GYM & FITNESS - {{chi_nhanh}}\n\nMã phiếu thu: {{ma_phieu_thu}}      Ngày thu: {{ngay_thu}}\nHội viên: {{ten_hoi_vien}} (Mã: {{ma_hoi_vien}}) - SĐT: {{sdt}}\n\nHợp đồng: {{ma_hop_dong}} - {{goi_tap}}\nSố tiền thu: {{so_tien}}\nHình thức: {{hinh_thuc}}\nCòn thiếu sau phiếu này: {{con_thieu}}\n\nNhân viên thu: {{nhan_vien_thu}}\n\nNgười nộp tiền ký tên' },
   transfer_form: { title: 'PHIẾU CHUYỂN NHƯỢNG HỢP ĐỒNG', body: 'Người chuyển: {{ten_hoi_vien}}\nNgười nhận: {{nguoi_nhan}}\nHợp đồng: {{ma_hop_dong}}\nPhí: {{phi_chuyen_nhuong}}' },
 }
 const printTpls: Record<string, { title: string; body: string }> = JSON.parse(JSON.stringify(printDefaults))

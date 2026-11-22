@@ -8,7 +8,7 @@ interface Props {
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
-  size?: 'normal' | 'large' | 'xl'
+  size?: 'normal' | 'large' | 'xl' | 'receipt'
 }
 
 export function Modal({ title, onClose, children, footer, size = 'normal' }: Props) {
@@ -30,7 +30,7 @@ export function Modal({ title, onClose, children, footer, size = 'normal' }: Pro
 
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} tabIndex={-1} className={`modal ${size === 'large' ? 'modal-lg' : size === 'xl' ? 'modal-xl' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+      <div ref={ref} tabIndex={-1} className={`modal ${size === 'large' ? 'modal-lg' : size === 'xl' ? 'modal-xl' : size === 'receipt' ? 'modal-receipt' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Đóng">
