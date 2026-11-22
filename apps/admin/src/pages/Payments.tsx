@@ -13,8 +13,8 @@ import type { PayMethod, Payment } from '../types'
 
 export function paymentsToCSV(rows: Payment[]) {
   return toCSV([
-    ['Mã phiếu', 'Ngày', 'Hội viên', 'Hợp đồng', 'Hình thức', 'Trạng thái', 'Số tiền'],
-    ...rows.map((p) => [paymentCode(p), fmtDate(p.created_at), p.contract?.member?.name ?? '', p.contract?.code ?? '', METHOD_LABEL[p.method], PAY_STATUS[p.status].label, p.amount]),
+    ['Mã phiếu', 'Ngày', 'Hội viên', 'Hợp đồng', 'Hình thức', 'Nhân viên thu', 'Trạng thái', 'Số tiền'],
+    ...rows.map((p) => [paymentCode(p), fmtDate(p.created_at), p.contract?.member?.name ?? '', p.contract?.code ?? '', METHOD_LABEL[p.method], p.created_by_name ?? '', PAY_STATUS[p.status].label, p.amount]),
   ])
 }
 
@@ -64,6 +64,7 @@ export default function Payments() {
     { key: 'member', header: 'Hội viên', sortValue: (p) => p.contract?.member?.name, render: (p) => (p.contract?.member ? <div className="cell-main">{p.contract.member.name}</div> : <span className="hint-muted">Khách lẻ</span>) },
     { key: 'contract', header: 'Hợp đồng', sortValue: (p) => p.contract?.code, render: (p) => p.contract?.code ?? p.contract_id },
     { key: 'method', header: 'Hình thức', sortValue: (p) => METHOD_LABEL[p.method], render: (p) => METHOD_LABEL[p.method] },
+    { key: 'staff', header: 'Nhân viên thu', sortValue: (p) => p.created_by_name ?? '', render: (p) => p.created_by_name ?? <span className="hint-muted">-</span> },
     { key: 'amount', header: 'Số tiền', numeric: true, sortValue: (p) => p.amount, render: (p) => <span className="cell-main">{fmtMoney(p.amount)}</span> },
     {
       key: 'status', header: 'Trạng thái', sortValue: (p) => p.status,

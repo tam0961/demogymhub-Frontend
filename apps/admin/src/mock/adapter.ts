@@ -1331,7 +1331,8 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     rows = rows.slice().sort((a, b) => b.created_at.localeCompare(a.created_at))
     return paged(rows.map((p) => {
       const c = contracts.find((x) => x.id === p.contract_id)
-      return { ...p, contract: c ? { id: c.id, code: c.code, member: { name: c.member.name } } : undefined }
+      const staffNames = ['Lê Thu Hà', 'Ngô Thị Huyền Trang', 'Vũ Bảo Khánh']
+      return { ...p, created_by_name: p.created_by_name ?? (p.created_by && p.created_by !== 'Hệ thống' ? p.created_by : staffNames[p.id.length % 3]), contract: c ? { id: c.id, code: c.code, member: { name: c.member.name } } : undefined }
     }))
   }
   if (url === '/payments' && method === 'post') {

@@ -385,6 +385,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                 <MoneyInput id="cn-paid" placeholder="0 ₫" value={paidTouched ? paid : defaultPaid ? String(defaultPaid) : ''} onValueChange={(v) => { setPaidTouched(true); setPaid(v) }} />
               </Field>
               <Field label="Ngày thanh toán" htmlFor="cn-pdate"><Input id="cn-pdate" type="date" readOnly value={todayISO()} /></Field>
+              <Field label="Nhân viên thu" htmlFor="cn-staff"><Input id="cn-staff" readOnly value={user?.name ?? ''} /></Field>
               <Field label="Hình thức thanh toán" htmlFor="cn-method">
                 <Select id="cn-method" value={method} onChange={(e) => setMethod(e.target.value as PayMethod)}>
                   {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
@@ -435,6 +436,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
               <dt>Giá trị</dt><dd>{fmtMoney(qt.total)}{qt.discount > 0 ? ` (đã giảm ${fmtMoney(qt.discount)})` : ''}</dd>
               {promo && <><dt>Khuyến mãi</dt><dd>{promoLabel?.label}: {promoNum.toLocaleString('vi-VN')}</dd></>}
               <dt>Đã thanh toán</dt><dd>{fmtMoney(qt.paid)}{qt.paid > 0 ? `, ${METHOD_LABEL[method]}` : ''}</dd>
+              {qt.paid > 0 && <><dt>Nhân viên thu</dt><dd>{user?.name ?? '-'}</dd></>}
               <dt>Còn thiếu</dt><dd>{fmtMoney(qt.remain)}</dd>
               {qt.remain > 0 && <><dt>Ngày đóng tiếp theo</dt><dd>{fmtDate(nextPayDate)}</dd></>}
             </dl>
