@@ -108,18 +108,19 @@ table.table { width: 100%; border-collapse: collapse; min-width: 640px; }
 .table tbody tr.clickable:hover td { background: var(--brand-soft); }
 .table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .table .actions { text-align: right; white-space: nowrap; }
-.contracts-table table.table { table-layout: fixed; min-width: 1180px; }
+.contracts-table table.table { table-layout: fixed; min-width: 1250px; }
 .contracts-table .table th, .contracts-table .table td { overflow-wrap: anywhere; }
 .contracts-table .table th:nth-child(1) { width: 3%; }
 .contracts-table .table th:nth-child(2) { width: 9%; }
-.contracts-table .table th:nth-child(3) { width: 17%; }
-.contracts-table .table th:nth-child(4) { width: 15%; }
-.contracts-table .table th:nth-child(5) { width: 9%; }
-.contracts-table .table th:nth-child(6) { width: 10%; }
-.contracts-table .table th:nth-child(7) { width: 15%; }
-.contracts-table .table th:nth-child(8) { width: 8%; }
-.contracts-table .table th:nth-child(9) { width: 7%; }
-.contracts-table .table th:nth-child(10) { width: 7%; }
+.contracts-table .table th:nth-child(3) { width: 14%; }
+.contracts-table .table th:nth-child(4) { width: 12%; }
+.contracts-table .table th:nth-child(5) { width: 8%; }
+.contracts-table .table th:nth-child(6) { width: 9%; }
+.contracts-table .table th:nth-child(7) { width: 10%; }
+.contracts-table .table th:nth-child(8) { width: 14%; }
+.contracts-table .table th:nth-child(9) { width: 8%; }
+.contracts-table .table th:nth-child(10) { width: 6%; }
+.contracts-table .table th:nth-child(11) { width: 7%; }
 .contracts-table .table td { vertical-align: top; }
 .empty { padding: 36px 16px; text-align: center; color: var(--muted); }
 

@@ -67,12 +67,15 @@ export default function Contracts() {
     },
     {
       key: 'total', header: 'Giá trị', numeric: true, sortValue: (c) => c.total_amount,
+      render: (c) => <><div className="cell-main">{c.bundle_of_id && c.total_amount === 0 ? <span className="hint-muted">Kèm gói PT</span> : fmtMoney(c.total_amount)}</div><div className="cell-sub">{c.last_payment_method ? METHOD_LABEL[c.last_payment_method] : ''}</div></>,
+    },
+    {
+      key: 'debt', header: 'Công nợ', numeric: true, sortValue: (c) => c.debt_amount,
       render: (c) => (
         <>
-          <div className="cell-main">{c.bundle_of_id && c.total_amount === 0 ? <span className="hint-muted">Kèm gói PT</span> : fmtMoney(c.total_amount)}</div>
-          <div className="cell-sub">{c.last_paid_at ? `Thanh toán ${fmtDate(c.last_paid_at)}${c.last_payment_method ? ` · ${METHOD_LABEL[c.last_payment_method]}` : ''}` : c.last_payment_method ? METHOD_LABEL[c.last_payment_method] : 'Chưa thanh toán'}</div>
-          {c.debt_amount > 0 && <div className="cell-sub"><span className="text-bad">Công nợ {fmtMoney(c.debt_amount)}</span></div>}
+          <div className="cell-main">{c.debt_amount > 0 ? <span className="text-bad">{fmtMoney(c.debt_amount)}</span> : <span className="hint-muted">-</span>}</div>
           {c.debt_amount > 0 && c.due_date && <div className="cell-sub">Hạn thanh toán tiếp theo {fmtDate(c.due_date)}{(c.overdue_days ?? 0) > 0 && <> <Chip tone="bad">quá hạn {c.overdue_days} ngày</Chip></>}</div>}
+          <div className="cell-sub">{c.last_paid_at ? `Thanh toán ${fmtDate(c.last_paid_at)}` : 'Chưa thanh toán'}</div>
         </>
       ),
     },
