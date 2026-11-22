@@ -606,3 +606,13 @@ table.table thead th { font-size: 14.5px; font-weight: 700; letter-spacing: 0.1p
 .segmented, .segmented-field { border: 1.5px solid var(--line-strong); background: var(--surface); border-radius: 10px; }
 .segmented .seg[aria-pressed='true'], .segmented-field .seg[aria-pressed='true'] { background: var(--brand); color: var(--brand-ink); box-shadow: none; font-weight: 700; }
 .segmented .seg[aria-pressed='false'] { color: var(--ink); }
+
+.ptg-dayname { display: inline-block; min-width: 76px; text-align: right; white-space: nowrap; }
+
+.ptg-controls .ptg-today { min-width: 112px; justify-content: center; }
+
+@media (min-width: 900px) {
+  main.content:has(.ptg-scroll) { height: calc(100vh - 46px); display: flex; flex-direction: column; overflow: hidden; padding-bottom: 12px; }
+  main.content:has(.ptg-scroll) > * { flex: none; }
+  main.content:has(.ptg-scroll) > .ptg-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; margin-bottom: 12px; }
+}

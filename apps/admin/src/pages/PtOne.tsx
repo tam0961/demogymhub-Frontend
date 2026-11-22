@@ -93,8 +93,8 @@ export default function PtOne() {
     ? trainers.map((t) => ({ key: t.id, title: t.name.startsWith('PT') ? t.name : `PT ${t.name}`, color: colorOf(t.id), date: day, trainerId: t.id, items: rows.filter((r) => r.trainer.id === t.id && dayOf(r.start_at) === day) }))
     : days.map((d) => ({ key: d, title: shortDay(d), color: 'var(--line-strong)', date: d, trainerId: undefined as string | undefined, items: rows.filter((r) => dayOf(r.start_at) === d) }))
 
-  const minStart = Math.min(8 * 60, ...rows.map((r) => Math.floor(minutesOf(r.start_at) / 60) * 60))
-  const maxEnd = Math.max(21 * 60, ...rows.map((r) => Math.ceil(minutesOf(r.end_at) / 60) * 60))
+  const minStart = Math.min(6 * 60, ...rows.map((r) => Math.floor(minutesOf(r.start_at) / 60) * 60))
+  const maxEnd = Math.max(22 * 60, ...rows.map((r) => Math.ceil(minutesOf(r.end_at) / 60) * 60))
   const slots = Array.from({ length: Math.round((maxEnd - minStart) / 30) }, (_, i) => minStart + i * 30)
 
   const isOff = (c: { trainerId?: string; date: string }) => !!c.trainerId && offs.some((o) => o.trainer_id === c.trainerId && o.date === c.date)
@@ -119,11 +119,11 @@ export default function PtOne() {
         <h1>Lịch PT 1-1</h1>
         <div className="ptg-controls">
           <Segmented<Mode> ariaLabel="Chế độ xem" options={[{ value: 'day', label: 'Hôm nay' }, { value: 'week', label: 'Lịch Tuần' }]} value={mode} onChange={(m) => { setMode(m); if (m === 'day') setDay(localISO(new Date())) }} />
-          {mode === 'day' && <span className="ptg-dayname">{dayText(day)}</span>}
+          <span className="ptg-dayname" aria-hidden={mode !== 'day'}>{mode === 'day' ? dayText(day) : ''}</span>
           <Button onClick={() => setDay(addDays(day, mode === 'day' ? -1 : -7))} aria-label="Lùi">‹</Button>
           <Input type="date" aria-label="Ngày" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} />
           <Button onClick={() => setDay(addDays(day, mode === 'day' ? 1 : 7))} aria-label="Tiến">›</Button>
-          <Button onClick={() => setDay(localISO(new Date()))}>Hôm nay</Button>
+          <Button className="ptg-today" onClick={() => setDay(localISO(new Date()))}>{mode === 'day' ? 'Hôm nay' : 'Tuần này'}</Button>
           <RequirePermission permission="pt_sessions.create"><Button variant="primary" onClick={() => setAdding({ date: day })}>Thêm buổi PT</Button></RequirePermission>
         </div>
       </div>
