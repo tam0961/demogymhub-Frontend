@@ -516,8 +516,16 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .reg-when { font-size: 16px; font-weight: 800; letter-spacing: 0.01em; }
 
 
-.table th.reg-act, .table td.reg-act { text-align: left; width: 90px; }
+.table th.reg-act, .table td.reg-act { text-align: left; }
 
-.table th.reg-status, .table td.reg-status { width: 150px; }
-.table th.reg-act, .table td.reg-act { width: 120px; }
 .table td.reg-act .btn { min-width: 84px; justify-content: center; }
+
+.reg-table table.table { table-layout: fixed; min-width: 1000px; }
+.reg-table .table th:nth-child(1) { width: 14%; }
+.reg-table .table th:nth-child(2) { width: 17%; }
+.reg-table .table th:nth-child(3) { width: 12%; }
+.reg-table .table th:nth-child(4) { width: 22%; }
+.reg-table .table th:nth-child(5) { width: 17%; }
+.reg-table .table th:nth-child(6) { width: 10%; }
+.reg-table .table th:nth-child(7) { width: 8%; }
+.reg-table .table td { overflow: hidden; text-overflow: ellipsis; }

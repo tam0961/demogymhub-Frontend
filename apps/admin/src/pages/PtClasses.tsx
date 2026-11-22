@@ -340,7 +340,7 @@ function RegistrationsPanel({ regs, act }: { regs: GroupReg[]; act: (url: string
   return (
     <>
       <Panel title="Danh sách đăng ký" count={`${rows.length} đăng ký`} flush>
-        <div>
+        <div className="reg-table">
           <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} pageSize={10} pageSizes={[10, 25, 50]} emptyText="Chưa có đăng ký trong tuần" itemLabel="đăng ký" />
         </div>
       </Panel>
