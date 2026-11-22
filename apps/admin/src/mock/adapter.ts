@@ -740,7 +740,7 @@ function mockGroupWeek(from: string, to: string) {
       const cls = { id, branch_id: 'b1', title: MOCK_TITLES[(i + wd) % 3], muscle_group: null, trainer, start_at: start.toISOString(), end_at: end.toISOString(), capacity: 3, registered: n, status: done ? 'completed' : 'scheduled', completed_at: null }
       classes.push(cls)
       members.forEach(([name, phone], k) => regs.push({
-        id: `${id}-${k}`, member_id: `m-${phone}`, name, phone, email: null, status: done ? (k === 0 && i % 5 === 0 ? 'absent' : 'attended') : 'booked',
+        id: `${id}-${k}`, member_id: `m-${phone}`, name, phone, email: `${name.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/đ/g, 'd').replace(/\s+/g, '.')}@${['gmail.com', 'yahoo.com.vn', 'outlook.com'][k % 3]}`, status: done ? (k === 0 && i % 5 === 0 ? 'absent' : 'attended') : 'booked',
         deducted: true, contract_code: `HD26${phone.slice(-3)}`, sessions_left: 4 + ((i + k) % 8), created_at: new Date(start.getTime() - (20 + ((i * 7 + k * 3) % 40)) * 3600_000 - ((i * 13 + k * 5) % 50) * 60_000).toISOString(), cancel_count: (i + k) % 6 === 0 ? 1 : 0,
         class: { id, title: cls.title, muscle_group: null, start_at: cls.start_at, end_at: cls.end_at, status: cls.status, trainer },
       }))
