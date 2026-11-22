@@ -638,7 +638,7 @@ addScenario('Khách chi nhánh Nhà Bè', 'b-nb')
 seedContract('ms26', pid('b-nb', 'm3'), 'active', 1990000, -30)
 addScenario('Khách chi nhánh Quận 2', 'b-q2')
 seedContract('ms27', pid('b-q2', 'm1'), 'expired', 700000, -45)
-addScenario('Tên rất dài để kiểm tra cắt chữ trong bảng và hộp thoại hội viên', Q7)
+addScenario('Nguyễn Thị Kim Ngọc Bảo Trân', Q7)
 seedContract('ms28', pid(Q7, 'm12'), 'active', 3000000, -200)
 const pendingSeed = payments.filter((p) => p.status === 'confirmed' && p.method === 'vietqr').slice(0, 3)
 pendingSeed.forEach((p) => {
