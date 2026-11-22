@@ -514,3 +514,5 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .gcal-cell .gcal-empty { margin: auto; }
 
 .reg-when { font-size: 16px; font-weight: 800; letter-spacing: 0.01em; }
+
+.reg-table .table thead { display: none; }

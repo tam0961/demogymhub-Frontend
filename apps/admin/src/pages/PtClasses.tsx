@@ -39,12 +39,11 @@ const WEEKDAY = ['CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'T
 const weekdayOf = (iso: string) => WEEKDAY[new Date(iso).getDay()]
 const dmyLocal = (iso: string) => { const d = new Date(iso); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}` }
 const regTone = (r: GroupReg): { label: string; tone: ChipTone } => {
-  const over = r.class.status === 'completed' || Date.now() > new Date(r.class.end_at).getTime()
-  if (r.status === 'attended') return { label: 'Đã có mặt', tone: 'ok' }
-  if (r.status === 'absent') return { label: 'Vắng (mất buổi)', tone: 'bad' }
+  if (r.status === 'attended') return { label: 'Đã học', tone: 'ok' }
+  if (r.status === 'absent') return { label: 'Vắng', tone: 'bad' }
   if (r.status === 'cancelled') return { label: 'Đã hủy', tone: 'bad' }
   if (r.status === 'waitlist') return { label: 'Danh sách chờ', tone: 'neutral' }
-  return over ? { label: 'Chưa có mặt', tone: 'warn' } : { label: 'Đã đặt lịch', tone: 'neutral' }
+  return { label: 'Đã đặt lịch', tone: 'warn' }
 }
 
 const cancelLockAt = (startIso: string) => {
@@ -321,6 +320,7 @@ function RegistrationsPanel({ regs, act }: { regs: GroupReg[]; act: (url: string
   const override = !!user?.roles.some((r) => LOCK_OVERRIDE_ROLES.includes(r))
   const rows = [...regs].sort((a, b) => a.class.start_at.localeCompare(b.class.start_at) || a.name.localeCompare(b.name))
   const cols: Column<GroupReg>[] = [
+    { key: 'at', header: 'Đăng ký lúc', sortValue: (r) => r.created_at, render: (r) => fmtDateTime(r.created_at) },
     { key: 'name', header: 'Tên', sortValue: (r) => r.name, render: (r) => <span className="cell-main">{r.name}</span> },
     { key: 'phone', header: 'Số điện thoại', render: (r) => r.phone },
     { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
@@ -338,7 +338,9 @@ function RegistrationsPanel({ regs, act }: { regs: GroupReg[]; act: (url: string
   return (
     <>
       <Panel title="Danh sách đăng ký" count={`${rows.length} đăng ký`} flush>
-        <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} emptyText="Chưa có đăng ký trong tuần" itemLabel="đăng ký" />
+        <div className="reg-table">
+          <DataTable columns={cols} rows={rows} rowKey={(r) => r.id} emptyText="Chưa có đăng ký trong tuần" itemLabel="đăng ký" />
+        </div>
       </Panel>
       {confirming && (
         <ConfirmDialog
