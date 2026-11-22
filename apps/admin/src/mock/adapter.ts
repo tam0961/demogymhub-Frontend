@@ -418,7 +418,9 @@ function mockTicketQuote(c: Contract, type: string, packageId: string, canApprov
 function contractOut(c: Contract): Contract {
   const last = payments.filter((p) => p.contract_id === c.id && p.status === 'confirmed').sort((a, b) => b.created_at.localeCompare(a.created_at))[0]
   const bundled: BundledContract[] = contracts.filter((x) => x.bundle_of_id === c.id).map((x) => ({ id: x.id, code: x.code, status: x.status, start_date: x.start_date, end_date: x.end_date, package: x.package }))
-  return { ...c, bundle_of_id: c.bundle_of_id ?? null, bundled_contracts: isPt(c) ? bundled : undefined, usage_deadline: c.package.category === 'pt_1on1' ? usageDeadlineOf(c) : undefined, last_payment_method: last?.method ?? null, last_paid_at: last?.created_at ?? null, branch: branches.find((b) => b.id === c.branch_id) ?? null }
+  const mockSale = { id: 'u-sale2', name: 'Vũ Bảo Khánh' }
+  const mockPt = { id: 'u-pt1', name: 'Ngô Thị Huyền Trang' }
+  return { ...c, sale: c.sale ?? mockSale, pt: c.pt ?? (isPt(c) ? mockPt : null), bundle_of_id: c.bundle_of_id ?? null, bundled_contracts: isPt(c) ? bundled : undefined, usage_deadline: c.package.category === 'pt_1on1' ? usageDeadlineOf(c) : undefined, last_payment_method: last?.method ?? null, last_paid_at: last?.created_at ?? null, branch: branches.find((b) => b.id === c.branch_id) ?? null }
 }
 function log(actor: string, action: string, resource: string, result = 'ALLOW', ago = 0) {
   audit.unshift({ id: nid('a'), actor_email: actor, actor, action, resource, result, ip: '127.0.0.1', created_at: new Date(Date.now() - ago).toISOString() })
