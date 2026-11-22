@@ -35,6 +35,18 @@ const REG_STATUS: Record<GroupRegStatus, { label: string; tone: ChipTone }> = {
   waitlist: { label: 'Danh sách chờ', tone: 'neutral' },
 }
 
+const WEEKDAY = ['CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']
+const weekdayOf = (iso: string) => WEEKDAY[new Date(iso).getDay()]
+const dmyLocal = (iso: string) => { const d = new Date(iso); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}` }
+const regTone = (r: GroupReg): { label: string; tone: ChipTone } => {
+  const over = r.class.status === 'completed' || Date.now() > new Date(r.class.end_at).getTime()
+  if (r.status === 'attended') return { label: 'Đã có mặt', tone: 'ok' }
+  if (r.status === 'absent') return { label: 'Vắng (mất buổi)', tone: 'bad' }
+  if (r.status === 'cancelled') return { label: 'Đã hủy', tone: 'bad' }
+  if (r.status === 'waitlist') return { label: 'Danh sách chờ', tone: 'neutral' }
+  return over ? { label: 'Chưa có mặt', tone: 'warn' } : { label: 'Đã đặt lịch', tone: 'neutral' }
+}
+
 const cancelLockAt = (startIso: string) => {
   const day = new Date(startIso).toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' })
   return new Date(`${day}T00:00:00+07:00`).getTime() - 86400000 + 21 * 3600000
@@ -312,8 +324,8 @@ function RegistrationsPanel({ regs, act }: { regs: GroupReg[]; act: (url: string
     { key: 'name', header: 'Tên', sortValue: (r) => r.name, render: (r) => <span className="cell-main">{r.name}</span> },
     { key: 'phone', header: 'Số điện thoại', render: (r) => r.phone },
     { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
-    { key: 'class', header: 'Lớp', sortValue: (r) => r.class.start_at, render: (r) => <><div className="cell-main">{classTitle(r.class.title)}{r.class.muscle_group ? ` + ${r.class.muscle_group}` : ''}</div><div className="cell-sub">{fmtDateTime(r.class.start_at)}</div></> },
-    { key: 'status', header: 'Tình trạng', sortValue: (r) => r.status, render: (r) => <Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip> },
+    { key: 'class', header: 'Lớp', sortValue: (r) => r.class.start_at, render: (r) => <><div className="reg-when">{weekdayOf(r.class.start_at)}, {dmyLocal(r.class.start_at)} {fmtTime(r.class.start_at)}</div><div className="cell-sub">{classTitle(r.class.title)}{r.class.muscle_group ? ` + ${r.class.muscle_group}` : ''}</div></> },
+    { key: 'status', header: 'Tình trạng', sortValue: (r) => r.status, render: (r) => { const t = regTone(r); return <Chip tone={t.tone}>{t.label}</Chip> } },
     {
       key: 'act', header: '', className: 'actions',
       render: (r) => {

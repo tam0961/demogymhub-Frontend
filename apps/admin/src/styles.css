@@ -512,3 +512,5 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .gcal-chip { white-space: nowrap; }
 .gcal-cell { height: 184px; overflow-y: auto; }
 .gcal-cell .gcal-empty { margin: auto; }
+
+.reg-when { font-size: 16px; font-weight: 800; letter-spacing: 0.01em; }
