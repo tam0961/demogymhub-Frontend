@@ -519,4 +519,5 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .table th.reg-act, .table td.reg-act { text-align: left; width: 90px; }
 
 .table th.reg-status, .table td.reg-status { width: 150px; }
-.table th.reg-act, .table td.reg-act { width: 80px; }
+.table th.reg-act, .table td.reg-act { width: 120px; }
+.table td.reg-act .btn { min-width: 84px; justify-content: center; }

@@ -741,7 +741,7 @@ function mockGroupWeek(from: string, to: string) {
       classes.push(cls)
       members.forEach(([name, phone], k) => regs.push({
         id: `${id}-${k}`, member_id: `m-${phone}`, name, phone, email: null, status: done ? (k === 0 && i % 5 === 0 ? 'absent' : 'attended') : 'booked',
-        deducted: true, contract_code: `HD26${phone.slice(-3)}`, sessions_left: 4 + ((i + k) % 8), created_at: start.toISOString(), cancel_count: (i + k) % 6 === 0 ? 1 : 0,
+        deducted: true, contract_code: `HD26${phone.slice(-3)}`, sessions_left: 4 + ((i + k) % 8), created_at: new Date(start.getTime() - (20 + ((i * 7 + k * 3) % 40)) * 3600_000 - ((i * 13 + k * 5) % 50) * 60_000).toISOString(), cancel_count: (i + k) % 6 === 0 ? 1 : 0,
         class: { id, title: cls.title, muscle_group: null, start_at: cls.start_at, end_at: cls.end_at, status: cls.status, trainer },
       }))
     }
