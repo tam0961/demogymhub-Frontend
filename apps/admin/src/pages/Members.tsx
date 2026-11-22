@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
+import { nameLines } from '../lib/nameLines'
 import { GENDER_LABEL, METHOD_LABEL, downloadBlob, fmtDate, fmtDateTime, fmtMoney, daysLeftText, memberStatus, toCSV, CONTRACT_STATUS, PT_REASON } from '../lib/format'
 import { hasHsd } from '../lib/pt'
 import { useAuth } from '../context/AuthContext'
@@ -40,11 +41,6 @@ async function fetchAll<T>(url: string, params: Record<string, unknown>): Promis
 
 export const showBranchColumn = (user: Pick<Me, 'branches'> | null | undefined, branchId: string | null) => !branchId && (user?.branches.length ?? 0) > 1
 
-const nameLines = (name: string) => {
-  const w = name.trim().split(/\s+/)
-  if (w.length <= 5) return name
-  return <>{w.slice(0, 5).join(' ')}<br />{w.slice(5).join(' ')}</>
-}
 
 export function PtCell({ m }: { m: Member }) {
   const pt = m.pt_contract

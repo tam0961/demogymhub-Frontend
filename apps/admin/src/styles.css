@@ -413,7 +413,8 @@ button.prof-row-click:hover { background: var(--brand-soft); }
 .members-table th, .members-table td, .members-table td.num, .members-table th.num { text-align: center; }
 .members-table .th-sort { justify-content: center; flex-direction: row; }
 .members-table .cell-person { justify-content: flex-start; text-align: left; }
-.members-table th.mb-name { text-align: left; }
+.members-table th.mb-name, .members-table th.mb-pkg, .members-table td.mb-pkg { text-align: left; }
+.members-table th.mb-pkg .th-sort { justify-content: flex-start; }
 .members-table th.mb-name .th-sort { justify-content: flex-start; padding-left: 46px; }
 .members-table .mb-name { width: 22%; }
 
@@ -504,3 +505,5 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .match-item { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 10px 14px; background: var(--surface); border: 0; border-top: 1px solid var(--line); text-align: left; cursor: pointer; font: inherit; }
 .match-item:first-child { border-top: 0; }
 .match-item:hover { background: var(--brand-soft); }
+
+.nm-line { white-space: nowrap; }

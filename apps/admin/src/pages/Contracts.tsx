@@ -1,3 +1,4 @@
+import { nameLines } from '../lib/nameLines'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
@@ -58,7 +59,7 @@ export default function Contracts() {
 
   const columns: Column<Contract>[] = [
     { key: 'code', header: 'Mã HĐ', sortValue: (c) => c.code, render: (c) => <><div className="cell-main">{c.code}{c.bundle_of_id && <> <span className="hint-muted">Kèm PT</span></>}</div><div className="cell-sub">{(c.branch?.name ?? '').replace(/^Chi nhánh\s+/i, '')}</div></> },
-    { key: 'member', className: 'col-left', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><div className="cell-main">{c.member.name}</div><div className="cell-sub">{c.member.code}</div></> },
+    { key: 'member', className: 'col-left', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><div className="cell-main">{nameLines(c.member.name)}</div><div className="cell-sub">{c.member.code}</div></> },
     { key: 'pkg', className: 'col-left', header: 'Dịch vụ', sortValue: (c) => c.package.name, render: (c) => c.package.name },
     { key: 'signed', header: 'Ngày ký', sortValue: (c) => c.signed_at ?? c.created_at, render: (c) => fmtDate(c.signed_at ?? c.created_at) },
     {
