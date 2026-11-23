@@ -675,6 +675,8 @@ const sessions: SessionRow[] = [
 ]
 
 const RT = 'gymhub_mock_rt'
+const WORK_PTS: [string, string, number][] = [['u-pt1', 'Vũ Bảo Khánh', 80e6], ['u-pt2', 'Ngô Thị Huyền Trang', 60e6], ['u-pt3', 'Thịnh', 50e6]]
+const workTargets: Record<string, number> = {}
 const OUT = 'gymhub_mock_out'
 const getRt = () => {
   try {
@@ -1470,6 +1472,48 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     })
     const sum = (k: 'checkins_today' | 'denied_today' | 'inside_now') => list.reduce((t, x) => t + x[k], 0)
     return ok({ date: d, branches: list, totals: { checkins_today: sum('checkins_today'), denied_today: sum('denied_today'), inside_now: sum('inside_now') } })
+  }
+  if (url === '/reports/work/targets') {
+    need('reports.view')
+    const ym = `${config.params?.year}-${config.params?.month}`
+    if (method === 'put') { for (const t of (body.targets ?? []) as { user_id: string; target: number }[]) workTargets[`${ym}:${t.user_id}`] = t.target; return ok({ ok: true }) }
+    return ok(WORK_PTS.map(([id, name, def]) => ({ user_id: id, name, target: workTargets[`${ym}:${id}`] ?? def })))
+  }
+  if (url === '/reports/work') {
+    need('reports.view')
+    const year = Number(config.params?.year ?? new Date().getFullYear())
+    const month = Number(config.params?.month ?? new Date().getMonth() + 1)
+    const now = new Date()
+    const dim = new Date(year, month, 0).getDate()
+    const cur = year === now.getFullYear() && month === now.getMonth() + 1
+    const elapsed = cur ? now.getDate() : (new Date(year, month - 1, 1) > now ? 0 : dim)
+    const pace = elapsed / dim
+    const rows = WORK_PTS.map(([id, name, def], k) => {
+      const target = workTargets[`${year}-${month}:${id}`] ?? def
+      const newS = Math.round(target * [0.42, 0.55, 0.3][k] * pace / 1e6) * 1e6
+      const renewS = Math.round(target * [0.38, 0.2, 0.22][k] * pace / 1e6) * 1e6
+      const total = newS + renewS
+      const pct = target ? total / target : 0
+      const ratio = pace ? pct / pace : 0
+      const contractsNew = Math.max(0, Math.round([9, 7, 4][k] * pace))
+      const contractsRenew = Math.max(0, Math.round([5, 2, 3][k] * pace))
+      const leads = Math.max(contractsNew, Math.round([24, 20, 18][k] * pace))
+      const booked = Math.round([132, 98, 70][k] * pace)
+      const cancelled = Math.round(booked * [0.05, 0.12, 0.2][k])
+      const done = booked - cancelled
+      const clients = [26, 20, 15][k]
+      const offtrack = [2, 4, 6][k]
+      const weeks = Math.max(1, elapsed / 7)
+      return {
+        user_id: id, name, target, new_sales: newS, renew_sales: renewS, total, pct, status: ratio >= 0.9 ? 'on_track' : ratio >= 0.6 ? 'off_track' : 'low',
+        renew_share: total ? renewS / total : 0, new_contracts: contractsNew, renew_contracts: contractsRenew, apv: contractsNew ? newS / contractsNew : 0,
+        leads, conversion: leads ? contractsNew / leads : 0,
+        sessions_done: done, sessions_week: Math.round(done / weeks), booked, cancelled, attend_rate: booked ? done / booked : 0, cancel_rate: booked ? cancelled / booked : 0,
+        clients, offtrack, renew_rate: clients ? contractsRenew / clients : 0, frequency: clients ? done / (clients * Math.max(0.5, elapsed / 7)) : 0,
+      }
+    })
+    const offList = [['Nguyễn Thị Hạnh', 'u-pt1', 16], ['Trần Quốc Bảo', 'u-pt2', 21], ['Lê Minh Châu', 'u-pt2', 15], ['Phạm Gia Huy', 'u-pt3', 33], ['Đỗ Thu Trang', 'u-pt3', 18], ['Võ Anh Khoa', 'u-pt3', 27]] as [string, string, number][]
+    return ok({ year, month, days_elapsed: elapsed, days_in_month: dim, rows, off_track: offList.map(([name, pt, days]) => ({ member: name, pt_name: WORK_PTS.find((p) => p[0] === pt)![1], days_absent: days })) })
   }
   if (url === '/reports/business') {
     need('reports.view')

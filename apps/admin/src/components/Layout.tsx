@@ -70,6 +70,7 @@ export const NAV_GROUPS: NavGroup[] = [
   ] },
   { title: 'Thống kê', items: [
     { to: '/reports', label: 'Hiệu suất kinh doanh', icon: 'reports', perm: ['reports.view'] },
+    { to: '/reports/work', label: 'Hiệu suất làm việc', icon: 'reports', perm: ['reports.view'] },
     { to: '/reports/services', label: 'Doanh thu theo dịch vụ', icon: 'reports', perm: ['reports.view'] },
     { to: '/reports/progress', label: 'Tiến độ hợp đồng', icon: 'contracts', perm: ['reports.view'] },
     { to: '/reports/ops', label: 'Sức khỏe và công suất', icon: 'reports', perm: ['reports.view'] },

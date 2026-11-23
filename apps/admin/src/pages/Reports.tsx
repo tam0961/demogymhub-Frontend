@@ -161,9 +161,9 @@ function StatCard({ value, label, card, color, note, ending }: { value: number; 
 
 function Controls({ mode, year, month, onMode, onYear, onMonth, years }: { mode: 'month' | 'year'; year: number; month: number; onMode: (m: 'month' | 'year') => void; onYear: (y: number) => void; onMonth: (m: number) => void; years: number[] }) {
   return (
-    <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+    <span className="rep-ctl">
       <Segmented<'month' | 'year'> ariaLabel="Xem theo" value={mode} onChange={onMode} options={[{ value: 'month', label: 'Theo tháng' }, { value: 'year', label: 'Theo năm' }]} />
-      {mode === 'month' && <Select aria-label="Tháng" value={month} onChange={(e) => onMonth(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>)}</Select>}
+      <Select aria-label="Tháng" value={month} onChange={(e) => onMonth(Number(e.target.value))} style={{ visibility: mode === 'month' ? 'visible' : 'hidden' }} disabled={mode !== 'month'}>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>)}</Select>
       <Select aria-label="Năm" value={year} onChange={(e) => onYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</Select>
     </span>
   )
