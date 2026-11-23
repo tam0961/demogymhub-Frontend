@@ -71,3 +71,4 @@ body:has(.pb) { background: #16100b; }
 .pb-info b { display: block; padding: 12px; border: 1.5px dashed var(--pb-line); border-radius: 10px; font-weight: 600; }
 .pb-rules h2 { border-bottom: 2px solid var(--pb-accent); padding-bottom: 8px; }
 .pb-copy { text-align: left; font-size: 12px; color: var(--pb-muted); }
+.pb-cell.full { opacity: 0.45; }

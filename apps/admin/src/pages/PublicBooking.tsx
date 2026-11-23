@@ -26,8 +26,6 @@ const ERR_TEXT: Record<string, string> = {
   DUPLICATE: 'Lượt đăng ký này vừa được gửi, vui lòng chờ một lát.',
   MEMBER_PACKAGE_EXPIRED: 'Gói hội viên của bạn đã hết hạn.',
   TOO_MANY: 'Chỉ chọn tối đa 5 buổi mỗi lần.',
-  WEEK_LIMIT: 'Mỗi tuần chỉ đăng ký tối đa 5 buổi (đã tính các buổi bạn đặt trước đó).',
-  MIXED_WEEK: 'Các buổi chọn phải nằm trong cùng một tuần.',
 }
 const REASON_TEXT: Record<string, string> = { full: 'đã đầy', closed: 'đã đóng đăng ký', duplicate: 'bạn đã đăng ký rồi', no_sessions: 'bạn đã hết buổi PT nhóm' }
 
@@ -101,7 +99,7 @@ export default function PublicBooking() {
       if (p.includes(s.id)) return p.filter((x) => x !== s.id)
       if (p.length >= max) {
         setShake(s.id)
-        setMsg(`Mỗi tuần chỉ đăng ký tối đa ${max} buổi.`)
+        setMsg(`Chỉ chọn tối đa ${max} buổi mỗi lần.`)
         setTimeout(() => setShake(''), 400)
         return p
       }
@@ -226,7 +224,7 @@ export default function PublicBooking() {
           <ul>
             <li>Mỗi lớp tối đa 3 hội viên.</li>
             <li>Khi lớp đã đủ số lượng, lịch buổi đó sẽ tự động ẩn hoặc hiển thị thông báo "Full lớp" để hội viên chọn khung giờ khác.</li>
-            <li>Hội viên vui lòng đăng ký sớm mỗi tuần để đảm bảo giữ slot mong muốn. Mỗi tuần đăng ký tối đa 5 buổi.</li>
+            <li>Hội viên vui lòng đăng ký sớm mỗi tuần để đảm bảo giữ slot mong muốn.</li>
           </ul>
           <h3>2. Thời gian Booking</h3>
           <ul>
