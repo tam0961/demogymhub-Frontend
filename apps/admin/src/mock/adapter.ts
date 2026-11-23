@@ -1521,7 +1521,10 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     })
     const UT = [18, 42, 62, 38, 22, 20, 28, 40, 58, 82, 92, 96, 71, 41, 24, 14]
     const hours = UT.map((util, k) => ({ hour: 6 + k, util }))
-    return ok({ year, month, days_elapsed: elapsed, days_in_month: dim, rows, daily, hours, off_track: offList.map(([name, pt, days]) => ({ member: name, pt_name: WORK_PTS.find((p) => p[0] === pt)![1], days_absent: days })) })
+    const teamTarget = rows.reduce((t, r) => t + r.target, 0)
+    const history = Array.from({ length: 11 }, (_, i) => { const dt = new Date(year, month - 1 - (11 - i), 1); return { label: `T${dt.getMonth() + 1}`, actual: Math.round(teamTarget * (0.62 + ((i * 5) % 7) / 18) / 1e6) * 1e6, target: Math.round(teamTarget * (0.92 + i * 0.01) / 1e6) * 1e6 } })
+    const prev = { total: Math.round(teamTotal * 0.88), new_sales: Math.round(rows.reduce((t, r) => t + r.new_sales, 0) * 0.85), renew_sales: Math.round(rows.reduce((t, r) => t + r.renew_sales, 0) * 1.1) }
+    return ok({ year, month, days_elapsed: elapsed, days_in_month: dim, rows, history, prev, daily, hours, off_track: offList.map(([name, pt, days]) => ({ member: name, pt_name: WORK_PTS.find((p) => p[0] === pt)![1], days_absent: days })) })
   }
   if (url === '/reports/business') {
     need('reports.view')

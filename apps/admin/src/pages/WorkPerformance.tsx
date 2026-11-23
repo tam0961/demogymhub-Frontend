@@ -5,7 +5,7 @@ import { fmtMoney } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
-import { Button, Chip, Field, MoneyInput, PageHeader, Panel, Select, type ChipTone } from '../components/ui'
+import { Button, Chip, Field, MoneyInput, PageHeader, Panel, Segmented, Select, type ChipTone } from '../components/ui'
 
 type Row = {
   user_id: string; name: string; target: number; new_sales: number; renew_sales: number; total: number; pct: number; status: 'on_track' | 'off_track' | 'low'
@@ -15,7 +15,7 @@ type Row = {
 }
 type Day = { day: number; dow: number; sessions: number; cancelled: number; revenue: number }
 type Data = {
-  year: number; month: number; days_elapsed: number; days_in_month: number; rows: Row[]; daily: Day[]; hours: { hour: number; util: number }[]
+  year: number; month: number; days_elapsed: number; days_in_month: number; rows: Row[]; history: { label: string; actual: number; target: number }[]; prev: { total: number; new_sales: number; renew_sales: number }; daily: Day[]; hours: { hour: number; util: number }[]
   off_track: { member: string; pt_name: string; days_absent: number }[]
 }
 type Target = { user_id: string; name: string; target: number }
@@ -49,14 +49,19 @@ function Spark({ data, color }: { data: number[]; color: string }) {
   )
 }
 
-function Stat({ label, value, note, data, color }: { label: string; value: string; note: string; data: number[]; color: string }) {
+function Stat({ label, value, note, delta, data, color, bar }: { label: string; value: string; note?: string; delta?: number; data?: number[]; color?: string; bar?: number }) {
   return (
     <div className="kpi2 wp-stat">
       <div className="kpi2-label">{label}</div>
       <div className="wp-stat-row">
-        <div><div className="kpi2-value">{value}</div><div className="kpi2-note">{note}</div></div>
-        <div className="wp-stat-spark"><Spark data={data} color={color} /></div>
+        <div>
+          <div className="kpi2-value">{value}</div>
+          {delta != null && <div className={`kpi2-note ${delta >= 0 ? 'wp-up' : 'text-bad'}`}>{delta >= 0 ? '↑' : '↓'} {Math.abs(delta)}% so với tháng trước</div>}
+          {note && <div className="kpi2-note">{note}</div>}
+        </div>
+        {data && color && <div className="wp-stat-spark"><Spark data={data} color={color} /></div>}
       </div>
+      {bar != null && <div className="wp-seg" style={{ marginTop: 10 }}><i style={{ width: `${Math.min(100, bar * 100)}%`, background: bar >= 1 ? 'var(--ok)' : 'var(--c2)' }} /></div>}
     </div>
   )
 }
@@ -128,6 +133,7 @@ export default function WorkPerformance() {
   const [d, setD] = useState<Data | null>(null)
   const [error, setError] = useState('')
   const [kpi, setKpi] = useState(false)
+  const [tab, setTab] = useState<'sales' | 'score' | 'train'>('sales')
 
   const load = useCallback(() => {
     api.get<{ data: Data }>('/reports/work', { params: { year, month, branch_id: branchId ?? undefined } })
@@ -146,81 +152,143 @@ export default function WorkPerformance() {
 
   if (error) return <div className="empty" role="alert">{error}</div>
   if (!d) return <div className="loading">Đang tải...</div>
-  const pace = d.days_elapsed / d.days_in_month
   const T = d.rows.reduce((a, r) => ({ target: a.target + r.target, total: a.total + r.total, newS: a.newS + r.new_sales, renewS: a.renewS + r.renew_sales, leads: a.leads + r.leads, newC: a.newC + r.new_contracts, renewC: a.renewC + r.renew_contracts, clients: a.clients + r.clients, off: a.off + r.offtrack }), { target: 0, total: 0, newS: 0, renewS: 0, leads: 0, newC: 0, renewC: 0, clients: 0, off: 0 })
-  const maxT = Math.max(1, ...d.rows.map((r) => Math.max(r.target, r.total)))
-  const ranked = d.rows.map((r) => ({ r, s: score(r) })).sort((a, b) => b.s.total - a.s.total)
+  const hist = [...d.history, { label: `T${month}`, actual: T.total, target: T.target }]
+  const maxH = Math.max(1, ...hist.map((h) => Math.max(h.actual, h.target)))
+  const prevPct = (cur: number, prev: number) => (prev ? Math.round(((cur - prev) / prev) * 100) : 0)
+  const withScore = d.rows.map((r) => ({ r, s: score(r) }))
+  const rankVal = (x: { r: Row; s: ReturnType<typeof score> }) => (tab === 'sales' ? x.r.total : tab === 'score' ? x.s.total : x.s.train)
+  const ranked = [...withScore].sort((a, b) => rankVal(b) - rankVal(a))
+  const rankMax = Math.max(1, ...ranked.map(rankVal))
+  const teamScore = withScore.length ? withScore.reduce((t, x) => t + x.s.total, 0) / withScore.length : 0
+  const teamLabel = teamScore >= 85 ? 'Xuất sắc' : teamScore >= 70 ? 'Tốt' : teamScore >= 50 ? 'Cần theo dõi' : 'Cần cải thiện'
+  const weak = d.rows.filter((r) => r.pct < 0.8 || r.conversion < 0.2)
+  const highCancel = d.rows.filter((r) => r.cancel_rate > 0.08)
+  const great = withScore.filter((x) => x.s.total >= 80)
+  const advice = (r: Row) => (r.pct < 0.8 ? 'Tăng cường đào tạo Sales' : r.cancel_rate > 0.08 ? 'Cải thiện tỷ lệ hủy lịch' : r.renew_rate < 0.3 ? 'Chăm sóc khách để tăng tái ký' : 'Duy trì phong độ')
+  const attention = withScore.filter((x) => x.s.total < 70).sort((a, b) => a.s.total - b.s.total)
+  const goDetail = () => document.getElementById('wp-detail')?.scrollIntoView({ behavior: 'smooth' })
   const firstDow = (new Date(year, month - 1, 1).getDay() + 6) % 7
   const maxCanc = Math.max(1, ...d.daily.map((x) => x.cancelled))
+  const donutR = 62
+  const donutC = 2 * Math.PI * donutR
+  const renewShare = T.total ? T.renewS / T.total : 0
+  const initials = (n: string) => n.split(' ').slice(-2).map((w) => w[0]).join('').toUpperCase()
 
   return (
     <>
-      <PageHeader title="Hiệu suất làm việc" sub="Đánh giá năng lực PT theo tháng." action={<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{picker}<Button variant="primary" onClick={() => setKpi(true)}>Thiết lập KPI</Button></div>} />
+      <PageHeader title="Hiệu suất làm việc" sub="Hiệu suất đội ngũ Personal Trainer." action={<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{picker}<Button variant="primary" onClick={() => setKpi(true)}>Thiết lập KPI</Button></div>} />
 
       <div className="wp-stats">
-        <Stat label="Doanh số PT / chỉ tiêu" value={pc(T.target ? T.total / T.target : 0)} note={`${tr(T.total)} / ${tr(T.target)}`} data={d.daily.map((x) => x.revenue)} color="var(--c2)" />
-        <Stat label="Tỷ lệ chuyển đổi lead" value={pc(T.leads ? T.newC / T.leads : 0)} note={`${T.newC} HĐ / ${T.leads} lead`} data={d.daily.map((x) => x.sessions)} color="var(--c3)" />
-        <Stat label="Tỷ lệ tái ký" value={pc(T.clients ? T.renewC / T.clients : 0)} note={`${T.renewC} Renew / ${T.clients} khách PT`} data={d.daily.map((x) => x.revenue / 1e6)} color="var(--c1)" />
-        <Stat label="Khách off track" value={`${T.off}`} note={`${pc(T.clients ? T.off / T.clients : 0)} khách PT, quá 14 ngày`} data={d.daily.map((x) => x.cancelled)} color="var(--bad)" />
+        <Stat label="Tổng doanh số PT" value={tr(T.total)} delta={prevPct(T.total, d.prev.total)} data={d.daily.map((x) => x.revenue)} color="var(--c2)" />
+        <Stat label="Tỷ lệ hoàn thành KPI" value={pc(T.target ? T.total / T.target : 0)} note={`${tr(T.total)} / ${tr(T.target)}`} bar={T.target ? T.total / T.target : 0} />
+        <Stat label="Doanh số ký mới" value={tr(T.newS)} delta={prevPct(T.newS, d.prev.new_sales)} data={d.daily.map((x) => x.sessions)} color="var(--c3)" />
+        <Stat label="Doanh số tái ký" value={tr(T.renewS)} delta={prevPct(T.renewS, d.prev.renew_sales)} data={d.daily.map((x) => x.revenue / 1e6)} color="var(--c1)" />
       </div>
 
       <div className="wp-grid">
-        <Panel title="Chỉ tiêu bán hàng và tư vấn">
-          <div className="wp-legend">
-            <span><i style={{ background: 'var(--c1)' }} />Renew</span>
-            <span><i style={{ background: 'var(--c2)' }} />New</span>
-            <span><i style={{ background: 'var(--surface-2)', border: '1px solid var(--line)' }} />Chỉ tiêu</span>
-            <span>Vạch đen: tiến độ kỳ vọng {pc(pace)}</span>
-          </div>
-          <div className="wp-cols">
-            {d.rows.map((r) => (
-              <div key={r.user_id} className="wp-col">
-                <div className="wp-col-track" title={`New ${fmtMoney(r.new_sales)} | Renew ${fmtMoney(r.renew_sales)} | Chỉ tiêu ${fmtMoney(r.target)}`}>
-                  <div className="wp-col-goal" style={{ height: `${(r.target / maxT) * 100}%` }}>
-                    <b style={{ bottom: `${Math.min(100, pace * 100)}%` }} />
-                    <div className="wp-col-fill" style={{ height: `${Math.min(100, (r.total / Math.max(1, r.target)) * 100)}%` }}>
-                      <i style={{ flex: r.new_sales, background: 'var(--c2)' }} />
-                      <i style={{ flex: r.renew_sales, background: 'var(--c1)' }} />
-                    </div>
-                  </div>
-                  <span className="wp-col-val">{tr(r.total)}</span>
+        <Panel title="Doanh số và chỉ tiêu 12 tháng">
+          <div className="wp-legend"><span><i style={{ background: 'var(--c2)' }} />Doanh số thực tế</span><span><i style={{ background: 'var(--muted)', height: 3, borderRadius: 2 }} />Chỉ tiêu</span></div>
+          <div className="wp-hist">
+            {hist.map((h, i) => (
+              <div key={i} className="wp-hist-col" title={`${h.label}: ${fmtMoney(h.actual)} / chỉ tiêu ${fmtMoney(h.target)}`}>
+                <div className="wp-hist-plot">
+                  <i style={{ height: `${(h.actual / maxH) * 100}%`, background: i === hist.length - 1 ? 'var(--c2)' : 'color-mix(in srgb, var(--c2) 55%, white)' }} />
+                  <b style={{ bottom: `${(h.target / maxH) * 100}%` }} />
                 </div>
-                <div className="wp-col-name">{r.name}</div>
-              </div>
-            ))}
-          </div>
-          <div className="wp-tiles">
-            {d.rows.map((r) => (
-              <div key={r.user_id} className="wp-tile">
-                <div className="wp-tile-t">{r.name}</div>
-                <div><b>{pc(r.pct)}</b> <span className="hint-muted">đạt KPI</span> <i className="wp-dot" style={{ background: STATUS[r.status].color }} title={STATUS[r.status].label} /></div>
+                <span>{h.label}</span>
               </div>
             ))}
           </div>
         </Panel>
-        <div style={{ display: 'grid', gap: 16, alignContent: 'start' }}>
-          <Panel title="Xếp hạng điểm tổng (100)">
-            <div style={{ padding: '4px 20px 16px' }}>
-              {ranked.map(({ r, s }, i) => (
-                <div key={r.user_id} className="wp-rank">
-                  <span className="wp-rank-n">{i + 1}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><b>{r.name}</b><b>{Math.round(s.total)}</b></div>
-                    <div className="wp-seg"><i style={{ width: `${s.sales}%`, background: 'var(--c2)' }} /><i style={{ width: `${s.train}%`, background: 'var(--c3)' }} /></div>
-                    <div className="hint-muted" style={{ fontSize: 12 }}>Bán hàng {Math.round(s.sales)}/50, tập luyện {Math.round(s.train)}/50</div>
-                  </div>
+        <Panel title="Bảng xếp hạng PT">
+          <div style={{ padding: '4px 20px 16px' }}>
+            <div style={{ marginBottom: 6 }}><Segmented<'sales' | 'score' | 'train'> ariaLabel="Xếp hạng theo" value={tab} onChange={setTab} options={[{ value: 'sales', label: 'Doanh số' }, { value: 'score', label: 'Tổng điểm' }, { value: 'train', label: 'Training' }]} /></div>
+            {ranked.map((x, i) => (
+              <div key={x.r.user_id} className="wp-rank">
+                <span className="wp-rank-n">{i + 1}</span>
+                <span className="wp-avatar">{initials(x.r.name)}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="wp-rank-name">{x.r.name}</div>
+                  <div className="wp-seg"><i style={{ width: `${(rankVal(x) / rankMax) * 100}%`, background: 'var(--c2)' }} /></div>
                 </div>
+                <div style={{ textAlign: 'right' }}>
+                  <b>{tab === 'sales' ? tr(x.r.total) : `${Math.round(rankVal(x))}${tab === 'train' ? '/50' : ''}`}</b>
+                  <div className="wp-pill">{tab === 'sales' ? pc(x.r.pct) : Math.round(x.s.total)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="wp-grid3" style={{ marginTop: 16 }}>
+        <Panel title="Ma trận đánh giá Sales × Training">
+          <div style={{ padding: '4px 16px 16px' }}>
+            <div className="wp-matrix">
+              <div className="wp-q wp-q-tl"><b>Phát triển</b></div>
+              <div className="wp-q wp-q-tr"><b>Xuất sắc</b></div>
+              <div className="wp-q wp-q-bl"><b>Cần cải thiện</b></div>
+              <div className="wp-q wp-q-br"><b>Ổn định</b></div>
+              {withScore.map((x) => (
+                <span key={x.r.user_id} className="wp-dotpt" title={`${x.r.name}: Sales ${Math.round(x.s.sales)}/50, Training ${Math.round(x.s.train)}/50`} style={{ left: `${Math.min(94, Math.max(6, (x.s.sales / 50) * 100))}%`, bottom: `${Math.min(92, Math.max(8, (x.s.train / 50) * 100))}%` }}>
+                  <em>{x.r.name.split(' ').slice(-1)[0]}</em>
+                </span>
               ))}
-              <div className="hint-muted" style={{ fontSize: 12, marginTop: 8 }}>Bán hàng 50%: % đạt KPI và chuyển đổi. Tập luyện 50%: tái ký, tần suất, tỷ lệ hủy. Chưa gồm CSAT và InBody.</div>
             </div>
-          </Panel>
-          <Panel title="Cơ cấu doanh số">
-            <div style={{ padding: '4px 20px 16px' }}>
-              <div className="wp-seg" style={{ height: 14 }}><i style={{ width: `${(T.renewS / Math.max(1, T.total)) * 100}%`, background: 'var(--c1)' }} /><i style={{ width: `${(T.newS / Math.max(1, T.total)) * 100}%`, background: 'var(--c2)' }} /></div>
-              <div className="wp-split"><span><i style={{ background: 'var(--c1)' }} />Renew {tr(T.renewS)} ({pc(T.total ? T.renewS / T.total : 0)})</span><span><i style={{ background: 'var(--c2)' }} />New {tr(T.newS)}</span></div>
-              <div className="hint-muted" style={{ fontSize: 12 }}>Chuẩn: Renew từ 40% đến 50% tổng doanh số.</div>
+            <div className="hint-muted" style={{ fontSize: 12, marginTop: 6 }}>Ngang: điểm Sales. Dọc: điểm Training. Mốc chia là 25/50 điểm mỗi trục.</div>
+          </div>
+        </Panel>
+        <Panel title="Cảnh báo và đề xuất">
+          <div style={{ padding: '0 20px 14px' }}>
+            <div className="wp-alert"><i className="wp-dot wp-dot-l" style={{ background: 'var(--bad)' }} /><div style={{ flex: 1 }}><b>{weak.length} PT cần cải thiện hiệu suất</b><div className="cell-sub">Doanh số dưới 80% chỉ tiêu hoặc chuyển đổi dưới 20%</div></div><button type="button" className="wp-link" onClick={goDetail}>Xem chi tiết</button></div>
+            <div className="wp-alert"><i className="wp-dot wp-dot-l" style={{ background: 'var(--warn)' }} /><div style={{ flex: 1 }}><b>{highCancel.length} PT có tỷ lệ hủy lịch cao</b><div className="cell-sub">Trên 8% trong tháng này</div></div><button type="button" className="wp-link" onClick={goDetail}>Xem chi tiết</button></div>
+            <div className="wp-alert"><i className="wp-dot wp-dot-l" style={{ background: 'var(--ok)' }} /><div style={{ flex: 1 }}><b>{great.length} PT đạt điểm xuất sắc</b><div className="cell-sub">Từ 80 điểm trở lên, duy trì phong độ</div></div><button type="button" className="wp-link" onClick={goDetail}>Xem chi tiết</button></div>
+          </div>
+        </Panel>
+        <Panel title="Cơ cấu doanh số">
+          <div className="wp-donut">
+            <svg viewBox="0 0 160 160" width="150" height="150" role="img" aria-label="Cơ cấu doanh số">
+              <circle cx="80" cy="80" r={donutR} fill="none" stroke="var(--c2)" strokeWidth="22" />
+              <circle cx="80" cy="80" r={donutR} fill="none" stroke="var(--c1)" strokeWidth="22" strokeDasharray={`${donutC * renewShare} ${donutC}`} transform="rotate(-90 80 80)" />
+              <text x="80" y="86" textAnchor="middle" fontSize="20" fontWeight="700" fill="var(--ink)">{tr(T.total)}</text>
+            </svg>
+            <div className="wp-donut-leg">
+              <span><i style={{ background: 'var(--c2)' }} />Ký mới <b>{pc(1 - renewShare)}</b></span>
+              <span><i style={{ background: 'var(--c1)' }} />Tái ký <b>{pc(renewShare)}</b></span>
+              <span className="hint-muted" style={{ fontSize: 12 }}>Chuẩn tái ký: 40 đến 50%</span>
             </div>
-          </Panel>
+          </div>
+        </Panel>
+      </div>
+
+      <div className="wp-grid" style={{ marginTop: 16 }}>
+        <Panel title="Danh sách PT cần chú ý">
+          <div className="table-wrap">
+            <table className="table wp-table">
+              <thead><tr><th className="col-left">PT</th><th>Tổng điểm</th><th>Doanh số</th><th>Chuyển đổi</th><th>Tái ký</th><th>Trạng thái</th><th className="col-left">Đề xuất</th></tr></thead>
+              <tbody>
+                {attention.length === 0 && <tr><td colSpan={7} className="hint-muted" style={{ textAlign: 'center' }}>Không có PT nào cần chú ý.</td></tr>}
+                {attention.map((x) => (
+                  <tr key={x.r.user_id}>
+                    <td className="col-left"><b>{x.r.name}</b></td>
+                    <td className="num"><b>{Math.round(x.s.total)}</b></td>
+                    <td className="num">{tr(x.r.total)}</td>
+                    <td className="num">{pc(x.r.conversion)}</td>
+                    <td className="num">{pc(x.r.renew_rate)}</td>
+                    <td><Chip tone={x.s.total < 50 ? 'bad' : 'warn'}>{x.s.total < 50 ? 'Cần cải thiện' : 'Theo dõi'}</Chip></td>
+                    <td className="col-left">{advice(x.r)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+        <div className="wp-team">
+          <div className="wp-team-t">Điểm đánh giá đội ngũ</div>
+          <div className="wp-team-n">{teamScore.toFixed(1)}<span> / 100</span></div>
+          <div className="wp-team-l">{teamLabel}</div>
+          <div className="hint-muted" style={{ fontSize: 12, marginTop: 8 }}>Trung bình điểm tổng của {d.rows.length} PT.</div>
         </div>
       </div>
 
@@ -273,8 +341,8 @@ export default function WorkPerformance() {
         </Panel>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <Panel title="Chi tiết theo PT">
+      <div id="wp-detail" style={{ marginTop: 16 }}>
+        <Panel title="Chi tiết theo PT" className="wp-detail-anchor">
           <div className="table-wrap">
             <table className="table wp-table">
               <thead>

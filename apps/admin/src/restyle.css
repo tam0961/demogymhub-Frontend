@@ -678,3 +678,36 @@ table.table thead th { font-size: 14.5px; font-weight: 700; letter-spacing: 0.1p
 .wp-cal-h { text-align: center; font-size: 11px; color: var(--muted); }
 .wp-cal-d { aspect-ratio: 1; border-radius: 6px; display: grid; place-items: center; font-size: 11px; color: var(--ink); border: 1px solid var(--line); }
 @media (max-width: 1100px) { .wp-stats { grid-template-columns: repeat(2, 1fr); } .wp-grid, .wp-grid2 { grid-template-columns: 1fr; } .wp-hours { grid-template-columns: repeat(4, 1fr); } }
+.wp-up { color: var(--ok); font-weight: 600; }
+.wp-grid { grid-template-columns: 1.6fr 1fr; }
+.wp-grid3 { display: grid; grid-template-columns: 1.1fr 1fr 0.9fr; gap: 16px; }
+.wp-hist { display: flex; gap: 8px; align-items: stretch; padding: 8px 20px 16px; height: 260px; }
+.wp-hist-col { flex: 1; display: flex; flex-direction: column; align-items: stretch; min-width: 0; }
+.wp-hist-plot { position: relative; flex: 1; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line); }
+.wp-hist-plot i { display: block; width: 70%; max-width: 34px; border-radius: 6px 6px 0 0; }
+.wp-hist-plot b { position: absolute; left: 0; right: 0; height: 3px; background: var(--muted); opacity: .7; border-radius: 2px; }
+.wp-hist-col span { text-align: center; font-size: 11px; color: var(--muted); padding-top: 6px; }
+.wp-avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-deep); display: grid; place-items: center; font-weight: 700; font-size: 12px; flex: none; }
+.wp-rank-name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wp-pill { display: inline-block; margin-top: 2px; padding: 1px 9px; border-radius: 999px; background: var(--brand-soft); color: var(--brand-deep); font-weight: 700; font-size: 12px; }
+.wp-matrix { position: relative; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; height: 260px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.wp-q { padding: 10px; font-size: 13px; }
+.wp-q-tl { background: color-mix(in srgb, var(--warn) 12%, white); }
+.wp-q-tr { background: color-mix(in srgb, var(--ok) 14%, white); }
+.wp-q-bl { background: color-mix(in srgb, var(--bad) 12%, white); }
+.wp-q-br { background: color-mix(in srgb, var(--c3) 12%, white); }
+.wp-dotpt { position: absolute; width: 14px; height: 14px; margin: 0 0 -7px -7px; border-radius: 50%; background: var(--ink); border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+.wp-dotpt em { position: absolute; left: 18px; top: -2px; font-style: normal; font-size: 11px; white-space: nowrap; color: var(--ink); font-weight: 600; }
+.wp-alert { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.wp-alert:last-child { border-bottom: 0; }
+.wp-dot-l { width: 12px; height: 12px; margin: 5px 0 0; flex: none; }
+.wp-link { background: none; border: 0; color: var(--brand-deep); font-weight: 600; font-size: 12px; cursor: pointer; white-space: nowrap; padding: 0; }
+.wp-donut { display: flex; align-items: center; gap: 18px; padding: 8px 20px 18px; flex-wrap: wrap; justify-content: center; }
+.wp-donut-leg { display: grid; gap: 8px; font-size: 13px; }
+.wp-donut-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+.wp-team { background: linear-gradient(160deg, var(--brand-soft), var(--surface)); border: 1px solid var(--brand); border-radius: 16px; padding: 22px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.wp-team-t { font-weight: 700; font-size: 16px; }
+.wp-team-n { font-size: 44px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.wp-team-n span { font-size: 16px; font-weight: 600; color: var(--muted); }
+.wp-team-l { margin-top: 6px; padding: 4px 18px; border-radius: 999px; background: var(--brand); color: var(--brand-ink); font-weight: 700; }
+@media (max-width: 1100px) { .wp-grid3 { grid-template-columns: 1fr; } .wp-grid { grid-template-columns: 1fr; } }
