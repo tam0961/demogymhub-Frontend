@@ -133,18 +133,20 @@ export default function WorkPerformance() {
   const [d, setD] = useState<Data | null>(null)
   const [error, setError] = useState('')
   const [kpi, setKpi] = useState(false)
+  const [ptId, setPtId] = useState('')
   const [tab, setTab] = useState<'sales' | 'score' | 'train'>('sales')
 
   const load = useCallback(() => {
-    api.get<{ data: Data }>('/reports/work', { params: { year, month, branch_id: branchId ?? undefined } })
+    api.get<{ data: Data }>('/reports/work', { params: { year, month, pt_id: ptId || undefined, branch_id: branchId ?? undefined } })
       .then((r) => { setD(r.data.data); setError('') })
       .catch((e) => setError(apiError(e).message))
-  }, [year, month, branchId])
+  }, [year, month, ptId, branchId])
   useEffect(() => { load() }, [load])
 
   const years = [now.getFullYear() - 2, now.getFullYear() - 1, now.getFullYear()]
   const picker = (
     <span className="rep-ctl">
+      <Select aria-label="Chọn PT" value={ptId} onChange={(e) => setPtId(e.target.value)}><option value="">Tất cả PT</option>{d?.rows.map((r) => <option key={r.user_id} value={r.user_id}>{r.name}</option>)}</Select>
       <Select aria-label="Tháng" value={month} onChange={(e) => setMonth(Number(e.target.value))}>{Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>Tháng {i + 1}</option>)}</Select>
       <Select aria-label="Năm" value={year} onChange={(e) => setYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</Select>
     </span>
@@ -152,18 +154,21 @@ export default function WorkPerformance() {
 
   if (error) return <div className="empty" role="alert">{error}</div>
   if (!d) return <div className="loading">Đang tải...</div>
-  const T = d.rows.reduce((a, r) => ({ target: a.target + r.target, total: a.total + r.total, newS: a.newS + r.new_sales, renewS: a.renewS + r.renew_sales, leads: a.leads + r.leads, newC: a.newC + r.new_contracts, renewC: a.renewC + r.renew_contracts, clients: a.clients + r.clients, off: a.off + r.offtrack }), { target: 0, total: 0, newS: 0, renewS: 0, leads: 0, newC: 0, renewC: 0, clients: 0, off: 0 })
+  const rowsV = ptId ? d.rows.filter((r) => r.user_id === ptId) : d.rows
+  const sel = ptId ? d.rows.find((r) => r.user_id === ptId) : undefined
+  const T = rowsV.reduce((a, r) => ({ target: a.target + r.target, total: a.total + r.total, newS: a.newS + r.new_sales, renewS: a.renewS + r.renew_sales, leads: a.leads + r.leads, newC: a.newC + r.new_contracts, renewC: a.renewC + r.renew_contracts, clients: a.clients + r.clients, off: a.off + r.offtrack }), { target: 0, total: 0, newS: 0, renewS: 0, leads: 0, newC: 0, renewC: 0, clients: 0, off: 0 })
   const hist = [...d.history, { label: `T${month}`, actual: T.total, target: T.target }]
   const maxH = Math.max(1, ...hist.map((h) => Math.max(h.actual, h.target)))
   const prevPct = (cur: number, prev: number) => (prev ? Math.round(((cur - prev) / prev) * 100) : 0)
-  const withScore = d.rows.map((r) => ({ r, s: score(r) }))
+  const allScore = d.rows.map((r) => ({ r, s: score(r) }))
+  const withScore = rowsV.map((r) => ({ r, s: score(r) }))
   const rankVal = (x: { r: Row; s: ReturnType<typeof score> }) => (tab === 'sales' ? x.r.total : tab === 'score' ? x.s.total : x.s.train)
-  const ranked = [...withScore].sort((a, b) => rankVal(b) - rankVal(a))
+  const ranked = [...allScore].sort((a, b) => rankVal(b) - rankVal(a))
   const rankMax = Math.max(1, ...ranked.map(rankVal))
   const teamScore = withScore.length ? withScore.reduce((t, x) => t + x.s.total, 0) / withScore.length : 0
   const teamLabel = teamScore >= 85 ? 'Xuất sắc' : teamScore >= 70 ? 'Tốt' : teamScore >= 50 ? 'Cần theo dõi' : 'Cần cải thiện'
-  const weak = d.rows.filter((r) => r.pct < 0.8 || r.conversion < 0.2)
-  const highCancel = d.rows.filter((r) => r.cancel_rate > 0.08)
+  const weak = rowsV.filter((r) => r.pct < 0.8 || r.conversion < 0.2)
+  const highCancel = rowsV.filter((r) => r.cancel_rate > 0.08)
   const great = withScore.filter((x) => x.s.total >= 80)
   const advice = (r: Row) => (r.pct < 0.8 ? 'Tăng cường đào tạo Sales' : r.cancel_rate > 0.08 ? 'Cải thiện tỷ lệ hủy lịch' : r.renew_rate < 0.3 ? 'Chăm sóc khách để tăng tái ký' : 'Duy trì phong độ')
   const attention = withScore.filter((x) => x.s.total < 70).sort((a, b) => a.s.total - b.s.total)
@@ -177,7 +182,7 @@ export default function WorkPerformance() {
 
   return (
     <>
-      <PageHeader title="Hiệu suất làm việc" sub="Hiệu suất đội ngũ Personal Trainer." action={<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{picker}<Button variant="primary" onClick={() => setKpi(true)}>Thiết lập KPI</Button></div>} />
+      <PageHeader title="Hiệu suất làm việc" sub={sel ? `Hiệu suất của ${sel.name}.` : 'Hiệu suất đội ngũ Personal Trainer.'} action={<div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>{picker}<Button variant="primary" onClick={() => setKpi(true)}>Thiết lập KPI</Button></div>} />
 
       <div className="wp-stats">
         <Stat label="Tổng doanh số PT" value={tr(T.total)} delta={prevPct(T.total, d.prev.total)} data={d.daily.map((x) => x.revenue)} color="var(--c2)" />
@@ -205,7 +210,7 @@ export default function WorkPerformance() {
           <div style={{ padding: '4px 20px 16px' }}>
             <div style={{ marginBottom: 6 }}><Segmented<'sales' | 'score' | 'train'> ariaLabel="Xếp hạng theo" value={tab} onChange={setTab} options={[{ value: 'sales', label: 'Doanh số' }, { value: 'score', label: 'Tổng điểm' }, { value: 'train', label: 'Training' }]} /></div>
             {ranked.map((x, i) => (
-              <div key={x.r.user_id} className="wp-rank">
+              <div key={x.r.user_id} className={`wp-rank${x.r.user_id === ptId ? ' wp-rank-sel' : ''}`}>
                 <span className="wp-rank-n">{i + 1}</span>
                 <span className="wp-avatar">{initials(x.r.name)}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -230,7 +235,7 @@ export default function WorkPerformance() {
               <div className="wp-q wp-q-tr"><b>Xuất sắc</b></div>
               <div className="wp-q wp-q-bl"><b>Cần cải thiện</b></div>
               <div className="wp-q wp-q-br"><b>Ổn định</b></div>
-              {withScore.map((x) => (
+              {allScore.map((x) => (
                 <span key={x.r.user_id} className="wp-dotpt" title={`${x.r.name}: Sales ${Math.round(x.s.sales)}/50, Training ${Math.round(x.s.train)}/50`} style={{ left: `${Math.min(94, Math.max(6, (x.s.sales / 50) * 100))}%`, bottom: `${Math.min(92, Math.max(8, (x.s.train / 50) * 100))}%` }}>
                   <em>{x.r.name.split(' ').slice(-1)[0]}</em>
                 </span>
@@ -285,10 +290,10 @@ export default function WorkPerformance() {
           </div>
         </Panel>
         <div className="wp-team">
-          <div className="wp-team-t">Điểm đánh giá đội ngũ</div>
+          <div className="wp-team-t">{sel ? `Điểm đánh giá ${sel.name}` : 'Điểm đánh giá đội ngũ'}</div>
           <div className="wp-team-n">{teamScore.toFixed(1)}<span> / 100</span></div>
           <div className="wp-team-l">{teamLabel}</div>
-          <div className="hint-muted" style={{ fontSize: 12, marginTop: 8 }}>Trung bình điểm tổng của {d.rows.length} PT.</div>
+          <div className="hint-muted" style={{ fontSize: 12, marginTop: 8 }}>{sel ? 'Điểm tổng của PT đang chọn.' : `Trung bình điểm tổng của ${d.rows.length} PT.`}</div>
         </div>
       </div>
 
@@ -317,7 +322,7 @@ export default function WorkPerformance() {
       <div className="wp-grid2" style={{ marginTop: 16 }}>
         <Panel title="Chất lượng tập luyện và giữ chân khách hàng">
           <div className="wp-rows">
-            {d.rows.map((r) => (
+            {rowsV.map((r) => (
               <div key={r.user_id} className="wp-row">
                 <div className="wp-row-name">{r.name}</div>
                 <div style={{ flex: 1 }}>
@@ -349,7 +354,7 @@ export default function WorkPerformance() {
                 <tr><th className="col-left">PT</th><th>Thực đạt / Chỉ tiêu</th><th>% đạt</th><th>Trạng thái</th><th>Renew</th><th>HĐ New</th><th>Giá trị TB / HĐ</th><th>Lead MKT</th><th>Chuyển đổi</th><th>Buổi dạy (tháng)</th><th>TB tuần</th><th>Tổng đặt</th><th>Hủy</th><th>Tỷ lệ hủy</th><th>Điểm</th></tr>
               </thead>
               <tbody>
-                {d.rows.map((r) => (
+                {rowsV.map((r) => (
                   <tr key={r.user_id}>
                     <td className="col-left"><b>{r.name}</b></td>
                     <td className="num">{tr(r.total)} / {tr(r.target)}</td>

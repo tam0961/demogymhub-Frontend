@@ -1514,17 +1514,19 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     })
     const offList = [['Nguyễn Thị Hạnh', 'u-pt1', 16], ['Trần Quốc Bảo', 'u-pt2', 21], ['Lê Minh Châu', 'u-pt2', 15], ['Phạm Gia Huy', 'u-pt3', 33], ['Đỗ Thu Trang', 'u-pt3', 18], ['Võ Anh Khoa', 'u-pt3', 27]] as [string, string, number][]
     const teamTotal = rows.reduce((t, r) => t + r.total, 0)
+    const pick = rows.find((r) => r.user_id === config.params?.pt_id)
+    const fx = pick ? (pick.total || 1) / (teamTotal || 1) : 1
     const daily = Array.from({ length: elapsed }, (_, i) => {
       const dow = new Date(year, month - 1, i + 1).getDay()
       const base = dow === 0 ? 4 : dow === 6 ? 9 : 14 + ((i * 5) % 6)
-      return { day: i + 1, dow, sessions: base, cancelled: (i * 7) % 4 === 0 ? 2 : i % 3 === 0 ? 1 : 0, revenue: Math.round((teamTotal / Math.max(1, elapsed)) * (0.5 + ((i * 7) % 9) / 8)) }
+      return { day: i + 1, dow, sessions: Math.max(1, Math.round(base * fx)), cancelled: Math.round(((i * 7) % 4 === 0 ? 2 : i % 3 === 0 ? 1 : 0) * Math.min(1, fx * 1.5)), revenue: Math.round((teamTotal * fx / Math.max(1, elapsed)) * (0.5 + ((i * 7) % 9) / 8)) }
     })
     const UT = [18, 42, 62, 38, 22, 20, 28, 40, 58, 82, 92, 96, 71, 41, 24, 14]
-    const hours = UT.map((util, k) => ({ hour: 6 + k, util }))
-    const teamTarget = rows.reduce((t, r) => t + r.target, 0)
+    const hours = UT.map((util, k) => ({ hour: 6 + k, util: pick ? Math.min(100, Math.max(5, util + ((k * 13 + (pick.name.length * 7)) % 31) - 15)) : util }))
+    const teamTarget = pick ? pick.target : rows.reduce((t, r) => t + r.target, 0)
     const history = Array.from({ length: 11 }, (_, i) => { const dt = new Date(year, month - 1 - (11 - i), 1); return { label: `T${dt.getMonth() + 1}`, actual: Math.round(teamTarget * (0.62 + ((i * 5) % 7) / 18) / 1e6) * 1e6, target: Math.round(teamTarget * (0.92 + i * 0.01) / 1e6) * 1e6 } })
-    const prev = { total: Math.round(teamTotal * 0.88), new_sales: Math.round(rows.reduce((t, r) => t + r.new_sales, 0) * 0.85), renew_sales: Math.round(rows.reduce((t, r) => t + r.renew_sales, 0) * 1.1) }
-    return ok({ year, month, days_elapsed: elapsed, days_in_month: dim, rows, history, prev, daily, hours, off_track: offList.map(([name, pt, days]) => ({ member: name, pt_name: WORK_PTS.find((p) => p[0] === pt)![1], days_absent: days })) })
+    const prev = { total: Math.round((pick ? pick.total : teamTotal) * 0.88), new_sales: Math.round((pick ? pick.new_sales : rows.reduce((t, r) => t + r.new_sales, 0)) * 0.85), renew_sales: Math.round((pick ? pick.renew_sales : rows.reduce((t, r) => t + r.renew_sales, 0)) * 1.1) }
+    return ok({ year, month, days_elapsed: elapsed, days_in_month: dim, rows, history, prev, daily, hours, off_track: offList.filter(([, pt]) => !pick || pt === pick.user_id).map(([name, pt, days]) => ({ member: name, pt_name: WORK_PTS.find((p) => p[0] === pt)![1], days_absent: days })) })
   }
   if (url === '/reports/business') {
     need('reports.view')
