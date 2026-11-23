@@ -61,6 +61,7 @@ export default function App() {
     <Suspense fallback={<div className="loading">Đang tải...</div>}>
     <Routes>
       <Route path="/dang-ky-lop" element={<PublicBooking />} />
+      <Route path="/booking" element={<PublicBooking />} />
       <Route path="/ipad" element={<IpadPage />} />
       <Route path="/ipad/:token" element={<IpadPage />} />
       <Route path="/login" element={<Login />} />
