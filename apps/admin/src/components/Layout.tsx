@@ -3,7 +3,7 @@ import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-d
 import { useAuth } from '../context/AuthContext'
 import { BranchProvider, useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
-import { useShift, ShiftProvider } from '../context/ShiftContext'
+import { ShiftProvider } from '../context/ShiftContext'
 import { useConnected } from '../lib/connection'
 import { activeBranches } from '../lib/branches'
 import ScanPopup from './ScanPopup'
@@ -56,7 +56,6 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/packages', label: 'Gói dịch vụ', icon: 'packages', perm: ['packages.read'] },
     { to: '/debt', label: 'Công nợ', icon: 'debt', perm: ['contracts.read'] },
     { to: '/tickets', label: 'Phiếu chờ duyệt', icon: 'contracts', perm: ['contracts.approve'] },
-    { to: '/shift', label: 'Chốt ca', icon: 'shift', perm: ['shifts.open', 'shifts.close'], cashier: true },
     { to: '/reports/closing', label: 'Đối soát', icon: 'closing', perm: ['reports.view'] },
   ] },
   { title: 'Marketing', items: [
@@ -253,7 +252,6 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
       </form>
       <div className="app-ver" role="status" aria-label="Phiên bản đang chạy">{VERSION}{BUILT_TEXT ? ` · cập nhật ${BUILT_TEXT}` : ''}</div>
       <div className="top-right">
-        <ShiftChip />
         <span className={`conn ${connected ? 'conn-ok' : 'conn-bad'}`} role="status">
           <span className="dot" aria-hidden="true" />
           {connected ? 'Đã kết nối' : 'Mất kết nối'}
@@ -266,18 +264,3 @@ function Topbar({ onMenu }: { onMenu: () => void }) {
   )
 }
 
-function ShiftChip() {
-  const { shift, loaded, openModal } = useShift()
-  const { can } = usePermission()
-  const { user } = useAuth()
-  const nav = useNavigate()
-  if (!loaded || !can('shifts.open') || isAdminAll(user)) return null
-  if (shift) {
-    return (
-      <button type="button" className="chip chip-ok" onClick={() => nav('/shift')} title="Xem hoặc đóng ca">
-        Ca đang mở {new Date(shift.opened_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-      </button>
-    )
-  }
-  return <button type="button" className="chip chip-warn" onClick={openModal}>Chưa mở ca - Mở ca</button>
-}

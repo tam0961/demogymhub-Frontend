@@ -916,7 +916,6 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const mem = members.find((x) => x.phone === phone)
     if (mem && contracts.some((c) => c.member_id === mem.id && c.status === 'active' && (!c.end_date || c.end_date >= iso().slice(0, 10)))) fail(config, 409, 'MEMBER_HAS_CONTRACT', `Số điện thoại thuộc hội viên ${mem.name} đang còn hợp đồng, không bán vé lẻ`)
     if (dayTickets.some((t) => t.phone === phone && t.issued_on === iso().slice(0, 10) && !t.checked_out_at)) fail(config, 409, 'TICKET_ACTIVE', 'Số điện thoại này đã có vé hôm nay và vẫn đang trong phòng tập')
-    if (body.method === 'cash' && !shifts.some((x) => x.user_id === me.id && !x.closed_at)) fail(config, 409, 'SHIFT_REQUIRED', 'Cần mở ca trước khi thu tiền mặt')
     const t: DayTicket = { id: nid('dt'), name: String(body.name).trim(), phone, branch_id: bid, issued_on: iso().slice(0, 10), amount: 100000, method: body.method === 'momo' ? 'ewallet' : body.method, payment_id: nid('pay'), payment_status: 'confirmed', checked_out_at: null, created_at: iso(), created_by: me.id, created_by_name: me.name }
     dayTickets.unshift(t)
     log(me.email, 'day_ticket.sold', t.phone)
@@ -1356,8 +1355,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     let shiftId: string | null = null
     if (body.method === 'cash') {
       const s = shifts.find((x) => x.user_id === me.id && !x.closed_at)
-      if (!s) fail(config, 409, 'NO_OPEN_SHIFT', 'Chưa mở ca thu ngân')
-      shiftId = s!.id
+      shiftId = s?.id ?? null
     }
     const p: Payment = {
       id: nid('pay'), contract_id: c!.id, method: body.method, amount, status: body.method === 'cash' ? 'confirmed' : 'pending', ref: body.ref ?? null,

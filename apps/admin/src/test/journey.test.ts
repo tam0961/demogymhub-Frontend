@@ -97,9 +97,6 @@ describe('mock MVP journey', () => {
     expect(c.status).toBe('draft')
     await http.post(`/contracts/${c.id}/sign`, { signature: 'data:image/png;base64,AAAA' })
 
-    const noShift = await err(http.post('/payments', { contract_id: c.id, method: 'cash', amount: c.total_amount }))
-    expect(noShift.data.error.code).toBe('NO_OPEN_SHIFT')
-
     const act = await err(http.post(`/contracts/${c.id}/activate`, {}))
     expect(act.status).toBe(409)
 

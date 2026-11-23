@@ -61,8 +61,6 @@ describe('mock day tickets and inbody', () => {
 
   it('sells a ticket after opening a shift, blocks a duplicate, and lists it', async () => {
     await http.post('/auth/login', { email: 'letan@gymhub.vn', password: 'letan123' })
-    const noShift = await fail(http.post('/day-tickets', { name: 'An', phone: '0903111222', method: 'cash' }))
-    expect(noShift.data.error.code).toBe('SHIFT_REQUIRED')
     await http.post('/shifts/open', { opening_cash: 0 })
     const t = (await http.post('/day-tickets', { name: 'An', phone: '0903111222', method: 'momo' })).data.data
     expect(t.amount).toBe(100000)

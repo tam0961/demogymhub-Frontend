@@ -2,7 +2,6 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { METHODS, METHOD_LABEL, fmtMoney, parseMoney } from '../lib/format'
-import { useShift } from '../context/ShiftContext'
 import { usePermission } from '../context/usePermission'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
@@ -71,8 +70,6 @@ export function PendingPanel({ payment, onConfirmed }: { payment: Payment; onCon
 }
 
 export function PayModal({ contract, onClose, onChanged }: { contract: Contract; onClose: () => void; onChanged: () => void }) {
-  const { can } = usePermission()
-  const { shift, loaded, openModal } = useShift()
   const [method, setMethod] = useState<PayMethod>('cash')
   const [amount, setAmount] = useState(String(contract.debt_amount))
   const [ref, setRef] = useState('')
@@ -80,7 +77,6 @@ export function PayModal({ contract, onClose, onChanged }: { contract: Contract;
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [created, setCreated] = useState<Payment | null>(null)
-  const needShift = method === 'cash' && loaded && !shift
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -94,7 +90,7 @@ export function PayModal({ contract, onClose, onChanged }: { contract: Contract;
       onChanged()
     } catch (x) {
       const a = apiError(x)
-      setErr(a.code === 'NO_OPEN_SHIFT' ? 'Chưa mở ca thu ngân. Hãy mở ca trước khi thu tiền mặt.' : a.code === 'DUPLICATE_PAYMENT' ? 'Mã giao dịch đã được dùng cho khoản khác.' : a.message)
+      setErr(a.code === 'DUPLICATE_PAYMENT' ? 'Mã giao dịch đã được dùng cho khoản khác.' : a.message)
     } finally {
       setBusy(false)
     }
@@ -115,19 +111,13 @@ export function PayModal({ contract, onClose, onChanged }: { contract: Contract;
       footer={
         <>
           <Button onClick={onClose}>Hủy</Button>
-          <Button variant="primary" type="submit" form="pay-form" disabled={busy || needShift || parseMoney(amount) <= 0}>{busy ? 'Đang lưu...' : 'Ghi nhận thu tiền'}</Button>
+          <Button variant="primary" type="submit" form="pay-form" disabled={busy || parseMoney(amount) <= 0}>{busy ? 'Đang lưu...' : 'Ghi nhận thu tiền'}</Button>
         </>
       }
     >
       <form id="pay-form" className="stack" onSubmit={submit}>
         <div>Còn nợ: <b className="num">{fmtMoney(contract.debt_amount)}</b></div>
         {err && <div className="form-error" role="alert">{err}</div>}
-        {needShift && (
-          <div className="form-error" role="alert">
-            Chưa có ca đang mở nên chưa thu được tiền mặt.{' '}
-            {can('shifts.open') ? <Button small onClick={openModal}>Mở ca ngay</Button> : 'Nhờ người có quyền mở ca.'}
-          </div>
-        )}
         <Field label="Phương thức" htmlFor="pm-method">
           <Select id="pm-method" value={method} onChange={(e) => setMethod(e.target.value as PayMethod)}>
             {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
