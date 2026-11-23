@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { api, renewAccessToken, LOGOUT_EVENT } from '../lib/api'
+import { api, renewAccessToken, LOGOUT_EVENT, USE_MOCK } from '../lib/api'
 import { setAccessToken } from '../lib/session'
 import { clearSessionHint, hasSessionHint, setSessionHint } from '../lib/sessionHint'
 import type { Me } from '../types'
@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let alive = true
     ;(async () => {
       try {
-        if (hasSessionHint()) {
+        if (USE_MOCK || hasSessionHint()) {
           await renewAccessToken()
           const me = await fetchMe()
           if (alive) setUser(me)

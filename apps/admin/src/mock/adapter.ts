@@ -675,11 +675,12 @@ const sessions: SessionRow[] = [
 ]
 
 const RT = 'gymhub_mock_rt'
+const OUT = 'gymhub_mock_out'
 const getRt = () => {
   try {
-    return sessionStorage.getItem(RT)
+    return sessionStorage.getItem(RT) ?? (sessionStorage.getItem(OUT) ? null : 'admin@gymhub.vn')
   } catch {
-    return null
+    return 'admin@gymhub.vn'
   }
 }
 const setRt = (v: string | null) => {
@@ -760,6 +761,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/auth/login' && method === 'post') {
     const u = users[body.email]
     if (!u || u.pw !== body.password) fail(config, 401, 'INVALID_CREDENTIALS', 'Email hoặc mật khẩu không đúng')
+    try { sessionStorage.removeItem(OUT) } catch { /* ignore */ }
     setRt(body.email)
     return ok({ access_token: 'mock-' + Date.now(), user: { id: u.me.id, email: u.me.email, name: u.me.name } })
   }
@@ -768,6 +770,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     return ok({ access_token: 'mock-' + Date.now() })
   }
   if (url === '/auth/logout') {
+    try { sessionStorage.setItem(OUT, '1') } catch { /* ignore */ }
     setRt(null)
     return ok(null)
   }
