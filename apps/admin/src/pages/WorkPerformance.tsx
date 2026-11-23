@@ -157,8 +157,8 @@ export default function WorkPerformance() {
   const rowsV = ptId ? d.rows.filter((r) => r.user_id === ptId) : d.rows
   const sel = ptId ? d.rows.find((r) => r.user_id === ptId) : undefined
   const T = rowsV.reduce((a, r) => ({ target: a.target + r.target, total: a.total + r.total, newS: a.newS + r.new_sales, renewS: a.renewS + r.renew_sales, leads: a.leads + r.leads, newC: a.newC + r.new_contracts, renewC: a.renewC + r.renew_contracts, clients: a.clients + r.clients, off: a.off + r.offtrack }), { target: 0, total: 0, newS: 0, renewS: 0, leads: 0, newC: 0, renewC: 0, clients: 0, off: 0 })
-  const hist = [...d.history, { label: `T${month}`, actual: T.total, target: T.target }]
-  const maxH = Math.max(1, ...hist.map((h) => Math.max(h.actual, h.target)))
+  const kpiDay = T.target / 25
+  const maxD = Math.max(1, kpiDay, ...d.daily.map((x) => x.revenue))
   const prevPct = (cur: number, prev: number) => (prev ? Math.round(((cur - prev) / prev) * 100) : 0)
   const allScore = d.rows.map((r) => ({ r, s: score(r) }))
   const withScore = rowsV.map((r) => ({ r, s: score(r) }))
@@ -192,18 +192,22 @@ export default function WorkPerformance() {
       </div>
 
       <div className="wp-grid">
-        <Panel title="Doanh số và chỉ tiêu 12 tháng">
-          <div className="wp-legend"><span><i style={{ background: 'var(--c2)' }} />Doanh số thực tế</span><span><i style={{ background: 'var(--muted)', height: 3, borderRadius: 2 }} />Chỉ tiêu</span></div>
-          <div className="wp-hist">
-            {hist.map((h, i) => (
-              <div key={i} className="wp-hist-col" title={`${h.label}: ${fmtMoney(h.actual)} / chỉ tiêu ${fmtMoney(h.target)}`}>
-                <div className="wp-hist-plot">
-                  <i style={{ height: `${(h.actual / maxH) * 100}%`, background: i === hist.length - 1 ? 'var(--c2)' : 'color-mix(in srgb, var(--c2) 55%, white)' }} />
-                  <b style={{ bottom: `${(h.target / maxH) * 100}%` }} />
+        <Panel title="Năng suất" note={`KPI ngày: ${tr(kpiDay)} (chỉ tiêu tháng chia 25 ngày)`}>
+          <div className="wp-legend"><span><i style={{ background: 'var(--ok)' }} />Đạt hoặc vượt KPI ngày</span><span><i style={{ background: 'var(--c1)' }} />Dưới KPI ngày</span><span><i style={{ background: 'var(--ink)', height: 3, borderRadius: 2 }} />KPI ngày</span></div>
+          <div className="wp-hist" style={{ gap: 4 }}>
+            {Array.from({ length: d.days_in_month }, (_, i) => {
+              const x = d.daily[i]
+              const v = x?.revenue ?? 0
+              return (
+                <div key={i} className="wp-hist-col" title={x ? `Ngày ${i + 1}: ${fmtMoney(v)} / KPI ngày ${fmtMoney(kpiDay)}` : `Ngày ${i + 1}`}>
+                  <div className="wp-hist-plot">
+                    {x && <i style={{ height: `${(v / maxD) * 100}%`, background: v >= kpiDay ? 'var(--ok)' : 'var(--c1)', maxWidth: 22 }} />}
+                    <b style={{ bottom: `${(kpiDay / maxD) * 100}%`, background: 'var(--ink)', opacity: 0.8 }} />
+                  </div>
+                  <span>{i + 1}</span>
                 </div>
-                <span>{h.label}</span>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Panel>
         <Panel title="Bảng xếp hạng PT">

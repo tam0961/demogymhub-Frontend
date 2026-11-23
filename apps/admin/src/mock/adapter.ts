@@ -1519,7 +1519,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     const daily = Array.from({ length: elapsed }, (_, i) => {
       const dow = new Date(year, month - 1, i + 1).getDay()
       const base = dow === 0 ? 4 : dow === 6 ? 9 : 14 + ((i * 5) % 6)
-      return { day: i + 1, dow, sessions: Math.max(1, Math.round(base * fx)), cancelled: Math.round(((i * 7) % 4 === 0 ? 2 : i % 3 === 0 ? 1 : 0) * Math.min(1, fx * 1.5)), revenue: Math.round((teamTotal * fx / Math.max(1, elapsed)) * (0.5 + ((i * 7) % 9) / 8)) }
+      return { day: i + 1, dow, sessions: Math.max(1, Math.round(base * fx)), cancelled: Math.round(((i * 7) % 4 === 0 ? 2 : i % 3 === 0 ? 1 : 0) * Math.min(1, fx * 1.5)), revenue: Math.round((teamTotal * fx / Math.max(1, elapsed)) * (0.3 + ((i * 7) % 9) / 4)) }
     })
     const UT = [18, 42, 62, 38, 22, 20, 28, 40, 58, 82, 92, 96, 71, 41, 24, 14]
     const hours = UT.map((util, k) => ({ hour: 6 + k, util: pick ? Math.min(100, Math.max(5, util + ((k * 13 + (pick.name.length * 7)) % 31) - 15)) : util }))
