@@ -25,6 +25,8 @@ const ERR_TEXT: Record<string, string> = {
   DUPLICATE: 'Lượt đăng ký này vừa được gửi, vui lòng chờ một lát.',
   MEMBER_PACKAGE_EXPIRED: 'Gói hội viên của bạn đã hết hạn.',
   TOO_MANY: 'Chỉ chọn tối đa 5 buổi mỗi lần.',
+  WEEK_LIMIT: 'Mỗi tuần chỉ đăng ký tối đa 5 buổi (đã tính các buổi bạn đặt trước đó).',
+  MIXED_WEEK: 'Các buổi chọn phải nằm trong cùng một tuần.',
 }
 const REASON_TEXT: Record<string, string> = { full: 'đã đầy', closed: 'đã đóng đăng ký', duplicate: 'bạn đã đăng ký rồi', no_sessions: 'bạn đã hết buổi PT nhóm' }
 
@@ -97,7 +99,7 @@ export default function PublicBooking() {
       if (p.includes(s.id)) return p.filter((x) => x !== s.id)
       if (p.length >= max) {
         setShake(s.id)
-        setMsg(`Chỉ chọn tối đa ${max} buổi mỗi lần.`)
+        setMsg(`Mỗi tuần chỉ đăng ký tối đa ${max} buổi.`)
         setTimeout(() => setShake(''), 400)
         return p
       }
@@ -161,14 +163,18 @@ export default function PublicBooking() {
           <input id="pb-phone" className="pb-input" inputMode="tel" autoComplete="tel" placeholder="09xx xxx xxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
           <div className="pb-lookup" aria-live="polite">
             {lookup.state === 'wait' && <span className="pb-muted">Đang tra cứu...</span>}
-            {lookup.state === 'found' && <span><b>{lookup.name}</b>{lookup.email ? <span className="pb-muted"> · {lookup.email}</span> : null}</span>}
             {lookup.state === 'none' && <span className="pb-bad">Chưa có thông tin hội viên</span>}
             {lookup.state === 'error' && <span className="pb-bad">{lookup.text}</span>}
+          </div>
+          <div className="pb-info">
+            <div><span>Họ và tên</span><b>{lookup.state === 'found' ? lookup.name : '–'}</b></div>
+            <div><span>Email</span><b>{lookup.state === 'found' ? lookup.email ?? '–' : '–'}</b></div>
           </div>
         </section>
 
         <section className="pb-card">
           <h2>Chọn buổi tập</h2>
+          <div className="pb-legend"><span><i />Còn slot</span><span><i className="full" />Full lớp</span></div>
           {loadErr && <p className="pb-bad" role="alert">{loadErr}</p>}
           {!data && !loadErr && <p className="pb-muted">Đang tải lịch...</p>}
           {data && data.sessions.length === 0 && <p className="pb-muted">Tuần này chưa có buổi nào để đăng ký.</p>}
@@ -210,31 +216,43 @@ export default function PublicBooking() {
         </section>
 
         <section className="pb-card pb-rules">
-          <h2>Nội quy</h2>
+          <h2>QUY ĐỊNH BOOKING LỚP PT NHÓM</h2>
+          <h3>1. Số lượng hội viên &amp; Lịch tập</h3>
           <ul>
-            <li>Mỗi lớp tối đa 3 hội viên, mỗi lần đăng ký tối đa 5 buổi.</li>
-            <li>Đăng ký đóng lúc 21:00 ngày hôm trước. Đăng ký tạm trừ 1 buổi, huấn luyện viên xác nhận dạy xong thì trừ chính thức.</li>
-            <li>Lịch đã đặt không tự đổi. Hủy hoặc đổi lịch vui lòng báo fanpage trước ít nhất 12 tiếng.</li>
-            <li>Mỗi buổi tập kéo dài khoảng 75 phút.</li>
+            <li>Mỗi lớp tối đa 3 hội viên. Khi lớp đầy, buổi tập hiển thị "Full lớp".</li>
+            <li>Mỗi tuần đăng ký tối đa 5 buổi.</li>
           </ul>
+          <h3>2. Thời gian Booking</h3>
+          <ul>
+            <li>Lịch của ngày hôm sau khóa đăng ký lúc 21h mỗi ngày.</li>
+            <li>Hội viên đã đặt lịch nhưng không đến vẫn tính là đã tập 1 buổi.</li>
+          </ul>
+          <h3>3. Huỷ hoặc Đổi lịch tập</h3>
+          <ul>
+            <li>Buổi đã đặt hội viên không tự huỷ hoặc đổi được.</li>
+            <li>Muốn huỷ hoặc đổi lịch, vui lòng báo qua fanpage trước ít nhất 12 giờ.</li>
+          </ul>
+          <h3>4. Thời lượng buổi tập</h3>
+          <ul>
+            <li>60 phút: tập luyện chính cùng HLV.</li>
+            <li>10 - 15 phút: chuẩn bị, khởi động và thời gian dự phòng.</li>
+          </ul>
+          <p className="pb-closing">Hội viên vui lòng tuân thủ quy định để đảm bảo trải nghiệm luyện tập hiệu quả, công bằng và chuyên nghiệp cho tất cả thành viên.</p>
         </section>
-        <div style={{ height: 96 }} />
+        <footer className="pb-foot">TH GYM &amp; FITNESS - Rèn luyện cùng nhau, chạm đỉnh phong độ!</footer>
+        <div style={{ height: 110 }} />
       </main>
 
-      {(picked.length > 0 || msg) && (
-        <div className="pb-bar">
-          {msg && <p className="pb-bad" role="alert">{msg}</p>}
-          {picked.length > 0 && (
-            <div className="pb-barrow">
-              <div>
-                <b>{picked.length} / {max} buổi</b>
-                <div className="pb-dots" aria-hidden="true">{Array.from({ length: max }, (_, i) => <i key={i} className={i < picked.length ? 'on' : ''} />)}</div>
-              </div>
-              <button type="button" className="pb-btn" disabled={busy} onClick={submit}>{busy ? 'Đang gửi...' : 'Xác nhận đăng ký'}</button>
-            </div>
-          )}
+      <div className="pb-bar">
+        {msg && <p className="pb-bad" role="alert">{msg}</p>}
+        <div className="pb-barrow">
+          <div>
+            <b>{picked.length} / {max} buổi</b>
+            <div className="pb-dots" aria-hidden="true">{Array.from({ length: max }, (_, i) => <i key={i} className={i < picked.length ? 'on' : ''} />)}</div>
+          </div>
+          <button type="button" className="pb-btn" disabled={busy || picked.length === 0} onClick={submit}>{busy ? 'Đang gửi...' : 'Xác nhận đăng ký'}</button>
         </div>
-      )}
+      </div>
     </div>
   )
 }
