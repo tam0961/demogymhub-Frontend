@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import poster from '../assets/lich-lop.png'
 import './publicBooking.css'
 
 interface Session { id: string; date: string; start: string; end: string; muscle_group: string | null; capacity: number; left: number }
@@ -41,6 +42,7 @@ export default function PublicBooking() {
   const [shake, setShake] = useState('')
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [zoom, setZoom] = useState(false)
   const [done, setDone] = useState<{ name: string; booked: Booked[] } | null>(null)
   const loadedAt = useRef(Date.now())
 
@@ -157,6 +159,9 @@ export default function PublicBooking() {
     <div className="pb">
       <Header />
       <main className="pb-main">
+        <button type="button" className="pb-poster" aria-label="Xem lịch lớp phóng to" onClick={() => setZoom(true)}>
+          <img src={poster} alt="Lịch PT nhóm Nhập môn Gym: 6h30 đến 7h45 và 20h đến 21h15 từ Thứ 2 đến Thứ 7, Chủ nhật nghỉ" />
+        </button>
         <section className="pb-card">
           <h2>Thông tin đăng ký</h2>
           <label htmlFor="pb-phone">Số điện thoại hội viên</label>
@@ -219,18 +224,20 @@ export default function PublicBooking() {
           <h2>QUY ĐỊNH BOOKING LỚP PT NHÓM</h2>
           <h3>1. Số lượng hội viên &amp; Lịch tập</h3>
           <ul>
-            <li>Mỗi lớp tối đa 3 hội viên. Khi lớp đầy, buổi tập hiển thị "Full lớp".</li>
-            <li>Mỗi tuần đăng ký tối đa 5 buổi.</li>
+            <li>Mỗi lớp tối đa 3 hội viên.</li>
+            <li>Khi lớp đã đủ số lượng, lịch buổi đó sẽ tự động ẩn hoặc hiển thị thông báo "Full lớp" để hội viên chọn khung giờ khác.</li>
+            <li>Hội viên vui lòng đăng ký sớm mỗi tuần để đảm bảo giữ slot mong muốn. Mỗi tuần đăng ký tối đa 5 buổi.</li>
           </ul>
           <h3>2. Thời gian Booking</h3>
           <ul>
-            <li>Lịch của ngày hôm sau khóa đăng ký lúc 21h mỗi ngày.</li>
-            <li>Hội viên đã đặt lịch nhưng không đến vẫn tính là đã tập 1 buổi.</li>
+            <li>Lịch tập của ngày hôm sau sẽ tự động khoá vào lúc 21h hàng ngày.</li>
+            <li>Hội viên đã booking nhưng không tham gia vẫn bị tính là một buổi học, vì đã chiếm slot của hội viên khác.</li>
           </ul>
           <h3>3. Huỷ hoặc Đổi lịch tập</h3>
           <ul>
-            <li>Buổi đã đặt hội viên không tự huỷ hoặc đổi được.</li>
-            <li>Muốn huỷ hoặc đổi lịch, vui lòng báo qua fanpage trước ít nhất 12 giờ.</li>
+            <li>Lịch đã booking không thể tự huỷ hoặc thay đổi.</li>
+            <li>Trường hợp cần huỷ hoặc điều chỉnh, hội viên phải báo trước ít nhất 12 tiếng qua fanpage: TH Gym &amp; Fitness Quận 7</li>
+            <li>Ví dụ: Nếu muốn huỷ lớp Thứ 3 - 6h30 sáng, vui lòng báo huỷ trước Thứ 2 - 18h30 để bộ phận admin hỗ trợ, và để hội viên khác có thể đăng ký vào.</li>
           </ul>
           <h3>4. Thời lượng buổi tập</h3>
           <ul>
@@ -240,9 +247,16 @@ export default function PublicBooking() {
           <p className="pb-closing">Hội viên vui lòng tuân thủ quy định để đảm bảo trải nghiệm luyện tập hiệu quả, công bằng và chuyên nghiệp cho tất cả thành viên.</p>
         </section>
         <footer className="pb-foot">TH GYM &amp; FITNESS - Rèn luyện cùng nhau, chạm đỉnh phong độ!</footer>
+        <p className="pb-copy">@copyright_THGym_2025</p>
         <div style={{ height: 110 }} />
       </main>
 
+      {zoom && (
+        <div className="pb-lightbox" role="dialog" aria-label="Lịch lớp" onClick={() => setZoom(false)}>
+          <button type="button" aria-label="Đóng" onClick={() => setZoom(false)}>×</button>
+          <img src={poster} alt="Lịch PT nhóm Nhập môn Gym" />
+        </div>
+      )}
       <div className="pb-bar">
         {msg && <p className="pb-bad" role="alert">{msg}</p>}
         <div className="pb-barrow">

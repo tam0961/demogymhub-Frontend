@@ -60,3 +60,14 @@ body:has(.pb) { background: #16100b; }
 .pb-rules h3 { font-size: 14px; font-weight: 800; margin: 12px 0 4px; }
 .pb-closing { font-size: 13px; color: var(--pb-muted); margin: 14px 0 0; line-height: 1.45; }
 .pb-foot { text-align: center; font-size: 13px; font-weight: 700; padding: 4px 8px; }
+.pb { --pb-bg: #16100b; --pb-card: #241b12; --pb-ink: #f7eedf; --pb-line: #3a2d20; --pb-accent: #ff9b1f; --pb-muted: #b9a78f; --pb-bad: #ff7a59; }
+.pb-poster { display: block; width: 100%; padding: 0; border: 0; background: none; border-radius: 12px; overflow: hidden; cursor: zoom-in; }
+.pb-poster img { display: block; width: 100%; height: auto; }
+.pb-lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.88); z-index: 20; display: grid; place-items: center; padding: 12px; }
+.pb-lightbox img { max-width: 100%; max-height: 90vh; border-radius: 8px; }
+.pb-lightbox button { position: absolute; top: 10px; right: 14px; font-size: 32px; line-height: 1; background: none; border: 0; color: #fff; cursor: pointer; min-width: 44px; min-height: 44px; }
+.pb-info { gap: 10px; }
+.pb-info > div { flex-direction: column; justify-content: flex-start; gap: 6px; padding: 0; border-top: 0; }
+.pb-info b { display: block; padding: 12px; border: 1.5px dashed var(--pb-line); border-radius: 10px; font-weight: 600; }
+.pb-rules h2 { border-bottom: 2px solid var(--pb-accent); padding-bottom: 8px; }
+.pb-copy { text-align: left; font-size: 12px; color: var(--pb-muted); }
