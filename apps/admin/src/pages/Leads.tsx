@@ -1,27 +1,40 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtDate } from '../lib/format'
+import { fmtDateTime } from '../lib/format'
 import { LEAD_STATUS, leadErrorText } from '../lib/leads'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { ConfirmDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
-import { BranchTag, Button, Chip, DataTable, Field, Input, PageHeader, Select, Tabs, Textarea, useToast, type Column } from '../components/ui'
+import { Button, Chip, DataTable, Field, Input, Select, Textarea, useToast, type Column } from '../components/ui'
 import type { Branch, Lead, LeadStatus, ListResp } from '../types'
 
 type Tab = 'all' | LeadStatus
 const TABS: { value: Tab; label: string }[] = [{ value: 'all', label: 'Tất cả' }, ...(Object.keys(LEAD_STATUS) as LeadStatus[]).map((s) => ({ value: s as Tab, label: LEAD_STATUS[s].label }))]
 const EDITABLE: LeadStatus[] = ['new', 'contacted', 'trial_booked', 'lost']
 
-export function leadColumns(actions: { canEdit: boolean; onEdit: (l: Lead) => void; onConvert: (l: Lead) => void }, branchOf: (l: Lead) => Branch | undefined): Column<Lead>[] {
+export function leadColumns(actions: { canEdit: boolean; onEdit: (l: Lead) => void; onConvert: (l: Lead) => void; pts?: { id: string; name: string }[]; onAssign?: (l: Lead, ptId: string | null) => void }, _branchOf?: (l: Lead) => Branch | undefined): Column<Lead>[] {
+  const ptName = (l: Lead) => actions.pts?.find((p) => p.id === l.assigned_to)?.name ?? ''
   return [
-    { key: 'name', header: 'Khách hàng', sortValue: (l) => l.name, render: (l) => <><span className="cell-main">{l.name}</span><div className="cell-sub">{l.phone}</div></> },
+    { key: 'created', header: 'Ngày giờ', sortValue: (l) => l.created_at, render: (l) => fmtDateTime(l.created_at) },
+    { key: 'name', header: 'Khách hàng', sortValue: (l) => l.name, render: (l) => <span className="cell-main">{l.name}</span> },
+    { key: 'phone', header: 'Số điện thoại', sortValue: (l) => l.phone, render: (l) => l.phone },
     { key: 'source', header: 'Nguồn', sortValue: (l) => l.source ?? '', render: (l) => l.source || '-' },
+    { key: 'interest', header: 'Gói quan tâm', sortValue: (l) => l.interest ?? '', render: (l) => l.interest || '-' },
     { key: 'status', header: 'Trạng thái', sortValue: (l) => LEAD_STATUS[l.status].label, render: (l) => <Chip tone={LEAD_STATUS[l.status].tone}>{LEAD_STATUS[l.status].label}</Chip> },
-    { key: 'branch', header: 'Chi nhánh', render: (l) => <BranchTag branch={branchOf(l)} /> },
-    { key: 'created', header: 'Ngày tạo', sortValue: (l) => l.created_at, render: (l) => fmtDate(l.created_at) },
+    {
+      key: 'assignee', header: 'Sale phụ trách', sortValue: ptName,
+      render: (l) => (actions.canEdit && actions.onAssign ? (
+        <span onClick={(e) => e.stopPropagation()}>
+          <Select aria-label={`Sale phụ trách ${l.name}`} value={l.assigned_to ?? ''} onChange={(e) => actions.onAssign!(l, e.target.value || null)}>
+            <option value="">Chưa phân công</option>
+            {actions.pts?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </Select>
+        </span>
+      ) : (ptName(l) || '-')),
+    },
     {
       key: 'actions', header: '',
       render: (l) => actions.canEdit && (
@@ -35,7 +48,6 @@ export function leadColumns(actions: { canEdit: boolean; onEdit: (l: Lead) => vo
 }
 
 export default function Leads() {
-  const { user } = useAuth()
   const { branchId } = useBranch()
   const { can } = usePermission()
   const toast = useToast()
@@ -67,10 +79,21 @@ export default function Leads() {
     const k = q.trim().toLowerCase()
     return rows.filter((l) => (tab === 'all' || l.status === tab) && (!k || l.name.toLowerCase().includes(k) || l.phone.includes(k)))
   }, [rows, tab, q])
-  const branchOf = useCallback((l: Lead) => user?.branches.find((b) => b.id === l.branch_id), [user])
+  const [pts, setPts] = useState<{ id: string; name: string }[]>([])
+  useEffect(() => {
+    api.get<{ data: { id: string; name: string }[] }>('/contracts/pt-staff', { params: { branch_id: branchId ?? undefined } }).then((r) => setPts(r.data.data)).catch(() => setPts([]))
+  }, [branchId])
+  const assign = useCallback(async (l: Lead, ptId: string | null) => {
+    try {
+      await api.patch(`/leads/${l.id}`, { assigned_to: ptId })
+      setRows((x) => x.map((r) => (r.id === l.id ? { ...r, assigned_to: ptId } : r)))
+    } catch (e) {
+      toast(apiError(e).message, true)
+    }
+  }, [toast])
   const columns = useMemo(
-    () => leadColumns({ canEdit: can('leads.update'), onEdit: setEditing, onConvert: (l) => { setConvErr(''); setConverting(l) } }, branchOf),
-    [can, branchOf],
+    () => leadColumns({ canEdit: can('leads.update'), onEdit: setEditing, onConvert: (l) => { setConvErr(''); setConverting(l) }, pts, onAssign: assign }),
+    [can, pts, assign],
   )
 
   const convert = async () => {
@@ -91,11 +114,18 @@ export default function Leads() {
 
   return (
     <>
-      <PageHeader title="Khách tiềm năng" action={can('leads.create') ? <Button variant="primary" onClick={() => setEditing('new')}>Thêm khách</Button> : undefined} />
-      <Tabs tabs={TABS} value={tab} onChange={setTab} />
-      <div className="toolbar">
-        <input className="input" type="search" placeholder="Tìm tên, SĐT" aria-label="Tìm khách tiềm năng" value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className="grow"><span className="hint-muted">{filtered.length} khách</span></div>
+      <div className="page-head members-head">
+        <h1>Khách tiềm năng</h1>
+        <div className="members-filters">
+          <input className="input" type="search" placeholder="Tìm tên, SĐT" aria-label="Tìm khách tiềm năng" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Select aria-label="Lọc trạng thái" value={tab} onChange={(e) => setTab(e.target.value as Tab)}>
+            {TABS.map((t) => <option key={t.value} value={t.value}>{t.value === 'all' ? 'Mọi trạng thái' : t.label}</option>)}
+          </Select>
+        </div>
+        <div className="page-action">
+          <span className="hint-muted">{filtered.length} khách</span>
+          {can('leads.create') && <Button variant="primary" onClick={() => setEditing('new')}>Thêm khách</Button>}
+        </div>
       </div>
       <div className="card">
         <DataTable columns={columns} rows={filtered} rowKey={(l) => l.id} loading={loading} error={error} emptyText="Chưa có khách tiềm năng" itemLabel="khách" />
@@ -126,6 +156,7 @@ export function LeadModal({ lead, onClose, onSaved }: { lead: Lead | null; onClo
     phone: lead?.phone ?? '',
     email: lead?.email ?? '',
     source: lead?.source ?? '',
+    interest: lead?.interest ?? '',
     note: lead?.note ?? '',
     status: lead?.status ?? ('new' as LeadStatus),
     branch_id: lead?.branch_id ?? branchId ?? branches[0]?.id ?? '',
@@ -139,7 +170,7 @@ export function LeadModal({ lead, onClose, onSaved }: { lead: Lead | null; onClo
     e.preventDefault()
     setBusy(true)
     setErr({})
-    const common = { name: f.name, phone: f.phone, email: f.email || null, source: f.source || null, note: f.note || null }
+    const common = { name: f.name, phone: f.phone, email: f.email || null, source: f.source || null, interest: f.interest || null, note: f.note || null }
     try {
       if (lead) {
         await api.patch(`/leads/${lead.id}`, common)
@@ -168,6 +199,7 @@ export function LeadModal({ lead, onClose, onSaved }: { lead: Lead | null; onClo
         <Field label="Số điện thoại" htmlFor="l-phone"><Input id="l-phone" type="tel" inputMode="tel" required value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Field>
         <Field label="Email" htmlFor="l-email"><Input id="l-email" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} /></Field>
         <Field label="Nguồn" htmlFor="l-source"><Input id="l-source" placeholder="Facebook, Zalo, giới thiệu..." value={f.source} onChange={(e) => set('source', e.target.value)} /></Field>
+        <Field label="Gói quan tâm" htmlFor="l-interest"><Input id="l-interest" maxLength={100} placeholder="PT 1:1 - 20 buổi, Member 3 tháng..." value={f.interest} onChange={(e) => set('interest', e.target.value)} /></Field>
         <Field label="Trạng thái" htmlFor="l-status">
           <Select id="l-status" disabled={locked} value={f.status} onChange={(e) => set('status', e.target.value as LeadStatus)}>
             {(locked ? (['converted'] as LeadStatus[]) : EDITABLE).map((s) => <option key={s} value={s}>{LEAD_STATUS[s].label}</option>)}

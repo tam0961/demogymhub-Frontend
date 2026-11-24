@@ -10,7 +10,7 @@ import type { Lead } from '../types'
 afterEach(cleanup)
 
 const lead = (over: Partial<Lead> = {}): Lead => ({
-  id: 'l1', name: 'Phạm Quốc Bảo', phone: '0911000111', email: null, source: 'Facebook', status: 'new', note: null, branch_id: 'b1', assigned_to: null,
+  id: 'l1', name: 'Phạm Quốc Bảo', phone: '0911000111', email: null, source: 'Facebook', interest: null, status: 'new', note: null, branch_id: 'b1', assigned_to: null,
   trial_at: null, member_id: null, created_at: '2026-11-01T00:00:00.000Z', updated_at: '2026-11-01T00:00:00.000Z', ...over,
 })
 const noop = () => {}

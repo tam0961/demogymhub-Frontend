@@ -5,13 +5,12 @@ import { apiError } from '../lib/errors'
 import { paymentCode } from '../lib/contracts'
 import { METHODS, METHOD_LABEL, PAY_STATUS, downloadBlob, fmtDate, fmtMoney, toCSV } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
-import { useShift } from '../context/ShiftContext'
 import { Modal } from '../components/Modal'
 import { PendingPanel } from '../components/PayModal'
 import { PaymentReceiptModal } from '../components/PaymentReceiptModal'
 import { MemberProfilePopup } from './Members'
 import { api } from '../lib/api'
-import { Button, Chip, DataTable, Icon, Kpi, KpiRow, PageHeader, Segmented, Select, type Column } from '../components/ui'
+import { Button, Chip, DataTable, Icon, Kpi, KpiRow, PageHeader, Select, type Column } from '../components/ui'
 import type { Contract, PayMethod, Payment } from '../types'
 
 export function paymentsToCSV(rows: Payment[]) {
@@ -23,13 +22,11 @@ export function paymentsToCSV(rows: Payment[]) {
 
 export default function Payments() {
   const { branchId } = useBranch()
-  const { shift } = useShift()
   const nav = useNavigate()
   const [q, setQ] = useState('')
   const [date, setDate] = useState('')
   const [method, setMethod] = useState('')
   const [status, setStatus] = useState('')
-  const [shiftOnly, setShiftOnly] = useState(false)
   const [rows, setRows] = useState<Payment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -50,13 +47,13 @@ export default function Payments() {
     setLoading(true)
     setError('')
     try {
-      setRows(await fetchAll<Payment>('/payments', { date: date || undefined, method: method || undefined, status: status || undefined, shift_id: shiftOnly && shift ? shift.id : undefined, branch_id: branchId ?? undefined }))
+      setRows(await fetchAll<Payment>('/payments', { date: date || undefined, method: method || undefined, status: status || undefined, branch_id: branchId ?? undefined }))
     } catch (e) {
       setError(apiError(e).message)
     } finally {
       setLoading(false)
     }
-  }, [date, method, status, shiftOnly, shift, branchId])
+  }, [date, method, status, branchId])
   useEffect(() => {
     load()
   }, [load])
@@ -105,7 +102,6 @@ export default function Payments() {
           <option value="">Mọi trạng thái</option>
           {Object.entries(PAY_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </Select>
-        <Segmented<string> fill ariaLabel="Ca" value={shiftOnly ? 'cur' : ''} options={[{ value: '', label: 'Tất cả ca' }, { value: 'cur', label: 'Ca hiện tại' }]} onChange={(v) => { if (v === 'cur' && !shift) return; setShiftOnly(v === 'cur') }} />
         <div className="grow">
           <Button onClick={() => downloadBlob(new Blob(['﻿' + paymentsToCSV(filtered)], { type: 'text/csv;charset=utf-8' }), 'phieu-thu.csv')} disabled={filtered.length === 0}><Icon name="download" size={16} />Xuất CSV</Button>
         </div>
@@ -119,7 +115,7 @@ export default function Payments() {
         <Kpi value={fmtMoney(byMethod('vietqr'))} label="VietQR" />
         <Kpi value={fmtMoney(byMethod('ewallet'))} label="Ví điện tử" />
       </KpiRow>
-      <div className="card">
+      <div className="card payments-table">
         <DataTable
           columns={columns}
           rows={filtered}

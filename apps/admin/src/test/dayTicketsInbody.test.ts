@@ -15,6 +15,7 @@ describe('day ticket helpers', () => {
     expect(canSellDayTicket({ name: ' An ', phone: '0903 123 456' })).toBe(true)
     expect(canSellDayTicket({ name: '', phone: '0903123456' })).toBe(false)
     expect(canSellDayTicket({ name: 'An', phone: '123' })).toBe(false)
+    expect(canSellDayTicket({ name: 'An', phone: '4821' })).toBe(true)
   })
   it('builds the sale body with the branch only when known', () => {
     expect(saleBody({ name: ' An ', phone: '0903 123 456', method: 'momo' }, 'b1')).toEqual({ name: 'An', phone: '0903123456', method: 'momo', branch_id: 'b1' })

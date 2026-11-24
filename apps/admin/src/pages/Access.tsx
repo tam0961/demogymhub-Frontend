@@ -2,15 +2,30 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { api } from '../lib/api'
 import { fetchAll } from '../lib/fetchAll'
 import { apiError } from '../lib/errors'
-import { fmtDateTime, fmtTime, reasonText } from '../lib/format'
+import { fmtDateTime, fmtMoney, fmtTime, reasonText } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
-import { BranchTag, Button, Chip, DataTable, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, Select, Tabs, type Column } from '../components/ui'
-import DayTickets from './DayTickets'
+import { BranchTag, Button, Chip, DataTable, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, Select, type Column } from '../components/ui'
+import { DayTicketSale } from '../components/DayTicketSale'
 import type { CheckinItem, CheckinResult, CheckinStats, Member } from '../types'
 
 const REFRESH_MS = 30000
+
+function HourChart({ rows }: { rows: { hour: number; count: number }[] }) {
+  const max = Math.max(4, ...rows.map((r) => r.count))
+  return (
+    <div className="hourchart" role="img" aria-label="Lượt vào theo giờ hôm nay">
+      <div className="hc-plot">
+        {[1, 0.5, 0].map((t) => <div key={t} className="hc-line" style={{ bottom: `${t * 100}%` }}><span>{Math.round(max * t)}</span></div>)}
+        <div className="hc-bars">
+          {rows.map((r) => <div key={r.hour} className="hc-col" title={`${r.hour}h: ${r.count} lượt`}><i style={{ height: `${(r.count / max) * 100}%` }} /></div>)}
+        </div>
+      </div>
+      <div className="hc-x">{rows.map((r, i) => <span key={r.hour}>{i % 2 === 0 ? `${r.hour}h` : ''}</span>)}</div>
+    </div>
+  )
+}
 
 function AccessLog() {
   const { user } = useAuth()
@@ -33,30 +48,35 @@ function AccessLog() {
   const [res, setRes] = useState<CheckinResult | null>(null)
   const [err, setErr] = useState('')
   const [stats, setStats] = useState<CheckinStats | null>(null)
-  const [todayCounts, setTodayCounts] = useState({ allowed: 0, denied: 0 })
 
-  const bid = fBranch || branchId || undefined
+  const canPt = can('pt_sessions.read')
+  const [ptOut, setPtOut] = useState<number | null>(null)
+  const canTickets = can('day_tickets.read')
+  const [ticketTotal, setTicketTotal] = useState<number | null>(null)
+  const ownBranch = canCheckin ? user?.checkin_branch?.id : undefined
+  const bid = ownBranch || fBranch || branchId || undefined
   const load = useCallback(async () => {
     setError('')
     try {
-      const [l, h, t, st] = await Promise.all([
+      const day = new Date().toISOString().slice(0, 10)
+      const [l, h, st, pt, tk] = await Promise.all([
         api.get('/checkins/live', { params: { branch_id: bid } }),
         fetchAll<CheckinItem>('/checkins', { date: date || undefined, result: result || undefined, branch_id: bid }, 5),
-        fetchAll<CheckinItem>('/checkins', { date: new Date().toISOString().slice(0, 10), branch_id: bid }, 5),
         api.get('/reports/checkin-stats', { params: { branch_id: bid } }).then((r) => r.data.data as CheckinStats).catch(() => null),
+        canPt ? api.get<{ data: { status: string }[] }>('/pt/sessions', { params: { from: day, to: day, branch_id: bid } }).then((r) => r.data.data.filter((s) => s.status === 'completed').length).catch(() => null) : Promise.resolve(null),
+        canTickets ? api.get<{ meta: { total: number } }>('/day-tickets', { params: { date: day, branch_id: bid } }).then((r) => r.data.meta.total).catch(() => null) : Promise.resolve(null),
       ])
+      setTicketTotal(tk)
+      setPtOut(pt)
       setStats(st)
       setLive(l.data.data.items)
       setRows(h)
-      const today = new Date().toDateString()
-      const td = t.filter((x) => new Date(x.checked_in_at ?? x.created_at).toDateString() === today)
-      setTodayCounts({ allowed: td.filter((x) => x.result === 'allowed').length, denied: td.filter((x) => x.result === 'denied').length })
     } catch (e) {
       setError(apiError(e).message)
     } finally {
       setLoading(false)
     }
-  }, [bid, date, result])
+  }, [bid, date, result, canPt, canTickets])
 
   useEffect(() => {
     load()
@@ -111,7 +131,11 @@ function AccessLog() {
     else setErr(searching ? 'Đang tìm hội viên...' : 'Không tìm thấy hội viên với tên hoặc số điện thoại này')
   }
 
-  const maxHour = Math.max(1, ...(stats?.branches.flatMap((b) => b.by_hour.map((h) => h.count)) ?? [1]))
+  const shown = (stats?.branches ?? []).filter((b) => !ownBranch || b.branch.id === ownBranch)
+  const hourRows = Array.from({ length: 17 }, (_, i) => ({
+    hour: 6 + i,
+    count: (stats?.branches ?? []).filter((b) => !ownBranch || b.branch.id === ownBranch).reduce((t, b) => t + (b.by_hour.find((h) => h.hour === 6 + i)?.count ?? 0), 0),
+  }))
   const columns: Column<CheckinItem>[] = [
     { key: 'at', header: 'Giờ vào', sortValue: (c) => c.checked_in_at ?? c.created_at, render: (c) => fmtDateTime(c.checked_in_at ?? c.created_at) },
     { key: 'member', header: 'Hội viên', sortValue: (c) => c.member.name, render: (c) => <><div className="cell-main">{c.member.name}</div><div className="cell-sub">{c.member.code}</div></> },
@@ -121,68 +145,79 @@ function AccessLog() {
 
   return (
     <>
-      <PageHeader title="Kiểm soát ra vào" sub="Lượt check-in theo thời gian thực, tự làm mới mỗi 30 giây" />
-      <KpiRow>
-        <Kpi value={todayCounts.allowed} label="Lượt vào hôm nay" />
-        <Kpi value={<span className={todayCounts.denied ? 'text-bad' : ''}>{todayCounts.denied}</span>} label="Từ chối hôm nay" />
-        <Kpi value={live.length} label="Khách đã check-in hôm nay" />
-      </KpiRow>
-
+      <PageHeader title="Check-in" sub="Lượt check-in theo thời gian thực, tự làm mới mỗi 30 giây" />
       {!canCheckin && <div className="view-note" role="note">Tài khoản quản trị chỉ xem thống kê</div>}
 
-      {stats && (
-        <div className="stat-cards">
-          {stats.branches.map((b) => (
-            <section key={b.branch.id} className="panel stat-card" aria-label={`Thống kê ${b.branch.name}`}>
-              <div className="stat-head"><BranchTag branch={b.branch} /></div>
-              <div className="stat-nums">
-                <div><b>{b.checkins_today}</b><span>Lượt vào</span></div>
-                <div><b className={b.denied_today ? 'text-bad' : ''}>{b.denied_today}</b><span>Từ chối</span></div>
-                <div><b>{b.inside_now}</b><span>Đang tập</span></div>
-              </div>
-              <svg className="spark" viewBox="0 0 120 28" role="img" aria-label={`Lượt vào theo giờ, ${b.branch.name}`}>
-                {b.by_hour.map((h, i) => <rect key={h.hour} x={i * 9} y={28 - (h.count / maxHour) * 26} width={7} height={(h.count / maxHour) * 26} rx={1.5} fill="var(--c1)"><title>{`${h.hour}h: ${h.count}`}</title></rect>)}
-              </svg>
-            </section>
-          ))}
-          <section className="panel stat-card" aria-label="Tổng các chi nhánh">
-            <div className="stat-head"><b>Tổng</b></div>
-            <div className="stat-nums">
-              <div><b>{stats.totals.checkins_today}</b><span>Lượt vào</span></div>
-              <div><b>{stats.totals.denied_today}</b><span>Từ chối</span></div>
-              <div><b>{stats.totals.inside_now}</b><span>Đang tập</span></div>
-            </div>
-          </section>
+      <div className={`access-top ${can('day_tickets.create') || canCheckin ? 'with-sale' : ''}`}>
+      {(can('day_tickets.create') || canCheckin) && (
+        <div className="access-left">
+          {can('day_tickets.create') && <DayTicketSale />}
+          {canCheckin && (
+            <Panel title="Check-in thủ công">
+              <form className="inline-form" onSubmit={submit}>
+                <label className="sr-only" htmlFor="ac-code">Tên hoặc số điện thoại hội viên</label>
+                <input id="ac-code" ref={inputRef} className="input" placeholder="Tên hoặc số điện thoại" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
+                <Button variant="primary" type="submit" disabled={busy}><Icon name="checkin" size={16} />{busy ? 'Đang kiểm tra...' : 'Check-in'}</Button>
+              </form>
+              {matches.length > 0 && (
+                <div className="match-list" role="listbox" aria-label="Hội viên khớp">
+                  {matches.map((m) => (
+                    <button key={m.id} type="button" role="option" aria-selected={false} className="match-item" disabled={busy} onClick={() => checkin(m.id)}>
+                      <span className="cell-main">{m.name}</span>
+                      <span className="cell-sub">{m.code} · {m.phone}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {err && <div className="form-error" role="alert" style={{ marginTop: 10 }}>{err}</div>}
+              {res && (
+                <div className={`mini-result ${res.result === 'allowed' ? 'ok' : 'bad'}`} role="status" aria-live="assertive">
+                  <b>{res.result === 'allowed' ? 'Cho vào' : 'Từ chối'}</b>
+                  {res.member && <span>{res.member.name} - {res.member.code}</span>}
+                  {res.result === 'denied' && <span>{reasonText(res.reason)}</span>}
+                </div>
+              )}
+            </Panel>
+          )}
         </div>
       )}
-
-      {canCheckin && (
-        <Panel title="Check-in thủ công" note="Nhập tên hoặc số điện thoại hội viên">
-          <form className="inline-form" onSubmit={submit}>
-            <label className="sr-only" htmlFor="ac-code">Tên hoặc số điện thoại hội viên</label>
-            <input id="ac-code" ref={inputRef} className="input" placeholder="Tên hoặc số điện thoại hội viên" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} />
-            <Button variant="primary" type="submit" disabled={busy}><Icon name="checkin" size={16} />{busy ? 'Đang kiểm tra...' : 'Check-in'}</Button>
-          </form>
-          {matches.length > 0 && (
-            <div className="match-list" role="listbox" aria-label="Hội viên khớp">
-              {matches.map((m) => (
-                <button key={m.id} type="button" role="option" aria-selected={false} className="match-item" disabled={busy} onClick={() => checkin(m.id)}>
-                  <span className="cell-main">{m.name}</span>
-                  <span className="cell-sub">{m.code} · {m.phone}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {err && <div className="form-error" role="alert" style={{ marginTop: 10 }}>{err}</div>}
-          {res && (
-            <div className={`mini-result ${res.result === 'allowed' ? 'ok' : 'bad'}`} role="status" aria-live="assertive">
-              <b>{res.result === 'allowed' ? 'Cho vào' : 'Từ chối'}</b>
-              {res.member && <span>{res.member.name} - {res.member.code}</span>}
-              {res.result === 'denied' && <span>{reasonText(res.reason)}</span>}
-            </div>
-          )}
+      {stats && (
+        <div className="access-stats">
+        {shown.length === 1 ? (
+          <KpiRow>
+            <Kpi value={shown[0].checkins_today} label="Lượt vào" />
+            <Kpi value={<span className={shown[0].denied_today ? 'text-bad' : ''}>{shown[0].denied_today}</span>} label="Từ chối" />
+            {canPt && <Kpi value={ptOut ?? '-'} label="PT check-out" />}
+            {canTickets && <Kpi value={ticketTotal != null ? fmtMoney(ticketTotal) : '-'} label="Vé lẻ" />}
+          </KpiRow>
+        ) : (
+          <div className="stat-cards">
+            {shown.map((b) => (
+              <section key={b.branch.id} className="panel stat-card" aria-label={`Thống kê ${b.branch.name}`}>
+                <div className="stat-head"><BranchTag branch={b.branch} /></div>
+                <div className="stat-nums">
+                  <div><b>{b.checkins_today}</b><span>Lượt vào</span></div>
+                  <div><b className={b.denied_today ? 'text-bad' : ''}>{b.denied_today}</b><span>Từ chối</span></div>
+                </div>
+              </section>
+            ))}
+            {!ownBranch && stats.branches.length > 1 && (
+              <section className="panel stat-card" aria-label="Tổng các chi nhánh">
+                <div className="stat-head"><b>Tổng</b></div>
+                <div className="stat-nums">
+                  <div><b>{stats.totals.checkins_today}</b><span>Lượt vào</span></div>
+                  <div><b>{stats.totals.denied_today}</b><span>Từ chối</span></div>
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+        <Panel title="Lượt vào theo giờ" note="Hôm nay">
+          <HourChart rows={hourRows} />
         </Panel>
+        </div>
       )}
+      </div>
 
       <div style={{ marginTop: 16 }}>
         <Panel title="Đã check-in hôm nay" count={`${live.length} người`} flush>
@@ -223,13 +258,5 @@ function AccessLog() {
 }
 
 export default function Access() {
-  const { can } = usePermission()
-  const [tab, setTab] = useState<'log' | 'tickets'>('log')
-  if (!can('day_tickets.read')) return <AccessLog />
-  return (
-    <>
-      <Tabs tabs={[{ value: 'log', label: 'Lượt ra vào' }, { value: 'tickets', label: 'Vé lẻ' }]} value={tab} onChange={setTab} />
-      {tab === 'log' ? <AccessLog /> : <DayTickets embedded />}
-    </>
-  )
+  return <AccessLog />
 }

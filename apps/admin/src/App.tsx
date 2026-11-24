@@ -1,4 +1,4 @@
-import { Suspense, lazy, type ComponentType, type ReactNode } from 'react'
+import { Suspense, lazy, type ComponentType } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { RequireAuth } from './components/Layout'
 import { PermRoute } from './components/PermRoute'
@@ -35,7 +35,6 @@ import IpadPage from './pages/IpadPage'
 import Reports from './pages/Reports'
 import ResetPassword from './pages/ResetPassword'
 import Roles from './pages/Roles'
-import ShiftPage from './pages/ShiftPage'
 import Today from './pages/Today'
 import Staff from './pages/Staff'
 import Attendance from './pages/Attendance'
@@ -44,17 +43,11 @@ import Users from './pages/Users'
 import Tickets from './pages/Tickets'
 import DayTickets from './pages/DayTickets'
 import Payroll from './pages/Payroll'
-import { usePermission } from './context/usePermission'
 
 const pageModules = import.meta.glob('./pages/{Access,Debt}.tsx') as Record<string, () => Promise<{ default: ComponentType }>>
 const optionalPage = (file: string) => lazy(pageModules[`./pages/${file}.tsx`] ?? (() => import('./pages/NotFound')))
 const Access = optionalPage('Access')
 const Debt = optionalPage('Debt')
-
-function AnyPerm({ any, children }: { any: string[]; children: ReactNode }) {
-  const { canAny } = usePermission()
-  return canAny(...any) ? <>{children}</> : <Forbidden />
-}
 
 export default function App() {
   return (
@@ -97,7 +90,6 @@ export default function App() {
         <Route path="contracts/new" element={<PermRoute permission="contracts.read"><Contracts /></PermRoute>} />
         <Route path="contracts/:id" element={<PermRoute permission="contracts.read"><ContractDetail /></PermRoute>} />
         <Route path="payments" element={<PermRoute permission="payments.read"><Payments /></PermRoute>} />
-        <Route path="shift" element={<AnyPerm any={['shifts.open', 'shifts.close']}><ShiftPage /></AnyPerm>} />
         <Route path="reports" element={<PermRoute permission="reports.view"><Reports /></PermRoute>} />
         <Route path="reports/closing" element={<PermRoute permission="reports.view"><Closing /></PermRoute>} />
         <Route path="staff" element={<PermRoute permission="staff.read"><Staff /></PermRoute>} />

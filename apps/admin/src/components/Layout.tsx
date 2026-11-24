@@ -3,7 +3,6 @@ import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-d
 import { useAuth } from '../context/AuthContext'
 import { BranchProvider, useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
-import { ShiftProvider } from '../context/ShiftContext'
 import { useConnected } from '../lib/connection'
 import { activeBranches } from '../lib/branches'
 import ScanPopup from './ScanPopup'
@@ -18,18 +17,8 @@ export function RequireAuth() {
   if (!user) return <Navigate to="/login" replace state={{ from: loc.pathname }} />
   return (
     <BranchProvider>
-      <ShiftGate />
-    </BranchProvider>
-  )
-}
-
-function ShiftGate() {
-  const { can } = usePermission()
-  const { user } = useAuth()
-  return (
-    <ShiftProvider canOpen={can('shifts.open') && !isAdminAll(user)}>
       <Shell />
-    </ShiftProvider>
+    </BranchProvider>
   )
 }
 
@@ -41,7 +30,7 @@ interface NavGroup { title: string; items: NavItem[] }
 export const NAV_GROUPS: NavGroup[] = [
   { title: 'Vận hành', items: [
     { to: '/', label: 'Hôm nay', icon: 'today', perm: null },
-    { to: '/access', label: 'Kiểm soát ra vào', icon: 'access', perm: ['checkins.read'] },
+    { to: '/access', label: 'Check-in', icon: 'access', perm: ['checkins.read'] },
   ] },
   { title: 'Khách hàng', items: [
     { to: '/members', label: 'Hội viên', icon: 'members', perm: ['members.read'] },

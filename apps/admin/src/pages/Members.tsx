@@ -66,9 +66,9 @@ export function HsdCell({ m }: { m: Member }) {
 
 export function memberColumns(showBranch: boolean, branchOf: (m: Member) => Branch | undefined): Column<Member>[] {
   const cols: Column<Member>[] = [
-    { key: 'code', className: 'mb-code', header: 'Mã', sortValue: (m) => m.code, render: (m) => <><div className="cell-main">{m.code}</div>{m.face_id && <div className="cell-sub">{m.face_id}</div>}</> },
+    { key: 'code', className: 'mb-code', header: 'Mã HV', sortValue: (m) => m.code, render: (m) => <><div className="cell-main">{m.code}</div>{m.face_id && <div className="cell-sub">{m.face_id}</div>}</> },
     {
-      key: 'name', className: 'mb-name', header: 'Thông tin khách hàng', sortValue: (m) => m.name,
+      key: 'name', className: 'mb-name', header: 'Thông tin hội viên', sortValue: (m) => m.name,
       render: (m) => (
         <div className="cell-person">
           <MemberAvatar member={m} />

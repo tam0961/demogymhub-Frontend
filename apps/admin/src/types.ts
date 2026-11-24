@@ -259,6 +259,7 @@ export interface Lead {
   phone: string
   email: string | null
   source: string | null
+  interest: string | null
   status: LeadStatus
   note: string | null
   branch_id: string

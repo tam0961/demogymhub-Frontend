@@ -12,8 +12,10 @@ export const DAY_TICKET_METHODS: { value: DayTicketMethod; label: string }[] = [
 export const normalizePhone = (s: string) => s.replace(/[\s.\-()]/g, '')
 export const validPhone = (s: string) => /^\+?\d{9,15}$/.test(normalizePhone(s))
 
+export const validLast4 = (s: string) => /^\d{4}$/.test(normalizePhone(s))
+
 export function canSellDayTicket(f: { name: string; phone: string }) {
-  return f.name.trim().length > 0 && validPhone(f.phone)
+  return f.name.trim().length > 0 && (validLast4(f.phone) || validPhone(f.phone))
 }
 
 export const saleBody = (f: { name: string; phone: string; method: DayTicketMethod }, branch: string) => ({

@@ -307,8 +307,8 @@ const iso = (offsetDays = 0) => new Date(Date.now() + offsetDays * DAY).toISOStr
 const day = (offsetDays = 0) => iso(offsetDays).slice(0, 10)
 let seq = 100
 const leads: Lead[] = [
-  { id: 'ld1', name: 'Phạm Quốc Bảo', phone: '0911000111', email: null, source: 'Facebook', status: 'new', note: null, branch_id: 'b-nb', assigned_to: null, trial_at: null, member_id: null, created_at: iso(-2), updated_at: iso(-2) },
-  { id: 'ld2', name: 'Võ Thị Mai', phone: '0911000222', email: null, source: 'Giới thiệu', status: 'trial_booked', note: 'Hẹn thứ 7', branch_id: 'b-q7', assigned_to: null, trial_at: null, member_id: null, created_at: iso(-5), updated_at: iso(-5) },
+  { id: 'ld1', name: 'Phạm Quốc Bảo', phone: '0911000111', email: null, source: 'Facebook', interest: 'PT 1:1 - 20 buổi', status: 'new', note: null, branch_id: 'b-nb', assigned_to: null, trial_at: null, member_id: null, created_at: iso(-2), updated_at: iso(-2) },
+  { id: 'ld2', name: 'Võ Thị Mai', phone: '0911000222', email: null, source: 'Giới thiệu', interest: 'Member 3 tháng', status: 'trial_booked', note: 'Hẹn thứ 7', branch_id: 'b-q7', assigned_to: null, trial_at: null, member_id: null, created_at: iso(-5), updated_at: iso(-5) },
 ]
 const nid = (p: string) => `${p}${++seq}`
 
@@ -910,12 +910,12 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/day-tickets' && method === 'post') {
     need('day_tickets.create')
     const phone = String(body.phone ?? '').replace(/[\s.\-()]/g, '')
-    if (!String(body.name ?? '').trim() || !/^\+?\d{9,15}$/.test(phone) || !['cash', 'transfer', 'card', 'momo'].includes(body.method)) fail(config, 400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ')
+    if (!String(body.name ?? '').trim() || !/^(\+?\d{9,15}|\d{4})$/.test(phone) || !['cash', 'transfer', 'card', 'momo'].includes(body.method)) fail(config, 400, 'VALIDATION_ERROR', 'Dữ liệu không hợp lệ')
     const bid = String(body.branch_id || branchFilter || me.branches[0]?.id)
     if (!me.branches.some((b) => b.id === bid)) fail(config, 403, 'FORBIDDEN', 'Không đủ quyền')
     const mem = members.find((x) => x.phone === phone)
     if (mem && contracts.some((c) => c.member_id === mem.id && c.status === 'active' && (!c.end_date || c.end_date >= iso().slice(0, 10)))) fail(config, 409, 'MEMBER_HAS_CONTRACT', `Số điện thoại thuộc hội viên ${mem.name} đang còn hợp đồng, không bán vé lẻ`)
-    if (dayTickets.some((t) => t.phone === phone && t.issued_on === iso().slice(0, 10) && !t.checked_out_at)) fail(config, 409, 'TICKET_ACTIVE', 'Số điện thoại này đã có vé hôm nay và vẫn đang trong phòng tập')
+    if (dayTickets.some((t) => t.phone === phone && (phone.length > 4 || t.name === String(body.name).trim()) && t.issued_on === iso().slice(0, 10) && !t.checked_out_at)) fail(config, 409, 'TICKET_ACTIVE', 'Số điện thoại này đã có vé hôm nay và vẫn đang trong phòng tập')
     const t: DayTicket = { id: nid('dt'), name: String(body.name).trim(), phone, branch_id: bid, issued_on: iso().slice(0, 10), amount: 100000, method: body.method === 'momo' ? 'ewallet' : body.method, payment_id: nid('pay'), payment_status: 'confirmed', checked_out_at: null, created_at: iso(), created_by: me.id, created_by_name: me.name }
     dayTickets.unshift(t)
     log(me.email, 'day_ticket.sold', t.phone)
@@ -987,7 +987,7 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   if (url === '/leads' && method === 'post') {
     need('leads.create')
     const now = new Date().toISOString()
-    const l: Lead = { id: nid('ld'), email: null, source: null, note: null, assigned_to: null, trial_at: null, member_id: null, ...body, status: 'new', created_at: now, updated_at: now }
+    const l: Lead = { id: nid('ld'), email: null, source: null, interest: null, note: null, assigned_to: null, trial_at: null, member_id: null, ...body, status: 'new', created_at: now, updated_at: now }
     leads.unshift(l)
     return ok(l)
   }

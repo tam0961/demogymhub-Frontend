@@ -40,18 +40,15 @@ afterEach(cleanup)
 
 describe('Today gating', async () => {
   const { default: Today } = await import('../pages/Today')
-  it('owner: no check-in input, shows view-only banner and stats', async () => {
+  it('owner: no check-in input, shows stats', async () => {
     wrap(owner, <Today />)
     expect(screen.queryByPlaceholderText(/tên hoặc số điện thoại hội viên/i)).toBeNull()
-    expect(screen.getByText(/Chế độ xem thống kê/)).toBeTruthy()
     await waitFor(() => expect(screen.getByLabelText('Thống kê Chi nhánh Quận 2')).toBeTruthy())
   })
-  it('receptionist: input, static branch label, no select', () => {
+  it('receptionist: no check-in input on the Today page', () => {
     wrap(lt, <Today />)
-    expect(screen.getByPlaceholderText(/tên hoặc số điện thoại hội viên/i)).toBeTruthy()
-    expect(screen.getByText('Check-in tại')).toBeTruthy()
-    expect(screen.getByText('Chi nhánh Quận 7')).toBeTruthy()
-    expect(screen.queryByRole('combobox')).toBeNull()
+    expect(screen.queryByPlaceholderText(/tên hoặc số điện thoại hội viên/i)).toBeNull()
+    expect(screen.queryByText('Check-in tại')).toBeNull()
   })
 })
 
