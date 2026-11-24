@@ -798,3 +798,29 @@ table.table thead th { font-size: 14.5px; font-weight: 700; letter-spacing: 0.1p
   .contracts-table .table th:nth-child(11) { width: 8.5%; }
 }
 .dt td .select { width: auto; min-width: 150px; min-height: 32px; padding: 4px 28px 4px 10px; font-size: 13px; background-position: right 9px center; }
+@media (min-width: 900px) {
+  main.content:has(.ptg-scroll) { overflow-y: auto; overflow-x: hidden; }
+  main.content:has(.ptg-scroll) > .ptg-scroll { flex: 0 0 auto; height: calc(100vh - 160px); min-height: 456px; overflow-y: hidden; overflow-x: auto; margin-bottom: 16px; }
+}
+.hm { display: flex; flex-direction: column; gap: 3px; }
+.hm-row { display: grid; grid-template-columns: 34px repeat(24, minmax(0, 1fr)); gap: 3px; align-items: center; }
+.hm-d { font-size: 12px; color: var(--muted); }
+.hm-h { font-size: 12px; color: var(--muted); text-align: left; line-height: 1; padding-bottom: 4px; }
+.hm-c { display: block; height: 30px; border-radius: 3px; }
+.hm-foot { margin: 12px 0 0; font-size: 13px; }
+.mo-sec { margin-bottom: 20px; }
+.mo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 4px 0 8px; flex-wrap: wrap; }
+.mo-head h2 { font-size: 18px; margin: 0; }
+.mo-head-r { display: inline-flex; gap: 12px; align-items: center; font-size: 12.5px; }
+.mo-warn { background: var(--warn-soft); color: var(--warn); border-radius: 999px; padding: 2px 10px; font-weight: 600; }
+.mo-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 12px 0; }
+@media (max-width: 900px) { .mo-two { grid-template-columns: 1fr; } }
+.mo-legend { display: flex; justify-content: flex-end; gap: 12px; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.mo-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.mo-bars { display: flex; flex-direction: column; gap: 8px; }
+.mo-bar { display: grid; grid-template-columns: minmax(160px, 28%) 1fr 150px; gap: 12px; align-items: center; font-size: 13px; }
+.mo-bar-t { height: 10px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+.mo-bar-t i { display: block; height: 100%; border-radius: 999px; }
+.mo-bar-r { text-align: right; font-size: 12.5px; }
+.mo-tag { margin-left: 8px; background: var(--surface-2); border-radius: 999px; padding: 1px 8px; font-size: 11px; color: var(--muted); font-weight: 600; }
+@media (max-width: 700px) { .mo-bar { grid-template-columns: 1fr; gap: 4px; } .mo-bar-r { text-align: left; } }

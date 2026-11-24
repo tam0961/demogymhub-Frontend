@@ -8,6 +8,7 @@ import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { Button, Chip, Field, Input, MoneyInput, PageHeader, Panel, Select, Tabs, useToast } from '../components/ui'
 import { MarketingAutoPanel } from '../components/MarketingAutoPanel'
+import { OverviewSections, type AdsView, type OverviewData } from '../components/MarketingOverview'
 import type { Lead, ListResp } from '../types'
 
 type Channel = 'facebook_ads' | 'google_ads' | 'google_maps'
@@ -37,6 +38,11 @@ const PLATFORMS: Record<Platform, { title: string; idLabel: string; idHint: stri
     guide: ['Cần Google duyệt quyền Business Profile API trước, có thể mất vài ngày.', 'Lấy Place ID bằng công cụ Place ID Finder của Google.', 'Dán Place ID và khóa API vào các ô trên.'],
   },
 }
+const EMPTY_ADS: AdsView = { has_data: false, synced_at: 0, spend: 0, prev_spend: 0, results: 0, clicks: 0, impressions: 0, daily: [], campaigns: [] }
+const EMPTY_OVERVIEW = (month: string): OverviewData => ({
+  month, today: '', days: 0,
+  platforms: { facebook: EMPTY_ADS, google_ads: EMPTY_ADS, maps: { has_data: false, synced_at: 0, data_until: null, totals: { views: 0, calls: 0, directions: 0, web: 0, msgs: 0, bookings: 0 }, prev: { views: 0, calls: 0, directions: 0, web: 0 }, daily: [], campaigns: [] } },
+})
 const CHANNEL_OF: Record<Platform, Channel> = { facebook: 'facebook_ads', google_ads: 'google_ads', maps: 'google_maps' }
 const BRANCH_COLOR: Record<string, string> = { nb: 'var(--nb)', q7: 'var(--q7)', q2: 'var(--q2)' }
 
@@ -199,16 +205,19 @@ export default function MarketingStats() {
   const [leads, setLeads] = useState<Lead[]>([])
   const [ads, setAds] = useState<AdsCfg>({ facebook: { account_id: '', has_token: false }, google_ads: { account_id: '', has_token: false }, maps: { account_id: '', has_token: false } })
   const [error, setError] = useState('')
+  const [overview, setOverview] = useState<OverviewData | null>(null)
   const canEdit = can('system.manage_settings')
 
   const load = useCallback(async () => {
     setError('')
     try {
-      const [m, l, a] = await Promise.all([
+      const [m, l, a, o] = await Promise.all([
         api.get<{ data: Metric[] }>('/marketing/metrics', { params: { month } }),
         api.get<ListResp<Lead>>('/leads', { params: { limit: 200, branch_id: branchId ?? undefined } }),
         api.get<{ data: AdsCfg }>('/marketing/ads'),
+        api.get<{ data: OverviewData }>('/marketing/overview', { params: { month } }).then((r) => r.data.data).catch(() => null),
       ])
+      setOverview(o)
       setMetrics(m.data.data)
       setLeads(l.data.data)
       setAds(a.data.data)
@@ -221,8 +230,9 @@ export default function MarketingStats() {
   const branches = useMemo(() => (user?.branches ?? []).filter((b) => !branchId || b.id === branchId), [user, branchId])
   const inMonth = useMemo(() => leads.filter((l) => l.created_at.slice(0, 7) === month), [leads, month])
   const signed = inMonth.filter((l) => l.status === 'converted')
-  const spendOf = (c: Channel) => metrics.find((x) => x.channel === c)?.spend ?? 0
-  const totalSpend = metrics.reduce((s, r) => s + r.spend, 0)
+  const autoSpend = { facebook_ads: overview?.platforms.facebook.spend ?? 0, google_ads: overview?.platforms.google_ads.spend ?? 0, google_maps: (overview?.platforms.maps.campaigns ?? []).reduce((s, c) => s + c.spend, 0) }
+  const spendOf = (c: Channel) => autoSpend[c] || (metrics.find((x) => x.channel === c)?.spend ?? 0)
+  const totalSpend = spendOf('facebook_ads') + spendOf('google_ads') + spendOf('google_maps')
   const byBranch = (rows: Lead[]) => branches.map((b) => ({ code: b.code, text: `${b.name} ${rows.filter((l) => l.branch_id === b.id).length}` }))
   const monthLabel = `${month.slice(5)}/${month.slice(0, 4)}`
 
@@ -273,10 +283,14 @@ export default function MarketingStats() {
             <StatCard label="Khách đã ký hợp đồng" value={signed.length} lines={byBranch(signed)} foot={signed.length === 0 ? 'Chưa có hợp đồng' : undefined} />
             <StatCard label="Doanh thu từ quảng cáo" value={fmtMoney(0)} lines={[]} foot="Chưa nối doanh thu với nguồn quảng cáo" />
           </div>
-          {section('facebook', 'Facebook', platformStatus('facebook') === 'Chưa kết nối' ? 'Chưa có số liệu Facebook. Kết nối hoặc nhập tay để xem chi tiêu và kết quả.' : 'Đã có thông tin Facebook cho tháng này. Mở cài đặt để xem hoặc sửa.', 'Kết nối Facebook')}
-          {section('google_ads', 'Google Ads (gồm Google Maps)', platformStatus('google_ads') === 'Chưa kết nối' ? 'Chưa có số liệu Google Ads. Kết nối hoặc nhập tay để xem chi tiêu và kết quả.' : 'Đã có thông tin Google Ads cho tháng này. Mở cài đặt để xem hoặc sửa.', 'Kết nối Google Ads')}
-          {section('maps', 'Hồ sơ Google Maps', 'Chưa có số liệu hồ sơ Google Maps (lượt xem, cuộc gọi, chỉ đường, đánh giá). Cần Google duyệt quyền API trước, có thể mất vài ngày.', 'Xem hướng dẫn')}
-          <p className="hint-muted">Số chi tiêu và kết quả hiện nhập tay theo tháng ở Cài đặt quảng cáo, mục Chung. Khách quan tâm và khách đã ký lấy từ mục Khách tiềm năng của hệ thống.</p>
+          <OverviewSections
+            data={overview ?? EMPTY_OVERVIEW(month)}
+            fallback={{
+              facebook: section('facebook', 'Facebook', platformStatus('facebook') === 'Chưa kết nối' ? 'Chưa có số liệu Facebook. Kết nối hoặc nhập tay để xem chi tiêu và kết quả.' : 'Đã có thông tin Facebook cho tháng này. Mở cài đặt để xem hoặc sửa.', 'Kết nối Facebook'),
+              google_ads: section('google_ads', 'Google Ads (gồm Google Maps)', platformStatus('google_ads') === 'Chưa kết nối' ? 'Chưa có số liệu Google Ads. Kết nối hoặc nhập tay để xem chi tiêu và kết quả.' : 'Đã có thông tin Google Ads cho tháng này. Mở cài đặt để xem hoặc sửa.', 'Kết nối Google Ads'),
+              maps: section('maps', 'Hồ sơ Google Maps', 'Chưa có số liệu hồ sơ Google Maps (lượt xem, cuộc gọi, chỉ đường, đánh giá). Cần Google duyệt quyền API trước, có thể mất vài ngày.', 'Xem hướng dẫn'),
+            }}
+          />
         </>
       )}
 

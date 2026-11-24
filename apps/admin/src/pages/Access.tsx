@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } fro
 import { api } from '../lib/api'
 import { fetchAll } from '../lib/fetchAll'
 import { apiError } from '../lib/errors'
-import { fmtDateTime, fmtMoney, fmtTime, reasonText } from '../lib/format'
+import { fmtDateTime, fmtMoney, reasonText } from '../lib/format'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
-import { BranchTag, Button, Chip, DataTable, EmptyState, Icon, Kpi, KpiRow, PageHeader, Panel, Select, type Column } from '../components/ui'
+import { BranchTag, Button, Chip, DataTable, Icon, Kpi, KpiRow, PageHeader, Panel, Select, type Column } from '../components/ui'
 import { DayTicketSale } from '../components/DayTicketSale'
+import { CheckinHeatmap } from '../components/CheckinHeatmap'
 import type { CheckinItem, CheckinResult, CheckinStats, Member } from '../types'
 
 const REFRESH_MS = 30000
@@ -34,7 +35,6 @@ function AccessLog() {
   const canCheckin = !!user?.can_checkin && can('checkins.create')
   const inputRef = useRef<HTMLInputElement>(null)
   const branches = useMemo(() => user?.branches ?? [], [user])
-  const [live, setLive] = useState<CheckinItem[]>([])
   const [rows, setRows] = useState<CheckinItem[]>([])
   const [date, setDate] = useState('')
   const [result, setResult] = useState('')
@@ -59,8 +59,7 @@ function AccessLog() {
     setError('')
     try {
       const day = new Date().toISOString().slice(0, 10)
-      const [l, h, st, pt, tk] = await Promise.all([
-        api.get('/checkins/live', { params: { branch_id: bid } }),
+      const [h, st, pt, tk] = await Promise.all([
         fetchAll<CheckinItem>('/checkins', { date: date || undefined, result: result || undefined, branch_id: bid }, 5),
         api.get('/reports/checkin-stats', { params: { branch_id: bid } }).then((r) => r.data.data as CheckinStats).catch(() => null),
         canPt ? api.get<{ data: { status: string }[] }>('/pt/sessions', { params: { from: day, to: day, branch_id: bid } }).then((r) => r.data.data.filter((s) => s.status === 'completed').length).catch(() => null) : Promise.resolve(null),
@@ -69,7 +68,6 @@ function AccessLog() {
       setTicketTotal(tk)
       setPtOut(pt)
       setStats(st)
-      setLive(l.data.data.items)
       setRows(h)
     } catch (e) {
       setError(apiError(e).message)
@@ -220,18 +218,7 @@ function AccessLog() {
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <Panel title="Đã check-in hôm nay" count={`${live.length} người`} flush>
-          {live.length === 0 && <EmptyState title="Chưa có ai check-in hôm nay" />}
-          {live.map((r) => (
-            <div key={r.id} className="recent is-live">
-              <span className="recent-time">{fmtTime(r.checked_in_at ?? r.created_at)}</span>
-              <div className="recent-main">
-                <div className="cell-main">{r.member.name}</div>
-                <div className="cell-sub">{r.member.code}</div>
-              </div>
-            </div>
-          ))}
-        </Panel>
+        <CheckinHeatmap branchId={bid} />
       </div>
 
       <h2 className="sec">Lịch sử</h2>

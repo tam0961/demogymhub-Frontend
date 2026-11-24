@@ -1583,6 +1583,11 @@ export const mockAdapter: AxiosAdapter = async (config) => {
       { key: 'unsigned', label: 'Hợp đồng chưa ký hoặc chưa kích hoạt', count: 2, impact: 3200000, detail: '', tone: 'warn' },
     ])
   }
+  if (url === '/reports/checkin-heatmap') {
+    need('checkins.read')
+    const heatmap = Array.from({ length: 7 }, (_, d) => Array.from({ length: 24 }, (_, h) => (h >= 6 && h <= 21 ? ((d + 1) * (h % 5) * 2) % 17 : 0)))
+    return ok({ days: 30, total_checkins: heatmap.flat().reduce((s, x) => s + x, 0), heatmap })
+  }
   if (url === '/reports/capacity') {
     need('reports.view')
     const heatmap = Array.from({ length: 7 }, (_, d) => Array.from({ length: 24 }, (_, h) => (h >= 6 && h <= 21 ? ((d + 1) * (h % 5) * 2) % 17 : 0)))
@@ -1683,6 +1688,30 @@ export const mockAdapter: AxiosAdapter = async (config) => {
       mktAds[p] = { account_id: body.account_id, has_token: mktAds[p].has_token || !!body.token }
     }
     return ok(mktAds)
+  }
+  if (url === '/marketing/overview') {
+    const mo = String(config.params?.month ?? new Date().toISOString().slice(0, 7))
+    const [yy, mm] = mo.split('-').map(Number)
+    const nowD = new Date()
+    const cur = yy === nowD.getFullYear() && mm === nowD.getMonth() + 1
+    const n = cur ? nowD.getDate() : new Date(yy, mm, 0).getDate()
+    const dates = Array.from({ length: n }, (_, i) => `${mo}-${String(i + 1).padStart(2, '0')}`)
+    const wave = (i: number, base: number, amp: number, seed: number) => Math.max(0, Math.round(base + amp * Math.sin(i * 0.9 + seed) + amp * 0.6 * Math.sin(i * 2.3 + seed * 2)))
+    const fbDaily = dates.map((d, i) => { const form = wave(i, 1, 1.2, 1); const msgs = wave(i, 4, 3, 2); return { date: d, spend: wave(i, 330000, 120000, 3) * 1, results: form + msgs, form, msgs } })
+    const ggDaily = dates.map((d, i) => ({ date: d, spend: i === n - 1 ? 10000 : wave(i, 68000, 14000, 4), results: i === n - 1 ? 0 : wave(i, 22, 8, 5), form: 0, msgs: 0 }))
+    const sum = (a: { spend: number; results: number }[], k: 'spend' | 'results') => a.reduce((s, x) => s + x[k], 0)
+    const mapsDaily = dates.map((d, i) => ({ date: d, maps: i < 5 ? 1200 + i * 200 : 0, search: i < 4 ? 90 : 0, calls: i < 4 ? 3 : 0, directions: i < 5 ? 30 - i * 4 : 0, web: i < 4 ? 2 : 0 }))
+    const tot = (k: 'maps' | 'search' | 'calls' | 'directions' | 'web') => mapsDaily.reduce((s, x) => s + x[k], 0)
+    return ok({
+      month: mo, today: dates[n - 1], days: n,
+      platforms: {
+        facebook: { has_data: true, synced_at: Date.now() - 8 * 60000, spend: sum(fbDaily, 'spend'), prev_spend: Math.round(sum(fbDaily, 'spend') / 0.97), results: sum(fbDaily, 'results'), clicks: 2160, impressions: 79535, daily: fbDaily,
+          campaigns: [{ name: 'TN-011126-video', status: 'active', kind: null, spend: 4100000, results: 52 }, { name: 'TN-011126', status: 'paused', kind: null, spend: 1500000, results: 27 }, { name: 'TN-111126 - Bản sao', status: 'active', kind: null, spend: 1400000, results: 22 }, { name: 'LLTC-Review phòng Gym - 091126', status: 'paused', kind: null, spend: 582000, results: 0 }] },
+        google_ads: { has_data: true, synced_at: Date.now() - 7 * 3600000, spend: sum(ggDaily, 'spend'), prev_spend: Math.round(sum(ggDaily, 'spend') / 19.66), results: sum(ggDaily, 'results'), clicks: 1513, impressions: 88727, daily: ggDaily, campaigns: [] },
+        maps: { has_data: true, synced_at: Date.now() - 15 * 86400000, data_until: `${mo}-07`, totals: { views: tot('maps') + tot('search'), calls: tot('calls'), directions: tot('directions'), web: tot('web'), msgs: 0, bookings: 0 }, prev: { views: Math.round((tot('maps') + tot('search')) / 0.27), calls: Math.round(tot('calls') / 0.18), directions: Math.round(tot('directions') / 0.23), web: Math.round(tot('web') / 0.25) }, daily: mapsDaily,
+          campaigns: [{ name: 'Google Map TH Gym', status: 'active', kind: 'Performance Max', spend: 1576381, results: 538 }] },
+      },
+    })
   }
   if (url === '/marketing/metrics') {
     if (method === 'put') {
