@@ -523,7 +523,7 @@ function ClientDetail({ c, d, onBack }: { c: Ctr; d: Shared; onBack: () => void 
         </section>
       )}
       {booking && <BookForm c={c} others={d.contracts.rows} onClose={() => setBooking(false)} onDone={() => { setBooking(false); void d.month.reload() }} />}
-      {c.status === 'active' && !booking && c.category !== 'pt_group' && <button type="button" className="pta-cta wide" onClick={() => setBooking(true)}>Đặt lịch buổi tập</button>}
+      {c.status === 'active' && (c.sessions_left ?? 0) > 0 && !booking && c.category !== 'pt_group' && <button type="button" className="pta-cta wide" onClick={() => setBooking(true)}>Đặt lịch buổi tập</button>}
       <div className="pta-actions">
         <a className="pta-cta dark" href={`https://zalo.me/${phone}`} target="_blank" rel="noreferrer"><Ico n="chat" size={18} /> Nhắn Zalo</a>
         <a className="pta-cta" href={`tel:${c.member.phone}`}><Ico n="phone" size={18} /> Gọi điện</a>

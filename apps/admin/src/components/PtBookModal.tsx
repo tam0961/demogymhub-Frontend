@@ -25,6 +25,8 @@ export function PtBookModal({ day, trainers, assign, edit, initial, onClose, onS
   const [time, setTime] = useState(edit ? vnTime(edit.start_at) : initial?.time ?? '09:00')
   const [duration, setDuration] = useState(edit ? String(Math.round((new Date(edit.end_at).getTime() - new Date(edit.start_at).getTime()) / 60000)) : '60')
   const [note, setNote] = useState('')
+  const [partnerId, setPartnerId] = useState('')
+  const [partners, setPartners] = useState<Contract[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const branch = branchId ?? (user?.branches.length === 1 ? user.branches[0].id : '')
@@ -49,6 +51,16 @@ export function PtBookModal({ day, trainers, assign, edit, initial, onClose, onS
       .catch(() => setContracts([]))
   }, [memberId, edit])
 
+  const isPair = !edit && !assign && contracts.find((c) => c.id === contractId)?.package.category === 'pt_1on2'
+  useEffect(() => {
+    setPartnerId('')
+    setPartners([])
+    if (!isPair || !trainerId) return
+    api.get<ListResp<Contract>>('/contracts', { params: { category: 'pt_1on2', status: 'active', limit: 100, branch_id: branch || undefined, pt_user_id: trainerId } })
+      .then((r) => setPartners(r.data.data.filter((c) => c.sessions_total != null && (c.sessions_left ?? 0) > 0 && c.pt?.id === trainerId && c.id !== contractId)))
+      .catch(() => setPartners([]))
+  }, [isPair, trainerId, contractId, branch])
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setBusy(true)
@@ -68,6 +80,7 @@ export function PtBookModal({ day, trainers, assign, edit, initial, onClose, onS
         member_id: memberId || null,
         trainer_id: trainerId,
         contract_id: contractId || null,
+        ...(isPair && partnerId ? { partner: { member_id: partners.find((c) => c.id === partnerId)!.member_id, contract_id: partnerId } } : {}),
         start_at: `${date}T${time}:00+07:00`,
         duration_min: Number(duration),
         note: note.trim() || null,
@@ -83,9 +96,9 @@ export function PtBookModal({ day, trainers, assign, edit, initial, onClose, onS
 
   return (
     <Modal
-      title={edit ? 'Sửa lịch buổi PT' : assign ? 'Gán khách vào ca' : 'Đặt buổi PT 1:1'}
+      title={edit ? 'Sửa lịch buổi PT' : assign ? 'Gán khách vào ca' : isPair ? 'Đặt buổi PT 1:2' : 'Đặt buổi PT 1:1'}
       onClose={onClose}
-      footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="pt-form" disabled={busy || (assign ? !memberId : !trainerId)}>{busy ? 'Đang lưu...' : edit ? 'Lưu thay đổi' : assign ? 'Gán khách' : 'Đặt buổi'}</Button></>}
+      footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="pt-form" disabled={busy || (assign ? !memberId : !trainerId) || (isPair && !partnerId)}>{busy ? 'Đang lưu...' : edit ? 'Lưu thay đổi' : assign ? 'Gán khách' : 'Đặt buổi'}</Button></>}
     >
       <form id="pt-form" className="form-grid" onSubmit={submit}>
         {error && <div className="form-error full" role="alert">{error}</div>}
@@ -105,6 +118,12 @@ export function PtBookModal({ day, trainers, assign, edit, initial, onClose, onS
             {contracts.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.package.name} (còn {c.sessions_left} buổi)</option>)}
           </Select>
         </Field>
+        {isPair && <Field label="Khách thứ 2 (gói PT 1:2 của PT này)" htmlFor="pt-partner" full>
+          <Select id="pt-partner" required value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+            <option value="" disabled>{!trainerId ? 'Chọn PT trước' : partners.length ? 'Chọn khách thứ 2' : 'PT này chưa có khách PT 1:2 khác còn buổi'}</option>
+            {partners.map((c) => <option key={c.id} value={c.id}>{c.member.name} (còn {c.sessions_left} buổi)</option>)}
+          </Select>
+        </Field>}
         {!assign && <Field label="PT" htmlFor="pt-trainer">
           <Select id="pt-trainer" required value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
             <option value="" disabled>Chọn PT</option>
