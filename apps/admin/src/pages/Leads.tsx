@@ -8,7 +8,8 @@ import { useBranch } from '../context/BranchContext'
 import { usePermission } from '../context/usePermission'
 import { ConfirmDialog } from '../components/Dialogs'
 import { Modal } from '../components/Modal'
-import { Button, Chip, DataTable, Field, Input, Select, Textarea, useToast, type Column } from '../components/ui'
+import { DateRangePicker, type DateRange } from '../components/DateRangePicker'
+import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, Panel, Select, Textarea, useToast, type Column } from '../components/ui'
 import type { Branch, Lead, LeadStatus, ListResp } from '../types'
 
 type Tab = 'all' | LeadStatus
@@ -17,6 +18,23 @@ type FilterKey = 'source' | 'reg_type' | 'pt_name' | 'outcome' | 'call_response'
 const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'source', label: 'Nguồn' }, { key: 'reg_type', label: 'Nhánh ĐK' }, { key: 'pt_name', label: 'PT tư vấn' }, { key: 'outcome', label: 'Tình trạng' }, { key: 'call_response', label: 'Phản hồi sau gọi' },
 ]
+const STAT_COLS = Object.keys(LEAD_STATUS) as LeadStatus[]
+
+function LeadStats({ rows }: { rows: Lead[] }) {
+  const n = (st: LeadStatus) => rows.filter((l) => l.status === st).length
+  return (
+    <Panel title="Thống kê" note={`${rows.length} khách`}>
+      <KpiRow>
+        <Kpi value={rows.length} label="Tổng khách" />
+        {STAT_COLS.map((st) => <Kpi key={st} value={n(st)} label={LEAD_STATUS[st].label} />)}
+        <Kpi value={rows.length ? `${((n('converted') / rows.length) * 100).toFixed(1)}%` : '-'} label="Tỷ lệ chốt" />
+      </KpiRow>
+    </Panel>
+  )
+}
+
+const dayOf = (iso: string) => new Date(iso).toLocaleDateString('sv-SE')
+const inRange = (iso: string, from: string, to: string) => (!from || dayOf(iso) >= from) && (!to || dayOf(iso) <= to)
 const EDITABLE: LeadStatus[] = ['new', 'contacted', 'trial_booked', 'lost']
 
 export function leadColumns(actions: { canEdit: boolean; onEdit: (l: Lead) => void; onConvert: (l: Lead) => void; pts?: { id: string; name: string }[]; onAssign?: (l: Lead, ptId: string | null) => void }, _branchOf?: (l: Lead) => Branch | undefined): Column<Lead>[] {
@@ -91,6 +109,9 @@ export default function Leads() {
   useEffect(() => { load() }, [load])
 
   const [fl, setFl] = useState<Record<FilterKey, string>>({ source: '', reg_type: '', pt_name: '', outcome: '', call_response: '' })
+  const [range, setRange] = useState<DateRange>({ from: '', to: '' })
+  const [showFilter, setShowFilter] = useState(false)
+  const activeFilters = FILTERS.filter((f) => fl[f.key]).length + (tab !== 'all' ? 1 : 0)
   const opts = useMemo(() => {
     const o = {} as Record<FilterKey, string[]>
     for (const f of FILTERS) o[f.key] = [...new Set(rows.map((l) => (l[f.key] ?? '').trim()).filter(Boolean))].sort()
@@ -98,8 +119,8 @@ export default function Leads() {
   }, [rows])
   const filtered = useMemo(() => {
     const k = q.trim().toLowerCase()
-    return rows.filter((l) => (tab === 'all' || l.status === tab) && FILTERS.every((f) => !fl[f.key] || (l[f.key] ?? '').trim() === fl[f.key]) && (!k || l.name.toLowerCase().includes(k) || l.phone.includes(k)))
-  }, [rows, tab, q, fl])
+    return rows.filter((l) => (tab === 'all' || l.status === tab) && FILTERS.every((f) => !fl[f.key] || (l[f.key] ?? '').trim() === fl[f.key]) && (!k || l.name.toLowerCase().includes(k) || l.phone.includes(k)) && inRange(l.created_at, range.from, range.to))
+  }, [rows, tab, q, fl, range])
   const [pts, setPts] = useState<{ id: string; name: string }[]>([])
   useEffect(() => {
     api.get<{ data: { id: string; name: string }[] }>('/contracts/pt-staff', { params: { branch_id: branchId ?? undefined } }).then((r) => setPts(r.data.data)).catch(() => setPts([]))
@@ -139,24 +160,41 @@ export default function Leads() {
         <h1>Khách tiềm năng</h1>
         <div className="members-filters">
           <input className="input" type="search" placeholder="Tìm tên, SĐT" aria-label="Tìm khách tiềm năng" value={q} onChange={(e) => setQ(e.target.value)} />
-          <Select aria-label="Lọc trạng thái" value={tab} onChange={(e) => setTab(e.target.value as Tab)}>
-            {TABS.map((t) => <option key={t.value} value={t.value}>{t.value === 'all' ? 'Mọi trạng thái' : t.label}</option>)}
-          </Select>
-          {FILTERS.map((f) => (
-            <Select key={f.key} aria-label={`Lọc ${f.label}`} value={fl[f.key]} onChange={(e) => setFl((x) => ({ ...x, [f.key]: e.target.value }))}>
-              <option value="">{f.label}: tất cả</option>
-              {opts[f.key].map((v) => <option key={v} value={v}>{v}</option>)}
-            </Select>
-          ))}
+          <Button onClick={() => setShowFilter(true)}>{activeFilters ? `Bộ lọc (${activeFilters})` : 'Bộ lọc'}</Button>
         </div>
-        <div className="page-action">
+        <div className="page-action" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span className="hint-muted">{filtered.length} khách</span>
+          <DateRangePicker value={range} onChange={setRange} />
           {can('leads.create') && <Button variant="primary" onClick={() => setEditing('new')}>Thêm khách</Button>}
         </div>
       </div>
+      <LeadStats rows={filtered} />
       <div className="card">
         <DataTable columns={columns} rows={filtered} rowKey={(l) => l.id} loading={loading} error={error} emptyText="Chưa có khách tiềm năng" itemLabel="khách" />
       </div>
+      {showFilter && (
+        <Modal
+          title="Bộ lọc"
+          onClose={() => setShowFilter(false)}
+          footer={<><Button onClick={() => { setTab('all'); setFl({ source: '', reg_type: '', pt_name: '', outcome: '', call_response: '' }) }}>Xóa lọc</Button><Button variant="primary" onClick={() => setShowFilter(false)}>Xong</Button></>}
+        >
+          <div className="form-grid">
+            <Field label="Trạng thái" htmlFor="f-status">
+              <Select id="f-status" value={tab} onChange={(e) => setTab(e.target.value as Tab)}>
+                {TABS.map((t) => <option key={t.value} value={t.value}>{t.value === 'all' ? 'Tất cả' : t.label}</option>)}
+              </Select>
+            </Field>
+            {FILTERS.map((f) => (
+              <Field key={f.key} label={f.label} htmlFor={`f-${f.key}`}>
+                <Select id={`f-${f.key}`} value={fl[f.key]} onChange={(e) => setFl((x) => ({ ...x, [f.key]: e.target.value }))}>
+                  <option value="">Tất cả</option>
+                  {opts[f.key].map((v) => <option key={v} value={v}>{v}</option>)}
+                </Select>
+              </Field>
+            ))}
+          </div>
+        </Modal>
+      )}
       {editing && (
         <LeadModal lead={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); toast('Đã lưu'); load() }} />
       )}

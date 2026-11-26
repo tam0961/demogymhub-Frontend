@@ -838,3 +838,11 @@ table.table thead th { font-size: 14.5px; font-weight: 700; letter-spacing: 0.1p
 .cn-grid .cn-break + .field { grid-column-start: 1; }
 .cn-grid .field { position: relative; }
 .cn-grid .field:has(#cn-paid) .field-hint { position: absolute; top: 2px; right: 0; margin: 0; font-size: 12px; }
+
+.ptg-corner, .ptg-head { background: var(--brand); color: var(--brand-ink); }
+.ptg-head small, .ptg-head b { color: var(--brand-ink); }
+.ptg-head.off { background: #d6d6d2; }
+.ptg-head.off b, .ptg-head.off small { color: #444; }
+@media (min-width: 900px) {
+  main.content:has(.ptg-scroll) > .ptg-scroll { height: auto; min-height: 0; overflow-y: visible; }
+}

@@ -584,3 +584,29 @@ table.table thead th[aria-sort] { background: var(--brand); }
 .cls-table .table th, .cls-table .table td { padding-left: 12px; padding-right: 12px; }
 .cls-table .table td { overflow: hidden; text-overflow: ellipsis; }
 .gcal-title { font-size: clamp(11px, 6.2cqw, 14px); letter-spacing: 0; }
+
+.drp { position: relative; }
+.drp-trigger { white-space: nowrap; }
+.drp-pop { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; display: flex; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25); max-width: 94vw; }
+.drp-side { padding: 14px 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; min-width: 170px; }
+.drp-preset { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; white-space: nowrap; }
+.drp-preset input { accent-color: var(--brand-deep); }
+.drp-main { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.drp-months { display: flex; gap: 24px; }
+.drp-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 32px; }
+.drp-nav-gap { width: 32px; }
+.drp-grid { display: grid; grid-template-columns: repeat(7, 36px); row-gap: 2px; margin-top: 6px; }
+.drp-dow { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0; }
+.drp-day { height: 34px; border: 0; background: transparent; border-radius: 6px; font: inherit; font-size: 14px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.drp-day:hover { background: var(--brand-soft); }
+.drp-day.drp-mid { background: var(--brand-soft); border-radius: 0; }
+.drp-day.drp-edge { background: var(--brand); color: var(--brand-ink); font-weight: 600; }
+.drp-inputs { display: flex; align-items: center; gap: 8px; }
+.drp-inputs .input { width: 160px; }
+.drp-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.drp-foot .hint-muted { margin-right: auto; }
+@media (max-width: 760px) {
+  .drp-pop { position: fixed; inset: 8px; flex-direction: column; overflow-y: auto; }
+  .drp-side { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; max-height: none; }
+  .drp-months { flex-direction: column; gap: 8px; }
+}
