@@ -429,16 +429,19 @@ function Schedule({ d }: { d: Shared }) {
   )
 }
 
-function BookForm({ c, onDone, onClose }: { c: Ctr; onDone: () => void; onClose: () => void }) {
+function BookForm({ c, others, onDone, onClose }: { c: Ctr; others: Ctr[]; onDone: () => void; onClose: () => void }) {
   const toast = useToast()
   const [date, setDate] = useState(addDay(localDay(), 1))
   const [time, setTime] = useState('18:00')
   const [dur, setDur] = useState('60')
   const [busy, setBusy] = useState(false)
+  const pair = c.category === 'pt_1on2'
+  const partners = others.filter((o) => o.id !== c.id && o.category === 'pt_1on2' && o.status === 'active' && (o.sessions_left ?? 0) > 0)
+  const [partner, setPartner] = useState('')
   const book = async () => {
     setBusy(true)
     try {
-      await api.post('/pt-app/sessions', { contract_id: c.id, start_at: new Date(`${date}T${time}:00`).toISOString(), duration_min: Number(dur) })
+      await api.post('/pt-app/sessions', { contract_id: c.id, ...(pair ? { partner_contract_id: partner } : {}), start_at: new Date(`${date}T${time}:00`).toISOString(), duration_min: Number(dur) })
       toast('Đã đặt lịch')
       onDone()
     } catch (e) {
@@ -449,7 +452,15 @@ function BookForm({ c, onDone, onClose }: { c: Ctr; onDone: () => void; onClose:
   }
   return (
     <section className="pta-card pta-form">
-      <header className="pta-cardhead"><b>Đặt lịch PT 1:1 cho {givenName(c.member.name)}</b></header>
+      <header className="pta-cardhead"><b>Đặt lịch {pair ? 'PT 1:2' : 'PT 1:1'} cho {givenName(c.member.name)}</b></header>
+      {pair && (
+        <label>Khách thứ 2 (gói PT 1:2 của bạn)
+          <select className="pta-select" value={partner} onChange={(e) => setPartner(e.target.value)}>
+            <option value="">{partners.length ? 'Chọn khách thứ 2' : 'Chưa có khách PT 1:2 khác còn buổi'}</option>
+            {partners.map((o) => <option key={o.id} value={o.id}>{o.member.name}, còn {o.sessions_left} buổi</option>)}
+          </select>
+        </label>
+      )}
       <label>Ngày<input className="pta-select" type="date" min={localDay()} value={date} onChange={(e) => setDate(e.target.value)} /></label>
       <label>Giờ bắt đầu<input className="pta-select" type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} /></label>
       <label>Thời lượng
@@ -461,7 +472,7 @@ function BookForm({ c, onDone, onClose }: { c: Ctr; onDone: () => void; onClose:
       </label>
       <div className="pta-actions">
         <button type="button" className="pta-cta dark" onClick={onClose}>Đóng</button>
-        <button type="button" className="pta-cta" disabled={busy || !date || !time} onClick={book}>Đặt lịch</button>
+        <button type="button" className="pta-cta" disabled={busy || !date || !time || (pair && !partner)} onClick={book}>Đặt lịch</button>
       </div>
     </section>
   )
@@ -511,7 +522,7 @@ function ClientDetail({ c, d, onBack }: { c: Ctr; d: Shared; onBack: () => void 
           {history.slice(0, 8).map((s) => <div key={s.id} className="pta-row"><div className="pta-grow"><b>{fmtDate(dayOf(s.start_at))}</b><div className="pta-sub">{fmtTime(s.start_at)} – {fmtTime(s.end_at)}</div></div><Pill tone="ok">Đã hoàn thành</Pill></div>)}
         </section>
       )}
-      {booking && <BookForm c={c} onClose={() => setBooking(false)} onDone={() => { setBooking(false); void d.month.reload() }} />}
+      {booking && <BookForm c={c} others={d.contracts.rows} onClose={() => setBooking(false)} onDone={() => { setBooking(false); void d.month.reload() }} />}
       {c.status === 'active' && !booking && c.category !== 'pt_group' && <button type="button" className="pta-cta wide" onClick={() => setBooking(true)}>Đặt lịch buổi tập</button>}
       <div className="pta-actions">
         <a className="pta-cta dark" href={`https://zalo.me/${phone}`} target="_blank" rel="noreferrer"><Ico n="chat" size={18} /> Nhắn Zalo</a>
