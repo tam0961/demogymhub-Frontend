@@ -223,7 +223,7 @@ export default function ContractDetail() {
             note={training && training.summary.sessions_total != null ? `Còn lại ${training.summary.sessions_left ?? 0} / ${training.summary.sessions_total} buổi` : undefined}
             flush
           >
-            <DataTable columns={trainCols} rows={training?.rows ?? []} rowKey={(r) => r.id} pageSize={25} pageSizes={[25, 50]} emptyText="Chưa có buổi tập nào được PT hoàn thành" itemLabel="buổi" />
+            <DataTable columns={trainCols} rows={training?.rows ?? []} rowKey={(r) => r.id} pageSize={10} pageSizes={[10, 25, 50]} emptyText="Chưa có buổi tập nào được PT hoàn thành" itemLabel="buổi" />
           </Panel>
         </div>
       )}

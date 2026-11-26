@@ -9,9 +9,95 @@ import { hasHsd } from '../lib/pt'
 import { METHOD_LABEL, downloadBlob, fmtDate, fmtMoney } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { RequirePermission } from '../context/usePermission'
-import { Button, Chip, DataTable, Icon, Select, type Column } from '../components/ui'
+import { Modal } from '../components/Modal'
+import { Button, Chip, DataTable, Field, Icon, Input, Select, type Column } from '../components/ui'
 import ContractNew from './ContractNew'
 import type { Contract } from '../types'
+
+interface ContractFilters {
+  pkg: string; kind: string; signFrom: string; signTo: string; startFrom: string; startTo: string; endFrom: string; endTo: string
+  debt: string; sessions: string; sale: string
+}
+const NO_FILTERS: ContractFilters = { pkg: '', kind: '', signFrom: '', signTo: '', startFrom: '', startTo: '', endFrom: '', endTo: '', debt: '', sessions: '', sale: '' }
+
+function applyContractFilters(rows: Contract[], f: ContractFilters): Contract[] {
+  return rows.filter((c) => {
+    const sign = (c.signed_at ?? c.created_at ?? '').slice(0, 10)
+    const start = c.start_date?.slice(0, 10) ?? ''
+    const end = c.end_date?.slice(0, 10) ?? ''
+    if (f.pkg && c.package.name !== f.pkg) return false
+    if (f.kind && c.package.category !== f.kind) return false
+    if (f.signFrom && (!sign || sign < f.signFrom)) return false
+    if (f.signTo && (!sign || sign > f.signTo)) return false
+    if (f.startFrom && (!start || start < f.startFrom)) return false
+    if (f.startTo && (!start || start > f.startTo)) return false
+    if (f.endFrom && (!end || end < f.endFrom)) return false
+    if (f.endTo && (!end || end > f.endTo)) return false
+    if (f.debt === 'yes' && !(c.debt_amount > 0)) return false
+    if (f.debt === 'no' && c.debt_amount > 0) return false
+    if (f.sessions === 'left' && !(c.sessions_total != null && (c.sessions_left ?? 0) > 0)) return false
+    if (f.sessions === 'none' && !(c.sessions_total != null && (c.sessions_left ?? 0) <= 0)) return false
+    if (f.sale && (c.sale?.name ?? '') !== f.sale) return false
+    return true
+  })
+}
+
+function ContractFilterModal({ value, packages, sales, onApply, onClose }: { value: ContractFilters; packages: string[]; sales: string[]; onApply: (f: ContractFilters) => void; onClose: () => void }) {
+  const [f, setF] = useState<ContractFilters>(value)
+  const set = (k: keyof ContractFilters) => (e: { target: { value: string } }) => setF((x) => ({ ...x, [k]: e.target.value }))
+  return (
+    <Modal
+      title="Bộ lọc hợp đồng"
+      onClose={onClose}
+      footer={<><Button onClick={() => { setF(NO_FILTERS); onApply(NO_FILTERS) }}>Xóa bộ lọc</Button><Button variant="primary" onClick={() => onApply(f)}>Áp dụng</Button></>}
+    >
+      <p className="hint-muted" style={{ marginBottom: 12 }}>Chọn điều kiện rồi bấm Áp dụng. Bộ lọc dùng chung với ô tìm kiếm, ô trạng thái và ô PT.</p>
+      <div className="form-grid">
+        <Field label="Gói" htmlFor="cf-pkg">
+          <Select id="cf-pkg" value={f.pkg} onChange={set('pkg')}>
+            <option value="">Tất cả gói</option>
+            {packages.map((p) => <option key={p} value={p}>{p}</option>)}
+          </Select>
+        </Field>
+        <Field label="Loại gói" htmlFor="cf-kind">
+          <Select id="cf-kind" value={f.kind} onChange={set('kind')}>
+            <option value="">Tất cả</option>
+            <option value="member">Gói member</option>
+            <option value="pt_1on1">Gói PT 1-1</option>
+            <option value="pt_1on2">Gói PT 1-2</option>
+            <option value="pt_group">Gói PT nhóm</option>
+          </Select>
+        </Field>
+        <Field label="Ký từ ngày" htmlFor="cf-sf"><Input id="cf-sf" type="date" value={f.signFrom} onChange={set('signFrom')} /></Field>
+        <Field label="Ký đến ngày" htmlFor="cf-st"><Input id="cf-st" type="date" value={f.signTo} onChange={set('signTo')} /></Field>
+        <Field label="Bắt đầu từ ngày" htmlFor="cf-bf"><Input id="cf-bf" type="date" value={f.startFrom} onChange={set('startFrom')} /></Field>
+        <Field label="Bắt đầu đến ngày" htmlFor="cf-bt"><Input id="cf-bt" type="date" value={f.startTo} onChange={set('startTo')} /></Field>
+        <Field label="Hết hạn từ ngày" htmlFor="cf-ef"><Input id="cf-ef" type="date" value={f.endFrom} onChange={set('endFrom')} /></Field>
+        <Field label="Hết hạn đến ngày" htmlFor="cf-et"><Input id="cf-et" type="date" value={f.endTo} onChange={set('endTo')} /></Field>
+        <Field label="Công nợ" htmlFor="cf-debt">
+          <Select id="cf-debt" value={f.debt} onChange={set('debt')}>
+            <option value="">Tất cả</option>
+            <option value="yes">Còn nợ</option>
+            <option value="no">Không nợ</option>
+          </Select>
+        </Field>
+        <Field label="Số buổi PT" htmlFor="cf-sessions">
+          <Select id="cf-sessions" value={f.sessions} onChange={set('sessions')}>
+            <option value="">Tất cả</option>
+            <option value="left">Còn buổi</option>
+            <option value="none">Hết buổi</option>
+          </Select>
+        </Field>
+        <Field label="Sale" htmlFor="cf-sale">
+          <Select id="cf-sale" value={f.sale} onChange={set('sale')}>
+            <option value="">Tất cả</option>
+            {sales.map((n) => <option key={n} value={n}>{n}</option>)}
+          </Select>
+        </Field>
+      </div>
+    </Modal>
+  )
+}
 
 export default function Contracts() {
   const { branchId } = useBranch()
@@ -22,6 +108,8 @@ export default function Contracts() {
   const [q, setQ] = useState('')
   const [status, setStatus] = useState('')
   const [ptId, setPtId] = useState('')
+  const [filters, setFilters] = useState<ContractFilters>(NO_FILTERS)
+  const [filterOpen, setFilterOpen] = useState(false)
   const [pts, setPts] = useState<{ id: string; name: string }[]>([])
   const [rows, setRows] = useState<Contract[]>([])
   const [selected, setSelected] = useState<string[]>([])
@@ -48,12 +136,15 @@ export default function Contracts() {
 
   const filtered = useMemo(() => {
     const k = q.trim().toLowerCase()
-    return rows.filter((c) => {
+    return applyContractFilters(rows, filters).filter((c) => {
       if (status && contractStatusLabel(c).label !== status) return false
       if (!k) return true
       return c.code.toLowerCase().includes(k) || c.member.name.toLowerCase().includes(k) || c.member.code.toLowerCase().includes(k) || c.member.phone.includes(k)
     })
-  }, [rows, q, status])
+  }, [rows, q, status, filters])
+  const packageNames = useMemo(() => [...new Set(rows.map((c) => c.package.name))].sort(), [rows])
+  const saleNames = useMemo(() => [...new Set(rows.flatMap((c) => (c.sale?.name ? [c.sale.name] : [])))].sort(), [rows])
+  const activeFilters = Object.values(filters).filter(Boolean).length
 
   const exportCsv = () => downloadBlob(new Blob(['﻿' + contractsToCSV(filtered)], { type: 'text/csv;charset=utf-8' }), 'hop-dong.csv')
 
@@ -98,6 +189,7 @@ export default function Contracts() {
             <option value="">Tất cả PT</option>
             {pts.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
           </Select>
+          <Button onClick={() => setFilterOpen(true)}>Bộ lọc{activeFilters ? ` (${activeFilters})` : ''}</Button>
         </div>
         <div className="page-action">
           <span className="hint-muted">{filtered.length} hợp đồng</span>
@@ -121,6 +213,7 @@ export default function Contracts() {
           itemLabel="hợp đồng"
         />
       </div>
+      {filterOpen && <ContractFilterModal value={filters} packages={packageNames} sales={saleNames} onClose={() => setFilterOpen(false)} onApply={(f) => { setFilters(f); setFilterOpen(false) }} />}
       {creating && (
         <RequirePermission permission="contracts.create">
           <ContractNew
