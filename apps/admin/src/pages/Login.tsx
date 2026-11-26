@@ -15,7 +15,9 @@ const MESSAGES: Record<string, string> = {
 export default function Login() {
   const { user, ready, login } = useAuth()
   const loc = useLocation()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => {
+    try { return localStorage.getItem('gh_last_user') ?? '' } catch { return '' }
+  })
   const [password, setPassword] = useState('')
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
@@ -30,6 +32,7 @@ export default function Login() {
     setError('')
     try {
       await login(email.trim(), password)
+      try { localStorage.setItem('gh_last_user', email.trim()) } catch { /* storage unavailable */ }
     } catch (err) {
       const a = apiError(err)
       setError(MESSAGES[a.code] ?? a.message)
@@ -46,7 +49,7 @@ export default function Login() {
         <p className="login-sub">Nhập tài khoản để vào hệ thống quản lý.</p>
         {error && <div className="form-error" role="alert">{error}</div>}
         <Field label="Tên đăng nhập" htmlFor="email">
-          <Input id="email" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="username" autoFocus required value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input id="email" type="text" autoCapitalize="none" autoCorrect="off" autoComplete="username" autoFocus={!email} required value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Mật khẩu" htmlFor="password">
           <div className="pw-wrap">
