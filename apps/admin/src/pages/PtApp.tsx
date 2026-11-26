@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
@@ -8,12 +8,12 @@ import { useToast } from '../components/Toast'
 import './ptApp.css'
 
 type Tab = 'home' | 'schedule' | 'clients' | 'leads' | 'settings'
-type Sub = null | 'stats'
+type Sub = null | 'stats' | 'off'
 
 interface Person { id: string; code: string; name: string; phone: string }
 interface Sess { id: string; start_at: string; end_at: string; status: string; note: string | null; kind: 'pt_1on1' | 'pt_1on2'; member: Person | null; contract_code: string | null; sessions_left: number | null }
 interface Cls { id: string; title: string | null; muscle_group: string | null; trainer: { id: string; name: string } | null; mine: boolean; start_at: string; end_at: string; capacity: number; status: string; registered: number; registrations: { id: string; name: string; phone: string; status: string }[] }
-interface Ctr { id: string; code: string; status: string; member: Person; package_name: string; category: string; sessions_total: number | null; sessions_left: number | null; start_date: string | null; end_date: string | null; total_amount: number; paid_amount: number }
+interface Ctr { id: string; code: string; status: string; member: Person; package_name: string; category: string; sessions_total: number | null; sessions_left: number | null; start_date: string | null; end_date: string | null; total_amount: number; paid_amount: number; last_active: string | null; off_track: boolean }
 interface LeadRow { id: string; name: string; phone: string; source: string | null; interest: string | null; status: string; note: string | null; created_at: string }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -142,7 +142,40 @@ function useComplete(reload: () => Promise<void>) {
   return { busy, complete }
 }
 
-function SessionCard({ g, today, busy, onDone }: { g: Sess[]; today: string; busy: string; onDone: (id: string) => void }) {
+function NoteBox({ s, onSaved }: { s: Sess; onSaved: () => void }) {
+  const toast = useToast()
+  const [open, setOpen] = useState(false)
+  const [text, setText] = useState(s.note ?? '')
+  const save = async () => {
+    try {
+      await api.patch(`/pt-app/sessions/${s.id}/note`, { note: text.trim() || null })
+      toast('Đã lưu ghi chú')
+      setOpen(false)
+      onSaved()
+    } catch (e) {
+      toast(apiError(e).message, true)
+    }
+  }
+  if (!open) {
+    return (
+      <div>
+        {s.note && <div className="pta-sub">Ghi chú: {s.note}</div>}
+        <button type="button" className="pta-link pta-link0" onClick={() => setOpen(true)}>{s.note ? 'Sửa ghi chú' : 'Ghi chú buổi tập'}</button>
+      </div>
+    )
+  }
+  return (
+    <div className="pta-edit pta-edit0">
+      <textarea className="pta-select" aria-label="Ghi chú buổi tập" rows={3} placeholder="Kết quả, mục tiêu, lưu ý cho buổi sau..." value={text} onChange={(e) => setText(e.target.value)} />
+      <div className="pta-actions">
+        <button type="button" className="pta-cta dark" onClick={() => setOpen(false)}>Đóng</button>
+        <button type="button" className="pta-cta" onClick={save}>Lưu</button>
+      </div>
+    </div>
+  )
+}
+
+function SessionCard({ g, today, busy, onDone, onSaved }: { g: Sess[]; today: string; busy: string; onDone: (id: string) => void; onSaved: () => void }) {
   const f = g[0]
   const st = SESSION_STATUS[f.status] ?? SESSION_STATUS.scheduled
   const canDone = dayOf(f.start_at) <= today
@@ -155,7 +188,8 @@ function SessionCard({ g, today, busy, onDone }: { g: Sess[]; today: string; bus
           <Pill tone={st.tone}>{st.label}</Pill>
         </div>
         {g.map((s) => (
-          <div key={s.id} className="pta-who">
+          <div key={s.id} className="pta-one">
+          <div className="pta-who">
             <Avatar name={s.member?.name ?? '?'} />
             <div className="pta-grow">
               <div className="pta-name">{s.member?.name ?? 'Chưa gán khách'}</div>
@@ -164,6 +198,8 @@ function SessionCard({ g, today, busy, onDone }: { g: Sess[]; today: string; bus
             {s.status === 'scheduled' && s.member && canDone && (
               <button type="button" className="pta-btn" disabled={busy === s.id} onClick={() => onDone(s.id)}>Đã dạy</button>
             )}
+          </div>
+          {s.member && <NoteBox s={s} onSaved={onSaved} />}
           </div>
         ))}
       </div>
@@ -193,6 +229,7 @@ function Home({ d, go, name }: { d: Shared; go: (t: Tab, s?: Sub) => void; name:
   const active = d.contracts.rows.filter((c) => c.status === 'active')
   const soon = active.filter((c) => (c.sessions_left != null && c.sessions_left <= 3) || (c.end_date && new Date(c.end_date).getTime() - now <= 7 * 86400000))
   const debts = active.filter((c) => c.total_amount - c.paid_amount > 0)
+  const offTrack = active.filter((c) => c.off_track)
   const week = mondayOf(today)
   const weekDone = d.month.rows.filter((s) => s.status === 'completed' && dayOf(s.start_at) >= week).length
   const items = [
@@ -234,7 +271,7 @@ function Home({ d, go, name }: { d: Shared; go: (t: Tab, s?: Sub) => void; name:
 
         <section className="pta-card">
           <header className="pta-cardhead"><b>Việc phải làm</b></header>
-          {pending.length + newLeads.length + soon.length + debts.length === 0 && <Empty text="Không có việc tồn đọng." />}
+          {pending.length + newLeads.length + soon.length + debts.length + offTrack.length === 0 && <Empty text="Không có việc tồn đọng." />}
           {pending.map((s) => (
             <div key={s.id} className="pta-row">
               <div className="pta-grow"><b>Xác nhận đã dạy</b><div className="pta-sub">{fmtTime(s.start_at)} · {s.member?.name}</div></div>
@@ -243,6 +280,7 @@ function Home({ d, go, name }: { d: Shared; go: (t: Tab, s?: Sub) => void; name:
           ))}
           {newLeads.length > 0 && <button type="button" className="pta-task" onClick={() => go('leads')}><b>{newLeads.length} lead mới</b> chưa liên hệ: {newLeads.slice(0, 3).map((l) => l.name).join(', ')}{newLeads.length > 3 ? '...' : ''}</button>}
           {soon.length > 0 && <button type="button" className="pta-task" onClick={() => go('clients')}><b>{soon.length} khách</b> sắp hết buổi hoặc hết hạn: {soon.slice(0, 3).map((c) => c.member.name).join(', ')}{soon.length > 3 ? '...' : ''}</button>}
+          {offTrack.length > 0 && <button type="button" className="pta-task" onClick={() => go('clients', 'off')}><b>{offTrack.length} khách off track</b> (quá 14 ngày chưa tập): {offTrack.slice(0, 3).map((c) => c.member.name).join(', ')}{offTrack.length > 3 ? '...' : ''}</button>}
           {debts.length > 0 && <button type="button" className="pta-task" onClick={() => go('clients')}><b>{debts.length} khách</b> còn nợ hợp đồng</button>}
         </section>
 
@@ -259,6 +297,52 @@ function Home({ d, go, name }: { d: Shared; go: (t: Tab, s?: Sub) => void; name:
   )
 }
 
+function ClassAttend({ c, today, onChanged }: { c: Cls; today: string; onChanged: () => void }) {
+  const toast = useToast()
+  const [busy, setBusy] = useState('')
+  const mark = async (id: string, status: 'attended' | 'absent') => {
+    setBusy(id)
+    try {
+      await api.post(`/pt/classes/registrations/${id}/attendance`, { status })
+      onChanged()
+    } catch (e) {
+      toast(apiError(e).message, true)
+    } finally {
+      setBusy('')
+    }
+  }
+  const finish = async () => {
+    setBusy(c.id)
+    try {
+      await api.post(`/pt/classes/${c.id}/complete`, {})
+      toast('Đã hoàn thành lớp')
+      onChanged()
+    } catch (e) {
+      toast(apiError(e).message, true)
+    } finally {
+      setBusy('')
+    }
+  }
+  const canMark = dayOf(c.start_at) <= today && c.status !== 'cancelled'
+  return (
+    <div className="pta-attend">
+      {c.registrations.length === 0 && <div className="pta-sub">Chưa có học viên đăng ký.</div>}
+      {c.registrations.map((r) => (
+        <div key={r.id} className="pta-att">
+          <span className="pta-grow">{r.name} {tel(r.phone)}</span>
+          {canMark ? (
+            <>
+              <button type="button" disabled={busy === r.id} className={r.status === 'attended' ? 'on ok' : ''} onClick={() => mark(r.id, 'attended')}>Có mặt</button>
+              <button type="button" disabled={busy === r.id} className={r.status === 'absent' ? 'on bad' : ''} onClick={() => mark(r.id, 'absent')}>Vắng</button>
+            </>
+          ) : <span className="pta-sub">{r.status === 'attended' ? 'Có mặt' : r.status === 'absent' ? 'Vắng' : 'Đã đăng ký'}</span>}
+        </div>
+      ))}
+      {canMark && c.status === 'scheduled' && <button type="button" className="pta-cta" disabled={busy === c.id} onClick={finish}>Hoàn thành lớp</button>}
+    </div>
+  )
+}
+
 function Schedule({ d }: { d: Shared }) {
   const today = localDay()
   const [seg, setSeg] = useState<'pt' | 'class'>('pt')
@@ -267,10 +351,23 @@ function Schedule({ d }: { d: Shared }) {
   const days = Array.from({ length: 7 }, (_, i) => addDay(week, i))
   const sess = useLoad<Sess>('/pt-app/schedule', { from: week, to: addDay(week, 6) })
   const cls = useLoad<Cls>('/pt-app/classes', { from: week, to: addDay(week, 6) })
+  const off = useLoad<string>('/pt-app/off', { from: week, to: addDay(week, 6) })
+  const toast = useToast()
+  const isOff = off.rows.includes(day)
+  const toggleOff = async () => {
+    try {
+      await api.put('/pt-app/off', { date: day, off: !isOff })
+      toast(isOff ? 'Đã bỏ báo OFF' : 'Đã báo OFF ngày này')
+      await off.reload()
+    } catch (e) {
+      toast(apiError(e).message, true)
+    }
+  }
   const { busy, complete } = useComplete(async () => { await sess.reload(); await d.month.reload() })
   const groups = groupSessions(sess.rows.filter((s) => dayOf(s.start_at) === day))
   const countOf = (iso: string) => sess.rows.filter((s) => dayOf(s.start_at) === iso && s.status !== 'cancelled').length
   const clsDays = [...new Set(cls.rows.map((c) => dayOf(c.start_at)))]
+  const [openCls, setOpenCls] = useState('')
 
   return (
     <Page title="Lịch tập">
@@ -286,13 +383,14 @@ function Schedule({ d }: { d: Shared }) {
           <div className="pta-strip">
             {days.map((iso) => (
               <button key={iso} type="button" className={`${day === iso ? 'on' : ''} ${iso === today ? 'today' : ''}`} aria-pressed={day === iso} onClick={() => setDay(iso)}>
-                <small>{dow(iso)}</small><b>{iso.slice(8)}/{iso.slice(5, 7)}</b>{countOf(iso) > 0 && <i>{countOf(iso)}</i>}
+                <small>{dow(iso)}</small><b>{iso.slice(8)}/{iso.slice(5, 7)}</b>{off.rows.includes(iso) ? <em>OFF</em> : countOf(iso) > 0 && <i>{countOf(iso)}</i>}
               </button>
             ))}
           </div>
+          <button type="button" className={`pta-off ${isOff ? 'on' : ''}`} disabled={day < today} onClick={toggleOff}>{isOff ? 'Đang báo OFF - bấm để bỏ' : 'Báo OFF ngày này'}</button>
           {sess.err && <p className="pta-err">{sess.err}</p>}
           {!sess.loading && groups.length === 0 && <Empty text="Không có buổi dạy trong ngày này." />}
-          {groups.map((g) => <SessionCard key={g[0].id} g={g} today={today} busy={busy} onDone={complete} />)}
+          {groups.map((g) => <SessionCard key={g[0].id} g={g} today={today} busy={busy} onDone={complete} onSaved={() => void sess.reload()} />)}
         </>
       )}
 
@@ -307,15 +405,19 @@ function Schedule({ d }: { d: Shared }) {
                 <thead><tr><th>Giờ</th><th>PT</th><th>Học viên</th></tr></thead>
                 <tbody>
                   {cls.rows.filter((c) => dayOf(c.start_at) === iso).map((c) => (
-                    <tr key={c.id} className={`${c.mine ? 'pta-mine' : ''} ${c.status === 'cancelled' ? 'pta-off' : ''}`}>
+                    <Fragment key={c.id}>
+                    <tr className={`${c.mine ? 'pta-mine pta-tap' : ''} ${c.status === 'cancelled' ? 'pta-offrow' : ''}`} onClick={c.mine ? () => setOpenCls(openCls === c.id ? '' : c.id) : undefined}>
                       <td>{fmtTime(c.start_at)}</td>
                       <td>{c.trainer ? givenName(c.trainer.name) : '-'}</td>
                       <td>
                         <b className={c.registered >= c.capacity ? 'pta-redtx' : ''}>{c.registered}/{c.capacity}</b>
                         {c.registrations.length > 0 && <span> {c.registrations.map((r) => givenName(r.name)).join(', ')}</span>}
                         {c.status === 'cancelled' && <span> (hủy)</span>}
+                        {c.status === 'completed' && <span> (xong)</span>}
                       </td>
                     </tr>
+                    {c.mine && openCls === c.id && <tr className="pta-mine"><td colSpan={3}><ClassAttend c={c} today={today} onChanged={() => void cls.reload()} /></td></tr>}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -327,8 +429,47 @@ function Schedule({ d }: { d: Shared }) {
   )
 }
 
+function BookForm({ c, onDone, onClose }: { c: Ctr; onDone: () => void; onClose: () => void }) {
+  const toast = useToast()
+  const [date, setDate] = useState(addDay(localDay(), 1))
+  const [time, setTime] = useState('18:00')
+  const [dur, setDur] = useState('60')
+  const [busy, setBusy] = useState(false)
+  const book = async () => {
+    setBusy(true)
+    try {
+      await api.post('/pt-app/sessions', { contract_id: c.id, start_at: new Date(`${date}T${time}:00`).toISOString(), duration_min: Number(dur) })
+      toast('Đã đặt lịch')
+      onDone()
+    } catch (e) {
+      toast(apiError(e).message, true)
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <section className="pta-card pta-form">
+      <header className="pta-cardhead"><b>Đặt lịch PT 1:1 cho {givenName(c.member.name)}</b></header>
+      <label>Ngày<input className="pta-select" type="date" min={localDay()} value={date} onChange={(e) => setDate(e.target.value)} /></label>
+      <label>Giờ bắt đầu<input className="pta-select" type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} /></label>
+      <label>Thời lượng
+        <select className="pta-select" value={dur} onChange={(e) => setDur(e.target.value)}>
+          <option value="45">45 phút</option>
+          <option value="60">60 phút</option>
+          <option value="90">90 phút</option>
+        </select>
+      </label>
+      <div className="pta-actions">
+        <button type="button" className="pta-cta dark" onClick={onClose}>Đóng</button>
+        <button type="button" className="pta-cta" disabled={busy || !date || !time} onClick={book}>Đặt lịch</button>
+      </div>
+    </section>
+  )
+}
+
 function ClientDetail({ c, d, onBack }: { c: Ctr; d: Shared; onBack: () => void }) {
   const [tab, setTab] = useState<'info' | 'sched'>('info')
+  const [booking, setBooking] = useState(false)
   const st = CONTRACT_STATUS[c.status] ?? CONTRACT_STATUS.draft
   const debt = c.total_amount - c.paid_amount
   const mine = d.month.rows.filter((s) => s.member?.id === c.member.id)
@@ -355,6 +496,7 @@ function ClientDetail({ c, d, onBack }: { c: Ctr; d: Shared; onBack: () => void 
             <div><span>Số buổi</span><b>{c.sessions_total == null ? '-' : `còn ${c.sessions_left ?? 0}/${c.sessions_total}`}</b></div>
             <div><span>Hạn sử dụng</span><b>{fmtDate(c.end_date)}</b></div>
             <div><span>Hợp đồng</span><b>{c.code}</b></div>
+            <div><span>Lần tập gần nhất</span><b className={c.off_track ? 'pta-redtx' : ''}>{c.last_active ? fmtDate(dayOf(c.last_active)) : 'Chưa có'}{c.off_track ? ' (off track)' : ''}</b></div>
             {debt > 0 && <div><span>Còn nợ</span><b className="pta-redtx">{fmtMoney(debt)}</b></div>}
           </section>
         </>
@@ -369,6 +511,8 @@ function ClientDetail({ c, d, onBack }: { c: Ctr; d: Shared; onBack: () => void 
           {history.slice(0, 8).map((s) => <div key={s.id} className="pta-row"><div className="pta-grow"><b>{fmtDate(dayOf(s.start_at))}</b><div className="pta-sub">{fmtTime(s.start_at)} – {fmtTime(s.end_at)}</div></div><Pill tone="ok">Đã hoàn thành</Pill></div>)}
         </section>
       )}
+      {booking && <BookForm c={c} onClose={() => setBooking(false)} onDone={() => { setBooking(false); void d.month.reload() }} />}
+      {c.status === 'active' && !booking && c.category !== 'pt_group' && <button type="button" className="pta-cta wide" onClick={() => setBooking(true)}>Đặt lịch buổi tập</button>}
       <div className="pta-actions">
         <a className="pta-cta dark" href={`https://zalo.me/${phone}`} target="_blank" rel="noreferrer"><Ico n="chat" size={18} /> Nhắn Zalo</a>
         <a className="pta-cta" href={`tel:${c.member.phone}`}><Ico n="phone" size={18} /> Gọi điện</a>
@@ -377,19 +521,19 @@ function ClientDetail({ c, d, onBack }: { c: Ctr; d: Shared; onBack: () => void 
   )
 }
 
-function Clients({ d }: { d: Shared }) {
-  const [f, setF] = useState<'all' | 'active' | 'frozen' | 'expired'>('all')
+function Clients({ d, preset }: { d: Shared; preset: Sub }) {
+  const [f, setF] = useState<'all' | 'active' | 'frozen' | 'expired' | 'off'>(preset === 'off' ? 'off' : 'all')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<Ctr | null>(null)
   const rows = d.contracts.rows
   const count = (s: string) => rows.filter((c) => c.status === s).length
-  const shown = rows.filter((c) => (f === 'all' || c.status === f) && (!q || c.member.name.toLowerCase().includes(q.toLowerCase()) || c.member.phone.includes(q)))
+  const shown = rows.filter((c) => (f === 'all' || (f === 'off' ? c.off_track : c.status === f)) && (!q || c.member.name.toLowerCase().includes(q.toLowerCase()) || c.member.phone.includes(q)))
   if (open) return <ClientDetail c={open} d={d} onBack={() => setOpen(null)} />
   return (
     <Page title="Khách hàng">
       <input className="pta-search" type="search" placeholder="Tìm tên hoặc số điện thoại" value={q} onChange={(e) => setQ(e.target.value)} />
       <Chips
-        items={[{ key: 'all', label: `Tất cả (${rows.length})` }, { key: 'active', label: `Đang tập (${count('active')})` }, { key: 'frozen', label: `Tạm ngưng (${count('frozen')})` }, { key: 'expired', label: `Hết hạn (${count('expired')})` }]}
+        items={[{ key: 'all', label: `Tất cả (${rows.length})` }, { key: 'active', label: `Đang tập (${count('active')})` }, { key: 'frozen', label: `Tạm ngưng (${count('frozen')})` }, { key: 'expired', label: `Hết hạn (${count('expired')})` }, { key: 'off', label: `Off track (${rows.filter((c) => c.off_track).length})` }]}
         value={f}
         onChange={setF}
       />
@@ -404,6 +548,7 @@ function Clients({ d }: { d: Shared }) {
               <div className="pta-grow">
                 <div className="pta-name">{c.member.name}</div>
                 <div className="pta-sub">{c.sessions_total == null ? c.package_name : `Còn ${c.sessions_left ?? 0}/${c.sessions_total} buổi`} · {CAT[c.category] ?? ''}</div>
+                {c.off_track && <div className="pta-sub pta-redtx">{c.last_active ? `${Math.floor((Date.now() - new Date(c.last_active).getTime()) / 86400000)} ngày chưa tập` : 'Chưa tập lần nào'}</div>}
               </div>
               <Pill tone={st.tone}>{st.label}</Pill>
               <Ico n="next" size={16} />
@@ -471,6 +616,29 @@ function Leads({ d }: { d: Shared }) {
   )
 }
 
+interface Perf { month: string; sessions_done: number; classes_done: number; leads_assigned: number; leads_converted: number; conversion_rate: number | null; clients: number; renewals: number; renew_rate: number | null }
+
+function Targets() {
+  const [p, setP] = useState<Perf | null>(null)
+  useEffect(() => {
+    api.get('/pt-app/performance').then(({ data }) => setP(data.data)).catch(() => setP(null))
+  }, [])
+  if (!p) return null
+  const pct = (v: number | null) => (v == null ? '-' : `${v}%`)
+  return (
+    <section className="pta-card">
+      <header className="pta-cardhead"><b>Chỉ tiêu tháng {p.month.slice(5)}/{p.month.slice(0, 4)}</b></header>
+      <div className="pta-kv">
+        <div><span>Buổi PT đã dạy</span><b>{p.sessions_done}</b></div>
+        <div><span>Lớp nhóm đã dạy</span><b>{p.classes_done}</b></div>
+        <div><span>Tỉ lệ chốt lead</span><b>{pct(p.conversion_rate)} ({p.leads_converted}/{p.leads_assigned})</b></div>
+        <div><span>Tỉ lệ gia hạn</span><b>{pct(p.renew_rate)} ({p.renewals}/{p.clients})</b></div>
+      </div>
+      <p className="pta-sub">Chốt lead = lead đã chốt / lead được chia trong tháng. Gia hạn = hợp đồng gia hạn / tổng khách PT.</p>
+    </section>
+  )
+}
+
 function Stats({ d, onBack }: { d: Shared; onBack: () => void }) {
   const [range, setRange] = useState<'week' | 'month'>('week')
   const today = localDay()
@@ -514,12 +682,28 @@ function Stats({ d, onBack }: { d: Shared; onBack: () => void }) {
         </div>
         <div className="pta-legend"><span><i className="done" />Đã dạy</span><span><i className="all" />Tổng lịch</span></div>
       </section>
+      <Targets />
     </Page>
   )
 }
 
+interface InstallEvent extends Event { prompt: () => Promise<void> }
+
+function useInstall() {
+  const [ev, setEv] = useState<InstallEvent | null>(null)
+  useEffect(() => {
+    const on = (e: Event) => { e.preventDefault(); setEv(e as InstallEvent) }
+    window.addEventListener('beforeinstallprompt', on)
+    return () => window.removeEventListener('beforeinstallprompt', on)
+  }, [])
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as unknown as { standalone?: boolean }).standalone === true
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  return { ev, standalone, ios }
+}
+
 function Settings() {
   const { user, logout } = useAuth()
+  const inst = useInstall()
   return (
     <Page title="Cài đặt">
       <section className="pta-profile">
@@ -530,6 +714,18 @@ function Settings() {
           <div className="pta-sub">{user?.branches.map((b) => b.name).join(', ')}</div>
         </div>
       </section>
+      {!inst.standalone && (
+        <section className="pta-card">
+          <header className="pta-cardhead"><b>Cài về điện thoại</b></header>
+          {inst.ev ? (
+            <button type="button" className="pta-cta" onClick={() => void inst.ev!.prompt()}>Cài ứng dụng</button>
+          ) : inst.ios ? (
+            <p className="pta-sub">Mở bằng Safari, bấm nút Chia sẻ rồi chọn "Thêm vào Màn hình chính".</p>
+          ) : (
+            <p className="pta-sub">Mở menu trình duyệt (dấu ba chấm) rồi chọn "Cài đặt ứng dụng" hoặc "Thêm vào màn hình chính".</p>
+          )}
+        </section>
+      )}
       <section className="pta-list">
         <Link className="pta-item" to="/me"><div className="pta-grow pta-name">Đổi mật khẩu và phiên đăng nhập</div><Ico n="next" size={16} /></Link>
         <button type="button" className="pta-item pta-logout" onClick={() => void logout()}><div className="pta-grow pta-name">Đăng xuất</div></button>
@@ -565,7 +761,7 @@ export default function PtApp() {
       <main className="pta-main">
         {tab === 'home' && (sub === 'stats' ? <Stats d={d} onBack={() => setSub(null)} /> : <Home d={d} go={go} name={user.name} />)}
         {tab === 'schedule' && <Schedule d={d} />}
-        {tab === 'clients' && <Clients d={d} />}
+        {tab === 'clients' && <Clients key={sub ?? 'all'} d={d} preset={sub} />}
         {tab === 'leads' && <Leads d={d} />}
         {tab === 'settings' && <Settings />}
       </main>
