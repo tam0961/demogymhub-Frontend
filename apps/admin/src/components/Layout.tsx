@@ -9,6 +9,7 @@ import ScanPopup from './ScanPopup'
 import { Avatar, Icon, Segmented, branchColor } from './ui'
 import type { Me } from '../types'
 import type { IconName } from './icons'
+import { isTrainerOnly } from '../lib/roles'
 
 export function RequireAuth() {
   const { user, ready } = useAuth()
@@ -107,7 +108,12 @@ function Shell() {
   }, [activeGroup])
   useEffect(() => setOpen(false), [loc.pathname])
 
-  const groups = NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter((n) => navVisible(n, canAny, isAdminAll(user))) })).filter((g) => g.items.length)
+  const trainerOnly = !!user && isTrainerOnly(user.roles)
+  const groups = NAV_GROUPS.map((g) =>
+    trainerOnly && g.title === 'Vận hành'
+      ? { title: 'Việc hôm nay', items: [{ to: '/pt-app', label: 'Việc hôm nay', icon: 'today' as IconName, perm: null }] }
+      : { ...g, items: g.items.filter((n) => navVisible(n, canAny, isAdminAll(user))) },
+  ).filter((g) => g.items.length)
   const roleLabel = user ? roleLabelOf(user) : ''
 
   return (
