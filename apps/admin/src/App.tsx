@@ -36,6 +36,8 @@ import Reports from './pages/Reports'
 import ResetPassword from './pages/ResetPassword'
 import Roles from './pages/Roles'
 import Today from './pages/Today'
+import PtApp, { isTrainerOnly } from './pages/PtApp'
+import { useAuth } from './context/AuthContext'
 import Staff from './pages/Staff'
 import Attendance from './pages/Attendance'
 import Devices from './pages/Devices'
@@ -49,6 +51,12 @@ const optionalPage = (file: string) => lazy(pageModules[`./pages/${file}.tsx`] ?
 const Access = optionalPage('Access')
 const Debt = optionalPage('Debt')
 
+function Home() {
+  const { user } = useAuth()
+  if (user && isTrainerOnly(user.roles)) return <Navigate to="/pt-app" replace />
+  return <Today />
+}
+
 export default function App() {
   return (
     <Suspense fallback={<div className="loading">Đang tải...</div>}>
@@ -57,11 +65,12 @@ export default function App() {
       <Route path="/booking" element={<PublicBooking />} />
       <Route path="/ipad" element={<IpadPage />} />
       <Route path="/ipad/:token" element={<IpadPage />} />
+      <Route path="/pt-app" element={<PtApp />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<RequireAuth />}>
-        <Route index element={<Today />} />
+        <Route index element={<Home />} />
         <Route path="access" element={<PermRoute permission="checkins.read"><Access /></PermRoute>} />
         <Route path="pt" element={<Navigate to="/pt/one" replace />} />
         <Route path="settings/bank" element={<PermRoute permission="roles.read"><BankSettings /></PermRoute>} />
