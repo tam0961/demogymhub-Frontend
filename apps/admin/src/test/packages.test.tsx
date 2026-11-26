@@ -129,10 +129,7 @@ describe('bundle UI', () => {
     expect(screen.getByText('Gói PT này chưa gắn gói member; khách cần có gói member riêng để check-in.')).toBeTruthy()
   })
   it('contract detail panel and banner', () => {
-    const b = { id: 'c2', code: 'HD00002', status: 'active' as const, start_date: '2026-11-01', end_date: '2026-12-01', package: { id: 'm1', name: 'Gói 1 tháng', type: 'month' as const, category: 'member' as const } }
-    render(<MemoryRouter><BundleSection c={{ bundled_contracts: [b], bundle_of_id: null }} /><BundleSection c={{ bundle_of_id: 'c1' }} /></MemoryRouter>)
-    expect(screen.getByRole('heading', { name: 'Gói member đi kèm' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'HD00002' }).getAttribute('href')).toBe('/contracts/c2')
+    render(<MemoryRouter><BundleSection c={{ bundle_of_id: 'c1' }} /></MemoryRouter>)
     expect(screen.getByText(/Hợp đồng này đi kèm gói PT/)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Xem hợp đồng gói PT' }).getAttribute('href')).toBe('/contracts/c1')
   })

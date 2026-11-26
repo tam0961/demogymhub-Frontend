@@ -172,6 +172,7 @@ export interface Dashboard {
   revenue_today: number
   revenue_by_method: Partial<Record<PayMethod, number>>
   revenue_by_kind?: Record<string, number>
+  contract_value_by_kind?: Record<string, number>
   new_contracts_today: number
   active_members: number
   expiring_in_7_days: number

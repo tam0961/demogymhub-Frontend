@@ -117,7 +117,7 @@ export function StackedBars({ rows, label }: { rows: Row[]; label: string }) {
               const seg = (
                 <g key={k.key}>
                   <rect x={x} y={y(acc + v)} width={w} height={h} fill={k.color}><title>{`${r.label}: ${k.label} ${fmtMoney(r[k.key])}`}</title></rect>
-                  {h >= 11 && <text x={x + w / 2} y={y(acc + v) + h / 2 + 3} textAnchor="middle" fontSize="8.5" fill="#fff" style={{ pointerEvents: 'none' }}>{mil(r[k.key])}</text>}
+                  {h >= 11 && <text x={x + w / 2} y={y(acc + v) + h / 2 + 3} textAnchor="middle" fontSize="6.5" fill="#fff" style={{ pointerEvents: 'none' }}>{mil(r[k.key])}</text>}
                 </g>
               )
               acc += v

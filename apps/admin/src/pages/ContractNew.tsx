@@ -7,7 +7,7 @@ import { BANKS, bankReady, loadBank, transferContent, vietQrUrl } from '../lib/b
 import { createIpadSession, getBranchIpad, getIpadSession, ipadUrl, setIpadStage } from '../lib/ipad'
 import { QRImage } from '../components/QRImage'
 import { IpadPairBox } from '../components/IpadPairBox'
-import { PROMO_OPTIONS, addDays, defaultStart, memberBanner, priceHint, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
+import { PROMO_OPTIONS, addDays, defaultStart, memberBanner, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
 import type { ProcessedPhoto } from '../lib/photo'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
@@ -50,6 +50,8 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const [q, setQ] = useState('')
   const [results, setResults] = useState<Member[]>([])
   const [member, setMember] = useState<Member | null>(null)
+  const [email, setEmail] = useState('')
+  const [emailTouched, setEmailTouched] = useState(false)
   const [pkgs, setPkgs] = useState<Pkg[]>([])
   const [pkgId, setPkgId] = useState('')
   const [start, setStart] = useState(todayISO())
@@ -112,6 +114,12 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
 
   const pkg = pkgs.find((p) => p.id === pkgId)
   const needsPt = pkg?.category === 'pt_1on1' || pkg?.category === 'pt_1on2'
+  const isGroup = pkg?.category === 'pt_group' || pkg?.display_group === 'pt_group'
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+  useEffect(() => {
+    if (!emailTouched) setEmail(existing ? member?.email ?? '' : '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [member?.id, existing])
   const cur = existing ? member?.current_contract : null
   const runningEnd = cur && cur.status === 'active' && cur.end_date && cur.end_date >= todayISO() ? cur.end_date : null
   useEffect(() => {
@@ -132,7 +140,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const qt = quote(pkg, promo, paidTouched ? parseMoney(paid) : defaultPaid, start)
   const nextPayDate = nextPay || addDays(todayISO(), 25)
   const memberOk = existing ? !!member : name.trim().length > 1 && phone.trim().length >= 8
-  const canNext = memberOk && !!pkg && !!start && !promoErr && (!!saleId || sales.length === 0) && (!needsPt || !!ptId || pts.length === 0)
+  const canNext = memberOk && !!pkg && !!start && !promoErr && (!!saleId || sales.length === 0) && (!needsPt || !!ptId || pts.length === 0) && (!isGroup || emailOk)
   const who = existing ? member?.name ?? '' : name.trim()
   const promoLabel = PROMO_OPTIONS.find((o) => o.value === promoType)
   const photoThumb = existing
@@ -171,10 +179,21 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     setBusy(true)
     setErr('')
     try {
+      const groupEmail = isGroup ? email.trim().toLowerCase() : ''
+      if (existing && member && groupEmail && groupEmail !== (member.email ?? '').toLowerCase()) {
+        try {
+          await api.patch(`/members/${member.id}`, { email: groupEmail })
+        } catch (e) {
+          setErr(`Không lưu được email hội viên: ${apiError(e).message}`)
+          setBusy(false)
+          return
+        }
+      }
       const out = await runCreateContract(
         (url, body) => api.post(url, body),
         {
           member: existing && member ? { id: member.id } : { name, phone, gender, branch_id: branch },
+          email: !existing && groupEmail ? groupEmail : null,
           package_id: pkg.id,
           promo,
           renewed_from_id: existing ? renewedFromId(member) : null,
@@ -305,7 +324,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
       {err && <div className="form-error" role="alert" style={{ marginBottom: 12 }}>{err}</div>}
 
       {step === 1 && (
-        <div className="form-grid cols-3">
+        <div className="form-grid cols-3 cn-grid">
           {existing && member && <div className="full info-ok" role="status">{memberBanner(member)}</div>}
           {!memberId && (
             <div className="full">
@@ -314,7 +333,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
           )}
           {(
             <>
-              <Field label="Họ tên" htmlFor="cn-name">
+              <Field label="Họ và tên" htmlFor="cn-name">
                 <Input id="cn-name" required autoFocus readOnly={existing && !!member} placeholder={existing && !member ? 'Gõ tên, SĐT hoặc mã để tìm hội viên' : undefined} value={existing ? (member ? member.name : q) : name} onChange={(e) => (existing ? setQ(e.target.value) : setName(e.target.value))} />
                 {existing && !member && !memberId && q.trim().length >= 1 && (
                   <ul className="pick-list pick-drop">
@@ -352,7 +371,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
               <Field label="Ngày hết hạn" htmlFor="cn-end">
                 <Input id="cn-end" readOnly value={pkg ? (qt.endDate ? fmtDate(qt.endDate) : 'Tính khi kích hoạt') : ''} />
               </Field>
-              {pkg && isPtCategory(pkg.category) && <BundleInfo pkg={pkg} runningEnd={runningEnd} />}
+              <div className="full cn-slot">{pkg && isPtCategory(pkg.category) && <BundleInfo pkg={pkg} runningEnd={runningEnd} />}</div>
               <Field label="Khuyến mãi" htmlFor="cn-promo">
                 <Select id="cn-promo" value={promoType} onChange={(e) => { setPromoType(e.target.value as '' | PromoType); setPromoValue('') }}>
                   {PROMO_OPTIONS.map((o) => <option key={o.value} value={o.value} disabled={!promoAllowed(o.value, pkg?.type)}>{o.label}</option>)}
@@ -393,9 +412,13 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
               </Field>
               <Field label="Còn thiếu" htmlFor="cn-remain"><Input id="cn-remain" readOnly value={pkg && qt.remain === 0 ? 'Đã thu đủ' : fmtMoney(qt.remain)} /></Field>
               {qt.remain > 0 && (
-                <Field label="Ngày đóng tiếp theo" htmlFor="cn-next" hint={nextPay ? undefined : 'Tự tính: hôm nay + 25 ngày. Khách thanh toán đủ thì không có ngày này.'}><Input id="cn-next" type="date" min={todayISO()} value={nextPayDate} onChange={(e) => setNextPay(e.target.value)} /></Field>
+                <Field label="Ngày đóng tiếp theo" htmlFor="cn-next" hint={nextPay ? undefined : 'Thời hạn thanh toán 25 ngày'}><Input id="cn-next" type="date" min={todayISO()} value={nextPayDate} onChange={(e) => setNextPay(e.target.value)} /></Field>
               )}
-              {pkg && <p className="full hint-muted" id="cn-hint">{priceHint(pkg, qt)}</p>}
+              {isGroup && (
+                <Field label="Email hội viên (nhận xác nhận đặt lịch lớp nhóm)" htmlFor="cn-email" full error={email.trim() && !emailOk ? 'Email chưa đúng định dạng' : undefined} hint={!email.trim() ? 'Bắt buộc với gói PT nhóm' : undefined}>
+                  <Input id="cn-email" type="email" required value={email} onChange={(e) => { setEmailTouched(true); setEmail(e.target.value) }} />
+                </Field>
+              )}
               <Field label="Ghi chú" htmlFor="cn-note" full><Textarea id="cn-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
             </>
           )}

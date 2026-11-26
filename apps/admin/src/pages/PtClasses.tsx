@@ -177,6 +177,14 @@ export default function PtClasses() {
     { key: 'cancels', header: 'Số lần hủy', numeric: true, sortValue: (c) => cancelCounts[c.member_id] ?? 0, render: (c) => ((cancelCounts[c.member_id] ?? 0) > 0 ? <span className="text-bad">{cancelCounts[c.member_id]}</span> : <span className="hint-muted">0</span>) },
     { key: 'status', header: 'Trạng thái', sortValue: (c) => c.status, render: (c) => <Chip tone={CONTRACT_STATUS[c.status].tone}>{CONTRACT_STATUS[c.status].label}</Chip> },
   ]
+  const classRows = classes.filter((c) => c.status !== 'cancelled' && c.registered > 0).sort((a, b) => b.start_at.localeCompare(a.start_at))
+  const classCols: Column<GroupClass>[] = [
+    { key: 'when', header: 'Lớp', sortValue: (c) => c.start_at, render: (c) => <><div className="reg-when">{weekdayOf(c.start_at)}, {dmyLocal(c.start_at)} {fmtTime(c.start_at)} - {fmtTime(c.end_at)}</div><div className="cell-sub">{classTitle(c.title)}{c.muscle_group ? ` + ${c.muscle_group}` : ''}</div></> },
+    { key: 'pt', header: 'PT', sortValue: (c) => c.trainer?.name ?? '', render: (c) => (c.trainer ? ptName(c.trainer) : '-') },
+    { key: 'reg', header: 'Đã đăng ký', numeric: true, sortValue: (c) => c.registered, render: (c) => <Chip tone={fillTone(c)}>{c.registered} / {c.capacity}</Chip> },
+    { key: 'status', header: 'Trạng thái', sortValue: (c) => c.status, render: (c) => (c.status === 'completed' ? <Chip tone="ok">Đã dạy</Chip> : <Chip tone="warn">Sắp diễn ra</Chip>) },
+    { key: 'open', header: '', render: (c) => <Button small onClick={() => setDetailId(c.id)}>Xem</Button> },
+  ]
   const repSrc = reportScope === 'week' ? { classes, regs } : monthData
   const reportRows = buildReport(repSrc.classes, repSrc.regs)
   const reportCols: Column<PtReportRow>[] = [
@@ -238,9 +246,15 @@ export default function PtClasses() {
       </div>
       <div style={{ height: 16 }} />
       <div className="even-cols">
+        <Panel title="Danh sách lớp đã đăng ký" count={`${classRows.length} lớp`} flush>
+          <div className="cls-table"><DataTable columns={classCols} rows={classRows} rowKey={(c) => c.id} pageSize={10} pageSizes={[10, 25, 50]} emptyText="Chưa có lớp nào có người đăng ký trong tuần" itemLabel="lớp" /></div>
+        </Panel>
+      </div>
+      <div style={{ height: 16 }} />
+      <div className="even-cols">
       <Panel title="Hội viên PT nhóm" count={`${groupMembers.length} hội viên`} flush>
         <div className="grp-members">
-        <DataTable columns={memberCols} rows={groupMembers} rowKey={(c) => c.id} loading={loading} error={error} emptyText="Chưa có hội viên PT nhóm" itemLabel="hội viên" />
+        <DataTable columns={memberCols} rows={groupMembers} rowKey={(c) => c.id} loading={loading} error={error} pageSize={10} pageSizes={[10, 25, 50]} emptyText="Chưa có hội viên PT nhóm" itemLabel="hội viên" />
         </div>
       </Panel>
       </div>
@@ -265,6 +279,7 @@ export default function PtClasses() {
         <ClassDetailModal
           cls={detail}
           regs={regs.filter((r) => r.class.id === detail.id)}
+          trainers={trainers}
           act={act}
           onClose={() => setDetailId(null)}
         />
@@ -367,7 +382,7 @@ function RegistrationsPanel({ regs, act }: { regs: GroupReg[]; act: (url: string
   )
 }
 
-function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: GroupReg[]; act: (url: string, ok: string, body?: object) => void; onClose: () => void }) {
+function ClassDetailModal({ cls, regs, trainers, act, onClose }: { cls: GroupClass; regs: GroupReg[]; trainers: Trainer[]; act: (url: string, ok: string, body?: object) => void; onClose: () => void }) {
   const { can } = usePermission()
   const { user } = useAuth()
   const locked = Date.now() >= cancelLockAt(cls.start_at) && !user?.roles.some((r) => LOCK_OVERRIDE_ROLES.includes(r))
@@ -405,7 +420,13 @@ function ClassDetailModal({ cls, regs, act, onClose }: { cls: GroupClass; regs: 
       onClose={onClose}
       footer={open ? (
         <>
-          {can('pt_sessions.complete') && cls.trainer && <Button variant="primary" disabled={future} title={future ? 'Chỉ hoàn thành được buổi dạy trong ngày' : undefined} onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Hoàn thành</Button>}
+          {can('pt_sessions.create') && (
+            <Select aria-label="Chọn PT" style={{ width: 'auto', minWidth: 0, flex: '0 0 auto' }} value={cls.trainer?.id ?? ''} onChange={(e) => e.target.value && act(`/pt/classes/${cls.id}/trainer`, 'Đã chọn PT cho lớp', { trainer_id: e.target.value })}>
+              <option value="" disabled>Chọn PT</option>
+              {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </Select>
+          )}
+          {can('pt_sessions.complete') && <Button variant="primary" disabled={future || !cls.trainer} title={!cls.trainer ? 'Gán PT cho lớp trước khi hoàn thành' : future ? 'Chỉ hoàn thành được buổi dạy trong ngày' : undefined} onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Hoàn thành</Button>}
         </>
       ) : undefined}
     >

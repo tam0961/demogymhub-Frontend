@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import { EVENT_LABEL, METHOD_LABEL, PAY_STATUS, categoryLabel, contractActions, daysLeftText, fmtDate, fmtDateTime, fmtMoney, memberStatus } from '../lib/format'
-import { PT_RULE_HINT, hasHsd } from '../lib/pt'
+import { hasHsd, ptUsageMonths } from '../lib/pt'
 import { contractValues, renderDocHtml, templateKeyOf } from '../lib/printDoc'
 import { usePermission } from '../context/usePermission'
 import { FormDialog } from '../components/Dialogs'
@@ -27,26 +27,12 @@ export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | '
           Hợp đồng này đi kèm gói PT. <Link to={`/contracts/${c.bundle_of_id}`}>Xem hợp đồng gói PT</Link>
         </div>
       )}
-      {(c.bundled_contracts ?? []).length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <Panel title="Gói member đi kèm">
-            <dl className="kv">
-              {(c.bundled_contracts ?? []).map((b) => {
-                const s = memberStatus({ status: b.status, end_date: b.end_date })
-                return (
-                  <div key={b.id} style={{ display: 'contents' }}>
-                    <dt>{b.package.name}</dt>
-                    <dd><Link to={`/contracts/${b.id}`}>{b.code}</Link> <Chip tone={s.tone}>{s.label}</Chip><div className="cell-sub">{fmtDate(b.start_date)} - {fmtDate(b.end_date)}</div></dd>
-                  </div>
-                )
-              })}
-            </dl>
-          </Panel>
-        </div>
-      )}
     </>
   )
 }
+
+interface TrainingRow { id: string; kind: 'pt_1on1' | 'pt_1on2' | 'group'; start_at: string; end_at: string; completed_at: string | null; trainer: string | null; title: string; note: string | null }
+interface TrainingHistory { rows: TrainingRow[]; summary: { sessions_total: number | null; sessions_left: number | null; done: number } }
 
 type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'staff' | 'edit' | 'invoice' | { pending: Payment } | { receipt: Payment }
 
@@ -62,6 +48,22 @@ export default function ContractDetail() {
   const [sig, setSig] = useState<string | null>(null)
   const [days, setDays] = useState('7')
   const [mem, setMem] = useState<Member | null>(null)
+  const [training, setTraining] = useState<TrainingHistory | null>(null)
+  const hasTraining = !!c && ['pt_1on1', 'pt_1on2', 'pt_group'].includes(c.package.category)
+  useEffect(() => {
+    if (!id || !hasTraining) return
+    api.get<{ data: TrainingHistory }>(`/contracts/${id}/training-history`).then((r) => setTraining(r.data.data)).catch(() => setTraining(null))
+  }, [id, hasTraining, c?.sessions_left])
+  const trainNo = new Map((training?.rows ?? []).map((r, i, a) => [r.id, a.length - i]))
+  const trainTotal = training?.summary.sessions_total
+  const trainCols: Column<TrainingRow>[] = [
+    { key: 'no', header: 'Buổi', render: (r) => `${trainNo.get(r.id) ?? '-'}/${trainTotal ?? '-'}` },
+    { key: 'at', header: 'Ngày giờ', sortValue: (r) => r.start_at, render: (r) => fmtDateTime(r.start_at) },
+    { key: 'kind', header: 'Hình thức', render: (r) => (r.kind === 'group' ? 'Lớp nhóm' : r.kind === 'pt_1on2' ? 'PT 1:2' : 'PT 1:1') },
+    { key: 'trainer', header: 'Huấn luyện viên', sortValue: (r) => r.trainer ?? '', render: (r) => r.trainer ?? '-' },
+    { key: 'what', header: 'Nội dung', render: (r) => (r.kind === 'group' ? r.title : r.note || '-') },
+    { key: 'done', header: 'PT hoàn thành lúc', sortValue: (r) => r.completed_at ?? '', render: (r) => (r.completed_at ? fmtDateTime(r.completed_at) : '-') },
+  ]
   const memberId = c?.member_id
   useEffect(() => {
     if (!memberId || !can('members.read')) return
@@ -158,7 +160,7 @@ export default function ContractDetail() {
         <Kpi value={<span className={c.debt_amount > 0 ? 'text-bad' : ''}>{fmtMoney(c.debt_amount)}</span>} label="Còn nợ" />
         {c.debt_amount > 0 && c.due_date && <Kpi value={<span className={(c.overdue_days ?? 0) > 0 ? 'text-bad' : ''}>{fmtDate(c.due_date)}{(c.overdue_days ?? 0) > 0 && <> <Chip tone="bad">quá hạn {c.overdue_days} ngày</Chip></>}</span>} label="Hạn đóng" />}
         {hasHsd(c.package.category) && <Kpi value={c.usage_deadline ? fmtDate(c.usage_deadline) : '-'} label="Hạn sử dụng gói PT" />}
-        <Kpi value={c.sessions_total != null ? `${c.sessions_left ?? 0}/${c.sessions_total}` : daysLeftText(c.end_date) || '-'} label={c.sessions_total != null ? 'Số buổi còn' : 'Thời hạn còn lại'} />
+        <Kpi value={c.sessions_total != null ? <>{c.sessions_left ?? 0}/{c.sessions_total} <span className="cell-sub">còn lại</span></> : daysLeftText(c.end_date) || '-'} label={c.sessions_total != null ? 'Số buổi' : 'Thời hạn còn lại'} />
       </KpiRow>
 
       <div className="detail-grid">
@@ -166,9 +168,18 @@ export default function ContractDetail() {
           <dl className="kv">
             <dt>Hội viên</dt><dd><span className="cell-person"><MemberAvatar member={{ id: c.member.id, name: c.member.name, has_photo: mem?.has_photo, photo_version: mem?.photo_version }} size={32} /><span>{c.member.name} ({c.member.code}), {c.member.phone}</span></span></dd>
             <dt>Dịch vụ</dt><dd>{c.package.name} <Chip>{categoryLabel(c.package.category)}</Chip></dd>
+            {(c.bundled_contracts ?? []).map((b) => {
+              const s = memberStatus({ status: b.status, end_date: b.end_date })
+              return (
+                <div key={b.id} style={{ display: 'contents' }}>
+                  <dt>Gói member đi kèm</dt>
+                  <dd>{b.package.name} <Link to={`/contracts/${b.id}`}>{b.code}</Link> <Chip tone={s.tone}>{s.label}</Chip> <span className="cell-sub">{fmtDate(b.start_date)} - {fmtDate(b.end_date)}</span></dd>
+                </div>
+              )
+            })}
             <dt>Bắt đầu</dt><dd>{fmtDate(c.start_date)}</dd>
             <dt>Kết thúc</dt><dd>{fmtDate(c.end_date)}</dd>
-            {hasHsd(c.package.category) && (<><dt>Hạn sử dụng gói PT</dt><dd>{c.usage_deadline ? fmtDate(c.usage_deadline) : '-'}<div className="cell-sub">{PT_RULE_HINT}</div></dd></>)}
+            {hasHsd(c.package.category) && (<><dt>Hạn sử dụng gói PT</dt><dd>{c.usage_deadline ? fmtDate(c.usage_deadline) : '-'} <span className="cell-sub">(HSD = Ngày hết hạn + {ptUsageMonths(c.sessions_total)} tháng)</span></dd></>)}
             {c.frozen_until && (<><dt>Bảo lưu đến</dt><dd>{fmtDate(c.frozen_until)}</dd></>)}
             <dt>Giảm giá</dt><dd>{fmtMoney(c.discount)}</dd>
             <dt>Nhân viên Sale</dt><dd>{c.sale?.name ?? <span className="hint-muted">Chưa gán</span>}</dd>
@@ -203,6 +214,19 @@ export default function ContractDetail() {
           </ol>
         </Panel>
       </div>
+
+      {hasTraining && (
+        <div style={{ marginTop: 16 }}>
+          <Panel
+            title="Lịch sử tập luyện"
+            count={`${training?.summary.done ?? 0} buổi đã tập`}
+            note={training && training.summary.sessions_total != null ? `Còn lại ${training.summary.sessions_left ?? 0} / ${training.summary.sessions_total} buổi` : undefined}
+            flush
+          >
+            <DataTable columns={trainCols} rows={training?.rows ?? []} rowKey={(r) => r.id} pageSize={25} pageSizes={[25, 50]} emptyText="Chưa có buổi tập nào được PT hoàn thành" itemLabel="buổi" />
+          </Panel>
+        </div>
+      )}
 
       <div style={{ marginTop: 16 }}>
         <Panel title="Thanh toán" count={`${pays.length} khoản`} flush>

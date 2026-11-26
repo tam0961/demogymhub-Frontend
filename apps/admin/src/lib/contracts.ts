@@ -26,6 +26,7 @@ type Post = (url: string, body?: unknown) => Promise<{ data: { data: any } }> //
 
 export interface CreateInput {
   member: { id: string } | { name: string; phone: string; gender: Gender | ''; branch_id: string }
+  email?: string | null
   package_id: string
   promo?: Promo | null
   renewed_from_id?: string | null
@@ -69,7 +70,7 @@ export async function runCreateContract(post: Post, input: CreateInput, errText:
   if ('id' in input.member) memberId = input.member.id
   else {
     const m = input.member
-    const r = await run('member', () => post('/members', { name: m.name.trim(), phone: m.phone.trim(), gender: m.gender || null, branch_id: m.branch_id, status: 'active', email: null, dob: null, ...(input.faceId ? { face_id: input.faceId } : {}) }))
+    const r = await run('member', () => post('/members', { name: m.name.trim(), phone: m.phone.trim(), gender: m.gender || null, branch_id: m.branch_id, status: 'active', email: input.email || null, dob: null, ...(input.faceId ? { face_id: input.faceId } : {}) }))
     memberId = r.data.data.id
     out.memberId = memberId
     if (input.photo && put) {

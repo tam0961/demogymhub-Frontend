@@ -29,8 +29,9 @@ export default function Today() {
   const canTasks = can('contracts.read')
   const canRevenue = can('reports.view_revenue')
   const canTickets = can('day_tickets.read')
-  const k = dash?.revenue_by_kind
-  const revenue = canDash ? (k ? (k.member ?? 0) + (k.pt_1on1 ?? 0) + (k.pt_1on2 ?? 0) + (k.pt_group ?? 0) : null) : closingTotal
+  const k = dash?.contract_value_by_kind
+  const revenue = canDash && k ? (k.member ?? 0) + (k.pt_1on1 ?? 0) + (k.pt_1on2 ?? 0) + (k.pt_group ?? 0) : null
+  const collected = canDash ? dash?.revenue_today ?? null : closingTotal
 
   const load = useCallback(async () => {
     const params = { branch_id: branchId ?? undefined }
@@ -62,6 +63,7 @@ export default function Today() {
         <Kpi value={stats ? stats.totals.checkins_today : '-'} label="Khách check-in" />
         {stats && !canCheckin && <Kpi value={stats.totals.denied_today} label="Từ chối" />}
         <Kpi value={revenue != null ? fmtMoney(revenue) : '-'} label="Doanh thu" />
+        <Kpi value={collected != null ? fmtMoney(collected) : '-'} label="Thực thu" />
         <Kpi value={canDash ? dash?.new_contracts_today ?? '-' : '-'} label="Hợp đồng mới" />
         <Kpi value={canTasks && tasks ? fmtMoney(tasks.unpaid.total_debt) : '-'} label="Công nợ cần thu" />
         <Kpi value={canTasks && tasks ? tasks.expiring_in_2_days.count : '-'} label="Khách hết hạn" />

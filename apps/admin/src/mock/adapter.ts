@@ -1224,6 +1224,23 @@ export const mockAdapter: AxiosAdapter = async (config) => {
     log(me.email, 'contracts.create', c.code)
     return ok(contractOut(c))
   }
+  const th = url.match(/^\/contracts\/([^/]+)\/training-history$/)
+  if (th) {
+    need('contracts.read')
+    const c = contracts.find((x) => x.id === th[1])
+    if (!c) fail(config, 404, 'NOT_FOUND', 'Không tìm thấy hợp đồng')
+    const cat = (c as Contract).package.category
+    const trainers = ['Vũ Bảo Khánh', 'Ngô Thị Huyền Trang', 'Nguyễn Phú Thịnh']
+    const rows = (cat === 'pt_1on1' || cat === 'pt_1on2' || cat === 'pt_group')
+      ? Array.from({ length: 6 }, (_, i) => {
+          const start = new Date(Date.now() - (i * 3 + 1) * DAY)
+          start.setHours(i % 2 ? 18 : 7, 0, 0, 0)
+          const end = new Date(start.getTime() + 3600000)
+          return { id: `th${i}`, kind: cat === 'pt_group' ? 'group' : cat, start_at: start.toISOString(), end_at: end.toISOString(), completed_at: new Date(end.getTime() + 600000).toISOString(), trainer: trainers[i % 3], title: cat === 'pt_group' ? ['Core + Cardio', 'Mông + Đùi', 'Lưng + Vai'][i % 3] : 'PT 1:1', note: null }
+        })
+      : []
+    return ok({ rows, summary: { sessions_total: (c as Contract).sessions_total ?? null, sessions_left: (c as Contract).sessions_left ?? null, done: rows.length } })
+  }
   const cm = url.match(/^\/contracts\/([^/]+)(?:\/(\w+))?$/)
   if (cm) {
     const c = contracts.find((x) => x.id === cm[1])
@@ -1620,6 +1637,11 @@ export const mockAdapter: AxiosAdapter = async (config) => {
           const c = contracts.find((x) => x.id === p.contract_id)
           if (c) k[c.package.category] = (k[c.package.category] ?? 0) + p.amount
         }
+        return k
+      })(),
+      contract_value_by_kind: (() => {
+        const k: Record<string, number> = { member: 0, pt_1on1: 0, pt_1on2: 0, pt_group: 0 }
+        for (const c of cs) if (c.created_at.slice(0, 10) === t && c.status !== 'cancelled') k[c.package.category] = (k[c.package.category] ?? 0) + c.total_amount
         return k
       })(),
       new_contracts_today: cs.filter((c) => c.created_at.slice(0, 10) === t).length,
