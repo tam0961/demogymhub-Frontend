@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtMoney } from '../lib/format'
+import { fmtMoney, fmtTr } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { Modal } from '../components/Modal'
 import { useToast } from '../components/Toast'
@@ -26,7 +26,7 @@ const STATUS: Record<Row['status'], { label: string; tone: ChipTone; color: stri
   low: { label: 'Rất thấp', tone: 'bad', color: 'var(--bad)' },
 }
 const pc = (n: number) => `${Math.round(n * 100)}%`
-const tr = (n: number) => `${(n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} tr`
+const tr = (n: number) => fmtTr(n)
 
 const score = (r: Row) => {
   const sales = 50 * (Math.min(r.pct, 1) * 0.6 + Math.min(r.conversion / 0.35, 1) * 0.4)

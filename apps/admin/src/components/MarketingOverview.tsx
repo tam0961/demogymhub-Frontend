@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { fmtMoney } from '../lib/format'
+import { fmtMoney, fmtTr } from '../lib/format'
 import { Panel } from './ui'
 
 export interface DayPoint { date: string; spend: number; results: number; form: number; msgs: number }
@@ -20,7 +20,7 @@ const C_TEAL = 'var(--nb)'
 const C_BROWN = '#b45309'
 
 const vn = (n: number) => n.toLocaleString('vi-VN')
-const tr = (n: number) => (n >= 1e6 ? `${(n / 1e6).toLocaleString('vi-VN', { maximumFractionDigits: 1 })} tr` : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n))
+const tr = (n: number) => (n >= 1e6 ? fmtTr(n) : n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(n))
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 const ago = (t: number, now = Date.now()) => {
   if (!t) return 'chưa có số liệu'

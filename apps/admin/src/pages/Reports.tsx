@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtDate, fmtMoney } from '../lib/format'
+import { fmtDate, fmtMoney, fmtTr } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { BranchTag, Chip, EmptyState, PageHeader, Panel, Segmented, Select, type ChipTone } from '../components/ui'
 
@@ -46,7 +46,7 @@ const STATUS: Record<string, { label: string; tone: ChipTone }> = {
   signed: { label: 'Chưa kích hoạt', tone: 'warn' },
   expired: { label: 'Hết hạn', tone: 'bad' },
 }
-const compact = (n: number) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} tr` : fmtMoney(n))
+const compact = (n: number) => (Math.abs(n) >= 1e6 ? fmtTr(n) : fmtMoney(n))
 const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')}%`
 const ago = (iso: string) => {
   const d = new Date(iso)
@@ -83,6 +83,8 @@ function niceMax(v: number) {
   return Math.ceil(v / (step * pow / 4)) * (step * pow / 4)
 }
 
+const mil = (vnd: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(Math.trunc(vnd / 10000) / 100)
+
 export function StackedBars({ rows, label }: { rows: Row[]; label: string }) {
   const W = 940
   const H = 220
@@ -104,18 +106,23 @@ export function StackedBars({ rows, label }: { rows: Row[]; label: string }) {
       ))}
       {rows.map((r, i) => {
         let acc = 0
-        const x = left + i * slot + slot * 0.15
-        const w = slot * 0.7
+        const x = left + i * slot + slot * 0.08
+        const w = slot * 0.84
         return (
           <g key={r.label}>
             {KINDS.map((k) => {
               const v = Math.max(0, r[k.key]) / 1e6
               if (v <= 0) return null
-              const rect = <rect key={k.key} x={x} y={y(acc + v)} width={w} height={y(acc) - y(acc + v)} fill={k.color}><title>{`${r.label}: ${k.label} ${fmtMoney(r[k.key])}`}</title></rect>
+              const h = y(acc) - y(acc + v)
+              const seg = (
+                <g key={k.key}>
+                  <rect x={x} y={y(acc + v)} width={w} height={h} fill={k.color}><title>{`${r.label}: ${k.label} ${fmtMoney(r[k.key])}`}</title></rect>
+                  {h >= 11 && <text x={x + w / 2} y={y(acc + v) + h / 2 + 3} textAnchor="middle" fontSize="8.5" fill="#fff" style={{ pointerEvents: 'none' }}>{mil(r[k.key])}</text>}
+                </g>
+              )
               acc += v
-              return rect
+              return seg
             })}
-            {totals[i] > 0 && <text x={x + w / 2} y={y(totals[i]) - 4} textAnchor="middle" fontSize="10" fill="var(--ink)">{totals[i].toFixed(1)}</text>}
             <text x={x + w / 2} y={top + H + 16} textAnchor="middle" fontSize="11" fill="var(--muted)">{r.label}</text>
           </g>
         )

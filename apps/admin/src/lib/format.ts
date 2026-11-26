@@ -1,6 +1,7 @@
 import type { CheckinReason, Contract, ContractStatus, PackageCategory, PayMethod, PayStatus, PtReason } from '../types'
 
-export const fmtMoney = (n: number | null | undefined) => `${new Intl.NumberFormat('vi-VN').format(Math.round(n ?? 0))} ₫`
+export const fmtMoney = (n: number | null | undefined) => `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(n ?? 0)} ₫`
+export const fmtTr = (n: number) => `${new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 }).format(Math.trunc(n / 10000) / 100)} tr`
 const pad = (n: number) => String(n).padStart(2, '0')
 export const fmtDate = (s: string | null | undefined) => {
   if (!s) return '-'

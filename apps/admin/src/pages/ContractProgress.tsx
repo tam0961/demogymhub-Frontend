@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
-import { fmtDate, fmtMoney } from '../lib/format'
+import { fmtDate, fmtMoney, fmtTr } from '../lib/format'
 import { useBranch } from '../context/BranchContext'
 import { Chip, DataTable, Kpi, KpiRow, PageHeader, Panel, type Column, type ChipTone } from '../components/ui'
 
@@ -13,7 +13,7 @@ interface Data {
   recent: Recent[]
 }
 
-const compact = (n: number) => (Math.abs(n) >= 1e6 ? `${(n / 1e6).toFixed(1).replace('.', ',')} tr` : fmtMoney(n))
+const compact = (n: number) => (Math.abs(n) >= 1e6 ? fmtTr(n) : fmtMoney(n))
 const STATUS: Record<Recent['status'], { label: string; tone: ChipTone }> = {
   active: { label: 'Còn hạn', tone: 'ok' },
   frozen: { label: 'Bảo lưu', tone: 'neutral' },
