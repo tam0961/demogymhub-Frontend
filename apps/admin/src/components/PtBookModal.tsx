@@ -244,23 +244,30 @@ export function PtFreeSlotModal({ session, onClose, onAssigned, onComplete, onNo
   const { user } = useAuth()
   const [contracts, setContracts] = useState<Contract[]>([])
   const [contractId, setContractId] = useState('')
+  const [partnerId, setPartnerId] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const branch = user?.branches.find((b) => b.id === session.branch_id)
+  const pick = contracts.find((x) => x.id === contractId)
+  const isPair = pick?.package.category === 'pt_1on2'
+  const partners = isPair ? contracts.filter((c) => c.package.category === 'pt_1on2' && c.id !== contractId) : []
 
   useEffect(() => {
-    api.get<ListResp<Contract>>('/contracts', { params: { category: 'pt_1on1', status: 'active', limit: 100, branch_id: session.branch_id } })
-      .then((r) => setContracts(r.data.data.filter((c) => c.sessions_total != null && (c.sessions_left ?? 0) > 0)))
+    const load = (category: 'pt_1on1' | 'pt_1on2') => api.get<ListResp<Contract>>('/contracts', { params: { category, status: 'active', limit: 100, branch_id: session.branch_id } }).then((r) => r.data.data)
+    Promise.all([load('pt_1on1'), load('pt_1on2')])
+      .then(([a, b]) => setContracts([...a, ...b.filter((c) => c.pt?.id === session.trainer.id)].filter((c) => c.sessions_total != null && (c.sessions_left ?? 0) > 0)))
       .catch(() => setContracts([]))
-  }, [session.branch_id])
+  }, [session.branch_id, session.trainer.id])
 
   const assign = async () => {
     const c = contracts.find((x) => x.id === contractId)
     if (!c) return
+    const p = isPair ? contracts.find((x) => x.id === partnerId) : undefined
+    if (isPair && !p) return
     setBusy(true)
     setError('')
     try {
-      await api.post(`/pt/sessions/${session.id}/assign`, { member_id: c.member_id, contract_id: c.id })
+      await api.post(`/pt/sessions/${session.id}/assign`, { member_id: c.member_id, contract_id: c.id, ...(p ? { partner: { member_id: p.member_id, contract_id: p.id } } : {}) })
       setChosen({ ...session, member: c.member, contract_id: c.id, contract_code: c.code, sessions_left: c.sessions_left })
       onAssigned()
     } catch (err) {
@@ -286,13 +293,21 @@ export function PtFreeSlotModal({ session, onClose, onAssigned, onComplete, onNo
       {error && <div className="form-error" role="alert">{error}</div>}
       <Field label="Chọn khách cho ca này" htmlFor="pf-member">
         <span style={{ display: 'flex', gap: 8 }}>
-          <Select id="pf-member" disabled={!!chosen} value={contractId} onChange={(e) => setContractId(e.target.value)}>
+          <Select id="pf-member" disabled={!!chosen} value={contractId} onChange={(e) => { setContractId(e.target.value); setPartnerId('') }}>
             <option value="" disabled>{contracts.length ? 'Chọn hội viên' : 'Chưa có hội viên còn buổi'}</option>
-            {contracts.map((c) => <option key={c.id} value={c.id}>{c.member.name} ({c.member.code}), còn {c.sessions_left} buổi</option>)}
+            {contracts.map((c) => <option key={c.id} value={c.id}>{c.member.name} ({c.member.code}), {c.package.category === 'pt_1on2' ? 'PT 1:2, ' : ''}còn {c.sessions_left} buổi</option>)}
           </Select>
-          <Button variant="primary" onClick={assign} disabled={busy || !contractId || !!chosen}>Chọn khách</Button>
+          <Button variant="primary" onClick={assign} disabled={busy || !contractId || !!chosen || (isPair && !partnerId)}>Chọn khách</Button>
         </span>
       </Field>
+      {isPair && (
+        <Field label="Khách thứ 2 (gói PT 1:2 của PT này)" htmlFor="pf-partner">
+          <Select id="pf-partner" disabled={!!chosen} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
+            <option value="" disabled>{partners.length ? 'Chọn khách thứ 2' : 'PT này chưa có khách PT 1:2 khác còn buổi'}</option>
+            {partners.map((c) => <option key={c.id} value={c.id}>{c.member.name} ({c.member.code}), còn {c.sessions_left} buổi</option>)}
+          </Select>
+        </Field>
+      )}
     </Modal>
   )
 }
