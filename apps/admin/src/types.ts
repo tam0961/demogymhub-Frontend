@@ -261,6 +261,11 @@ export interface Lead {
   email: string | null
   source: string | null
   interest: string | null
+  pt_name?: string | null
+  outcome?: string | null
+  call_response?: string | null
+  option_pref?: string | null
+  reg_type?: string | null
   status: LeadStatus
   note: string | null
   branch_id: string

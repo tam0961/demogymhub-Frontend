@@ -13,6 +13,10 @@ import type { Branch, Lead, LeadStatus, ListResp } from '../types'
 
 type Tab = 'all' | LeadStatus
 const TABS: { value: Tab; label: string }[] = [{ value: 'all', label: 'Tất cả' }, ...(Object.keys(LEAD_STATUS) as LeadStatus[]).map((s) => ({ value: s as Tab, label: LEAD_STATUS[s].label }))]
+type FilterKey = 'source' | 'reg_type' | 'pt_name' | 'outcome' | 'call_response'
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'source', label: 'Nguồn' }, { key: 'reg_type', label: 'Nhánh ĐK' }, { key: 'pt_name', label: 'PT tư vấn' }, { key: 'outcome', label: 'Tình trạng' }, { key: 'call_response', label: 'Phản hồi sau gọi' },
+]
 const EDITABLE: LeadStatus[] = ['new', 'contacted', 'trial_booked', 'lost']
 
 export function leadColumns(actions: { canEdit: boolean; onEdit: (l: Lead) => void; onConvert: (l: Lead) => void; pts?: { id: string; name: string }[]; onAssign?: (l: Lead, ptId: string | null) => void }, _branchOf?: (l: Lead) => Branch | undefined): Column<Lead>[] {
@@ -23,6 +27,12 @@ export function leadColumns(actions: { canEdit: boolean; onEdit: (l: Lead) => vo
     { key: 'phone', header: 'Số điện thoại', sortValue: (l) => l.phone, render: (l) => l.phone },
     { key: 'source', header: 'Nguồn', sortValue: (l) => l.source ?? '', render: (l) => l.source || '-' },
     { key: 'interest', header: 'Gói quan tâm', sortValue: (l) => l.interest ?? '', render: (l) => l.interest || '-' },
+    { key: 'reg_type', header: 'Nhánh ĐK', sortValue: (l) => l.reg_type ?? '', render: (l) => l.reg_type || '-' },
+    { key: 'pt_name', header: 'PT tư vấn', sortValue: (l) => l.pt_name ?? '', render: (l) => l.pt_name || '-' },
+    { key: 'outcome', header: 'Tình trạng', sortValue: (l) => l.outcome ?? '', render: (l) => l.outcome || '-' },
+    { key: 'call_response', header: 'Phản hồi sau gọi', sortValue: (l) => l.call_response ?? '', render: (l) => l.call_response || '-' },
+    { key: 'option_pref', header: 'Tùy chọn', sortValue: (l) => l.option_pref ?? '', render: (l) => l.option_pref || '-' },
+    { key: 'note', header: 'Ghi chú', sortValue: (l) => l.note ?? '', render: (l) => <span title={l.note ?? ''}>{(l.note ?? '').slice(0, 60) || '-'}</span> },
     { key: 'status', header: 'Trạng thái', sortValue: (l) => LEAD_STATUS[l.status].label, render: (l) => <Chip tone={LEAD_STATUS[l.status].tone}>{LEAD_STATUS[l.status].label}</Chip> },
     {
       key: 'assignee', header: 'Sale phụ trách', sortValue: ptName,
@@ -65,8 +75,13 @@ export default function Leads() {
     setLoading(true)
     setError('')
     try {
-      const { data } = await api.get<ListResp<Lead>>('/leads', { params: { limit: 200, branch_id: branchId ?? undefined } })
-      setRows(data.data)
+      const all: Lead[] = []
+      for (let page = 1; ; page++) {
+        const { data } = await api.get<ListResp<Lead>>('/leads', { params: { limit: 200, page, branch_id: branchId ?? undefined } })
+        all.push(...data.data)
+        if (all.length >= data.meta.total || data.data.length === 0) break
+      }
+      setRows(all)
     } catch (e) {
       setError(apiError(e).message)
     } finally {
@@ -75,10 +90,16 @@ export default function Leads() {
   }, [branchId])
   useEffect(() => { load() }, [load])
 
+  const [fl, setFl] = useState<Record<FilterKey, string>>({ source: '', reg_type: '', pt_name: '', outcome: '', call_response: '' })
+  const opts = useMemo(() => {
+    const o = {} as Record<FilterKey, string[]>
+    for (const f of FILTERS) o[f.key] = [...new Set(rows.map((l) => (l[f.key] ?? '').trim()).filter(Boolean))].sort()
+    return o
+  }, [rows])
   const filtered = useMemo(() => {
     const k = q.trim().toLowerCase()
-    return rows.filter((l) => (tab === 'all' || l.status === tab) && (!k || l.name.toLowerCase().includes(k) || l.phone.includes(k)))
-  }, [rows, tab, q])
+    return rows.filter((l) => (tab === 'all' || l.status === tab) && FILTERS.every((f) => !fl[f.key] || (l[f.key] ?? '').trim() === fl[f.key]) && (!k || l.name.toLowerCase().includes(k) || l.phone.includes(k)))
+  }, [rows, tab, q, fl])
   const [pts, setPts] = useState<{ id: string; name: string }[]>([])
   useEffect(() => {
     api.get<{ data: { id: string; name: string }[] }>('/contracts/pt-staff', { params: { branch_id: branchId ?? undefined } }).then((r) => setPts(r.data.data)).catch(() => setPts([]))
@@ -121,6 +142,12 @@ export default function Leads() {
           <Select aria-label="Lọc trạng thái" value={tab} onChange={(e) => setTab(e.target.value as Tab)}>
             {TABS.map((t) => <option key={t.value} value={t.value}>{t.value === 'all' ? 'Mọi trạng thái' : t.label}</option>)}
           </Select>
+          {FILTERS.map((f) => (
+            <Select key={f.key} aria-label={`Lọc ${f.label}`} value={fl[f.key]} onChange={(e) => setFl((x) => ({ ...x, [f.key]: e.target.value }))}>
+              <option value="">{f.label}: tất cả</option>
+              {opts[f.key].map((v) => <option key={v} value={v}>{v}</option>)}
+            </Select>
+          ))}
         </div>
         <div className="page-action">
           <span className="hint-muted">{filtered.length} khách</span>
