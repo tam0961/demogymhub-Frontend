@@ -31,7 +31,7 @@ export function BundleSection({ c }: { c: Pick<Contract, 'bundled_contracts' | '
   )
 }
 
-interface TrainingRow { id: string; kind: 'pt_1on1' | 'pt_1on2' | 'group'; start_at: string; end_at: string; completed_at: string | null; trainer: string | null; title: string; note: string | null }
+interface TrainingRow { id: string; kind: 'pt_1on1' | 'pt_1on2' | 'group'; start_at: string; end_at: string; completed_at: string | null; trainer: string | null; title: string; note: string | null; month_only?: boolean }
 interface TrainingHistory { rows: TrainingRow[]; summary: { sessions_total: number | null; sessions_left: number | null; done: number } }
 
 type Dlg =null | 'sign' | 'pay' | 'activate' | 'freeze' | 'cancel' | 'staff' | 'edit' | 'invoice' | { pending: Payment } | { receipt: Payment }
@@ -58,7 +58,7 @@ export default function ContractDetail() {
   const trainTotal = training?.summary.sessions_total
   const trainCols: Column<TrainingRow>[] = [
     { key: 'no', header: 'Buổi', render: (r) => `${trainNo.get(r.id) ?? '-'}/${trainTotal ?? '-'}` },
-    { key: 'at', header: 'Ngày giờ', sortValue: (r) => r.start_at, render: (r) => fmtDateTime(r.start_at) },
+    { key: 'at', header: 'Ngày giờ', sortValue: (r) => r.start_at, render: (r) => (r.month_only ? `Tháng ${new Date(r.start_at).getMonth() + 1}/${new Date(r.start_at).getFullYear()}` : fmtDateTime(r.start_at)) },
     { key: 'kind', header: 'Hình thức', render: (r) => (r.kind === 'group' ? 'Lớp nhóm' : r.kind === 'pt_1on2' ? 'PT 1:2' : 'PT 1:1') },
     { key: 'trainer', header: 'Huấn luyện viên', sortValue: (r) => r.trainer ?? '', render: (r) => r.trainer ?? '-' },
     { key: 'what', header: 'Nội dung', render: (r) => (r.kind === 'group' ? r.title : r.note || '-') },
