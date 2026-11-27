@@ -205,7 +205,7 @@ export default function PtOne() {
                   >
                     {mode === 'week' && <span className="ptg-pt">{s.trainer.name}</span>}
                     <span className="ptg-line">
-                      <b className={st === 'cancel' ? 'strike' : ''}>{s.member?.name ?? 'Chưa có khách'}{more.length ? ` +${more.length}` : ''}</b>
+                      <b className={st === 'cancel' ? 'strike' : ''}>{more.length ? `${more.length + 1} buổi` : s.member?.name ?? 'Chưa có khách'}</b>
                       {st !== 'blank' && <em>{STATE_LABEL[st]}</em>}
                     </span>
                   </button>
