@@ -385,19 +385,20 @@ function RegistrationsPanel({ regs, act }: { regs: GroupReg[]; act: (url: string
 function ClassDetailModal({ cls, regs, trainers, act, onClose }: { cls: GroupClass; regs: GroupReg[]; trainers: Trainer[]; act: (url: string, ok: string, body?: object) => void; onClose: () => void }) {
   const { can } = usePermission()
   const { user } = useAuth()
-  const locked = Date.now() >= cancelLockAt(cls.start_at) && !user?.roles.some((r) => LOCK_OVERRIDE_ROLES.includes(r))
+  const admin = !!user?.roles.some((r) => LOCK_OVERRIDE_ROLES.includes(r))
+  const locked = Date.now() >= cancelLockAt(cls.start_at) && !admin
   const [confirming, setConfirming] = useState<GroupReg | null>(null)
   const rows = regs.filter((r) => r.status !== 'cancelled')
   const cols: Column<GroupReg>[] = [
     { key: 'name', header: 'Khách hàng', sortValue: (r) => r.name, render: (r) => <><span className="cell-main">{r.name}</span><div className="cell-sub">{r.phone}</div></> },
-    { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => <Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip> },
+    { key: 'status', header: 'Trạng thái', sortValue: (r) => r.status, render: (r) => (r.status === 'booked' ? <Chip tone="ok">Có mặt</Chip> : <Chip tone={REG_STATUS[r.status].tone}>{REG_STATUS[r.status].label}</Chip>) },
     { key: 'left', header: 'Còn lại / hủy', numeric: true, sortValue: (r) => r.sessions_left ?? 0, render: (r) => `${r.sessions_left ?? '-'} / ${r.cancel_count ?? 0}` },
     {
       key: 'act',
       header: '',
       render: (r) => (
         <span style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-          {r.status !== 'cancelled' && r.status !== 'waitlist' && can('pt_sessions.complete') && (
+          {r.status !== 'cancelled' && r.status !== 'waitlist' && admin && can('pt_sessions.complete') && (
             <>
               <Button small variant={r.status === 'attended' ? 'primary' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận có mặt', { status: 'attended' })}>Có mặt</Button>
               <Button small variant={r.status === 'absent' ? 'danger' : 'secondary'} onClick={() => act(`/pt/classes/registrations/${r.id}/attendance`, 'Đã ghi nhận vắng, khách mất buổi', { status: 'absent' })}>Vắng</Button>
@@ -412,7 +413,7 @@ function ClassDetailModal({ cls, regs, trainers, act, onClose }: { cls: GroupCla
   ]
   const open = cls.status === 'scheduled'
   const vnDay = (d: Date) => new Date(d.getTime() + 7 * 3600000).toISOString().slice(0, 10)
-  const future = vnDay(new Date(cls.start_at)) > vnDay(new Date())
+  const notToday = !admin && vnDay(new Date(cls.start_at)) !== vnDay(new Date())
   return (
     <Modal
       title={`${classTitle(cls.title)}${cls.muscle_group ? ` - ${cls.muscle_group}` : ''} | ${ptName(cls.trainer)}`}
@@ -426,7 +427,7 @@ function ClassDetailModal({ cls, regs, trainers, act, onClose }: { cls: GroupCla
               {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
             </Select>
           )}
-          {can('pt_sessions.complete') && <Button variant="primary" disabled={future || !cls.trainer} title={!cls.trainer ? 'Gán PT cho lớp trước khi hoàn thành' : future ? 'Chỉ hoàn thành được buổi dạy trong ngày' : undefined} onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Hoàn thành</Button>}
+          {can('pt_sessions.complete') && <Button variant="primary" disabled={notToday || !cls.trainer} title={!cls.trainer ? 'Gán PT cho lớp trước khi hoàn thành' : notToday ? 'Chỉ hoàn thành được buổi dạy trong ngày hôm đó' : undefined} onClick={() => act(`/pt/classes/${cls.id}/complete`, 'Đã xác nhận dạy xong lớp')}>Hoàn thành buổi</Button>}
         </>
       ) : undefined}
     >

@@ -133,8 +133,10 @@ export default function IpadPage() {
           <dl className="kv">{payload.rows.map(([k, v]) => <div key={k} style={{ display: 'contents' }}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
           <div className="sig-label">Ký tên tại đây</div>
           <SignaturePad onChange={setSig} />
-          <label className="check"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />{payload.consent ?? 'Tôi đã đọc và đồng ý với điều khoản hợp đồng'}</label>
-          <Button variant="primary" disabled={busy || !sig || !consent} onClick={submit}>{busy ? 'Đang gửi...' : 'Gửi chữ ký'}</Button>
+          <label className="check ipad-consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />{payload.consent ?? (payload.termsUrl
+            ? <span>Tôi đã đọc và đồng ý với <a href={payload.termsUrl} target="_blank" rel="noopener noreferrer" className="ipad-terms">điều khoản hợp đồng</a></span>
+            : 'Tôi đã đọc và đồng ý với điều khoản hợp đồng')}</label>
+          <Button variant="primary" disabled={busy || !sig || !consent} onClick={submit}>{busy ? 'Đang gửi...' : 'Xác nhận ký'}</Button>
         </section>
       )}
       {!error && stage === 'signed' && <p className="ipad-wait">Đã nhận chữ ký. Cảm ơn quý khách!</p>}

@@ -300,17 +300,6 @@ function Home({ d, go, name }: { d: Shared; go: (t: Tab, s?: Sub) => void; name:
 function ClassAttend({ c, today, onChanged }: { c: Cls; today: string; onChanged: () => void }) {
   const toast = useToast()
   const [busy, setBusy] = useState('')
-  const mark = async (id: string, status: 'attended' | 'absent') => {
-    setBusy(id)
-    try {
-      await api.post(`/pt/classes/registrations/${id}/attendance`, { status })
-      onChanged()
-    } catch (e) {
-      toast(apiError(e).message, true)
-    } finally {
-      setBusy('')
-    }
-  }
   const finish = async () => {
     setBusy(c.id)
     try {
@@ -323,19 +312,14 @@ function ClassAttend({ c, today, onChanged }: { c: Cls; today: string; onChanged
       setBusy('')
     }
   }
-  const canMark = dayOf(c.start_at) <= today && c.status !== 'cancelled'
+  const canMark = dayOf(c.start_at) === today && c.status !== 'cancelled'
   return (
     <div className="pta-attend">
       {c.registrations.length === 0 && <div className="pta-sub">Chưa có học viên đăng ký.</div>}
       {c.registrations.map((r) => (
         <div key={r.id} className="pta-att">
           <span className="pta-grow">{r.name} {tel(r.phone)}</span>
-          {canMark ? (
-            <>
-              <button type="button" disabled={busy === r.id} className={r.status === 'attended' ? 'on ok' : ''} onClick={() => mark(r.id, 'attended')}>Có mặt</button>
-              <button type="button" disabled={busy === r.id} className={r.status === 'absent' ? 'on bad' : ''} onClick={() => mark(r.id, 'absent')}>Vắng</button>
-            </>
-          ) : <span className="pta-sub">{r.status === 'attended' ? 'Có mặt' : r.status === 'absent' ? 'Vắng' : 'Đã đăng ký'}</span>}
+          <span className="pta-sub">{r.status === 'absent' ? 'Vắng' : 'Có mặt'}</span>
         </div>
       ))}
       {canMark && c.status === 'scheduled' && <button type="button" className="pta-cta" disabled={busy === c.id} onClick={finish}>Hoàn thành lớp</button>}

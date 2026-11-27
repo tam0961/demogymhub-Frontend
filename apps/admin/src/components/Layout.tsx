@@ -68,6 +68,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { to: '/users', label: 'Tài khoản và phân quyền', icon: 'users', perm: ['roles.read'] },
     { to: '/roles', label: 'Vai trò', icon: 'roles', perm: ['roles.read'] },
     { to: '/settings/bank', label: 'Tài khoản ngân hàng', icon: 'payments', perm: ['roles.read'] },
+    { to: '/settings/terms', label: 'Điều khoản hợp đồng', icon: 'contracts', perm: ['roles.read'] },
     { to: '/settings/devices', label: 'Thiết bị', icon: 'shift', perm: ['devices.manage'] },
     { to: '/settings/zns', label: 'Zalo', icon: 'roles', perm: ['roles.read'] },
     { to: '/settings/sheet-sync', label: 'Đồng bộ Sheet', icon: 'roles', perm: ['roles.read'] },

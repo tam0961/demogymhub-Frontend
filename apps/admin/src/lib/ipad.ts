@@ -10,7 +10,7 @@ export interface PayPayload {
   holder: string
   qrUrl: string
 }
-export interface SignPayload { title: string; rows: [string, string][]; consent?: string }
+export interface SignPayload { title: string; rows: [string, string][]; consent?: string; termsUrl?: string | null }
 
 export const ipadUrl = (token: string) => `${window.location.origin}/ipad/${token}`
 

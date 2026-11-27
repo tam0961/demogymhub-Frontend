@@ -35,12 +35,13 @@ interface FieldProps {
   hint?: string
   full?: boolean
   htmlFor: string
+  required?: boolean
   children: ReactNode
 }
-export function Field({ label, error, hint, full, htmlFor, children }: FieldProps) {
+export function Field({ label, error, hint, full, htmlFor, required, children }: FieldProps) {
   return (
     <div className={`field ${full ? 'full' : ''}`}>
-      <label htmlFor={htmlFor}>{label}</label>
+      <label htmlFor={htmlFor}>{label}{required && <span className="req" aria-hidden="true"> *</span>}</label>
       {children}
       {hint && !error && <span className="field-hint">{hint}</span>}
       {error && <span className="field-error" role="alert">{error}</span>}

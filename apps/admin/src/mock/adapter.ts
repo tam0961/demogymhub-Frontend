@@ -49,6 +49,7 @@ const roleDefs: RoleRow[] = [
   { id: 'r4', key: 'receptionist', name: 'receptionist', description: 'Lễ tân', permissions: Object.values(P).flat() },
   { id: 'r5', key: 'accountant', name: 'accountant', description: 'Kế toán', permissions: ['payments.read', 'payments.confirm', 'reports.view', 'reports.view_revenue', 'reports.export', 'contracts.read'] },
 ]
+let mockTermsUrl = ''
 let scanDemoShown = false
 const printDefaults: Record<string, { title: string; body: string }> = {
   contract_member: { title: 'HỢP ĐỒNG HỘI VIÊN', body: 'TH GYM & FITNESS - {{chi_nhanh}}\n\nSố hợp đồng: {{ma_hop_dong}}\nHội viên: {{ten_hoi_vien}} - SĐT: {{sdt}}\nGói tập: {{goi_tap}}\nHiệu lực: {{ngay_bat_dau}} đến {{ngay_het_han}}\nCòn thiếu: {{con_thieu}}' },
@@ -759,6 +760,10 @@ export const mockAdapter: AxiosAdapter = async (config) => {
   const body = typeof config.data === 'string' && config.data ? JSON.parse(config.data) : (config.data ?? {})
   const params = (config.params ?? {}) as Record<string, string | number | undefined>
   const ok = (data: unknown, extra: object = {}) => ({ data: { data, ...extra }, status: 200, statusText: 'OK', headers: {}, config })
+  if (url === '/contracts/terms-url') {
+    if (method === 'put') { mockTermsUrl = String((body as { url?: string })?.url ?? ''); return ok({ url: mockTermsUrl }) }
+    return ok({ url: mockTermsUrl })
+  }
 
   if (url === '/auth/login' && method === 'post') {
     const u = users[body.email]

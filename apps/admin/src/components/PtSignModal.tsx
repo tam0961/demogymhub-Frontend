@@ -49,13 +49,15 @@ export function PtSignModal({ session, onClose, onConfirmed, onCancel }: { sessi
   }, [token])
 
   return (
-    <Modal title="Khách xác nhận buổi tập" onClose={onClose} footer={<Button onClick={onClose}>Hủy</Button>}>
+    <Modal title="Khách xác nhận buổi tập" size="xl" onClose={onClose} footer={<Button onClick={onClose}>Hủy</Button>}>
+      <div style={{ minHeight: 420 }}>
       <div className="sign-wait">
         <div className="sign-ico" aria-hidden="true">✍</div>
         <h3>Mở iPad cho khách ký xác nhận</h3>
         <p>Khách ký trên iPad, hệ thống tự ghi nhận buổi, trừ 1 buổi và gửi tin Zalo số buổi còn lại. Chưa ký thì chưa tính.</p>
       </div>
       {!loaded ? <p className="hint-muted">Đang kiểm tra iPad...</p> : <IpadPairBox branchId={branch} token={token} onChanged={refresh} />}
+      </div>
       {token && <p className="hint-muted" style={{ marginTop: 8 }}>Đã gửi lên iPad quầy, đang chờ khách ký...</p>}
     </Modal>
   )

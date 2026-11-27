@@ -7,7 +7,7 @@ import { BANKS, bankReady, loadBank, transferContent, vietQrUrl } from '../lib/b
 import { createIpadSession, getBranchIpad, getIpadSession, ipadUrl, setIpadStage } from '../lib/ipad'
 import { QRImage } from '../components/QRImage'
 import { IpadPairBox } from '../components/IpadPairBox'
-import { PROMO_OPTIONS, addDays, defaultStart, memberBanner, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
+import { PROMO_OPTIONS, addDays, defaultStart, promoAllowed, quote, renewedFromId, type Promo, type PromoType } from '../lib/promo'
 import type { ProcessedPhoto } from '../lib/photo'
 import { useAuth } from '../context/AuthContext'
 import { useBranch } from '../context/BranchContext'
@@ -75,6 +75,11 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [partial, setPartial] = useState<CreateOutcome | null>(null)
+  const [showErr, setShowErr] = useState(false)
+  const [termsUrl, setTermsUrl] = useState('')
+  useEffect(() => {
+    api.get<{ data: { url: string } }>('/contracts/terms-url').then((r) => setTermsUrl(r.data.data.url)).catch(() => {})
+  }, [])
 
   const existing = mode === 'existing'
   const effBranch = existing && member ? member.branch_id : branch
@@ -139,8 +144,23 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
   const defaultPaid = quote(pkg, promo, 0, start).total
   const qt = quote(pkg, promo, paidTouched ? parseMoney(paid) : defaultPaid, start)
   const nextPayDate = nextPay || addDays(todayISO(), 25)
-  const memberOk = existing ? !!member : name.trim().length > 1 && phone.trim().length >= 8
-  const canNext = memberOk && !!pkg && !!start && !promoErr && (!!saleId || sales.length === 0) && (!needsPt || !!ptId || pts.length === 0) && (!isGroup || emailOk)
+  const nameOk = existing ? !!member : name.trim().length > 1
+  const phoneOk = existing ? true : phone.trim().length >= 8
+  const pkgOk = !!pkg
+  const startOk = !!start
+  const saleOk = !!saleId || sales.length === 0
+  const ptOk = !needsPt || !!ptId || pts.length === 0
+  const emailReqOk = !isGroup || emailOk
+  const missingCount = [nameOk, phoneOk, pkgOk, startOk, saleOk, ptOk, emailReqOk].filter((x) => !x).length
+  const canNext = missingCount === 0 && !promoErr
+  const goNext = () => {
+    if (!canNext) {
+      setShowErr(true)
+      window.setTimeout(() => document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(), 0)
+      return
+    }
+    setStep(needsTransfer ? 2 : 3)
+  }
   const who = existing ? member?.name ?? '' : name.trim()
   const promoLabel = PROMO_OPTIONS.find((o) => o.value === promoType)
   const photoThumb = existing
@@ -248,10 +268,10 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
       if (paidShown.current) {
         paidShown.current = false
         setIpadStage(ipadToken, 'paid', { title: 'Đã nhận thanh toán', rows: [['Họ và tên', who], ['Gói tập', pkg.name], ['Số tiền', fmtMoney(qt.paid)]] }).catch(() => {})
-        const t = window.setTimeout(() => { setIpadStage(ipadToken, 'sign', { title: 'Hợp đồng thành viên', rows }).catch(() => {}) }, 3000)
+        const t = window.setTimeout(() => { setIpadStage(ipadToken, 'sign', { title: 'Hợp đồng hội viên', rows, termsUrl: termsUrl || null }).catch(() => {}) }, 3000)
         return () => window.clearTimeout(t)
       }
-      setIpadStage(ipadToken, 'sign', { title: 'Hợp đồng thành viên', rows }).catch(() => {})
+      setIpadStage(ipadToken, 'sign', { title: 'Hợp đồng hội viên', rows, termsUrl: termsUrl || null }).catch(() => {})
     } else {
       setIpadStage(ipadToken, 'idle', null).catch(() => {})
     }
@@ -298,7 +318,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
     ) : step === 1 ? (
       <>
         <Button onClick={onClose}>Hủy</Button>
-        <Button variant="primary" disabled={!canNext} onClick={() => setStep(needsTransfer ? 2 : 3)}>Tiếp tục</Button>
+        <Button variant="primary" onClick={goNext}>Tiếp tục</Button>
       </>
     ) : step === 2 ? (
       <>
@@ -324,17 +344,20 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
       {err && <div className="form-error" role="alert" style={{ marginBottom: 12 }}>{err}</div>}
 
       {step === 1 && (
-        <div className="form-grid cols-3 cn-grid">
-          {existing && member && <div className="full info-ok" role="status">{memberBanner(member)}</div>}
+        <div className="cn-form cn-grid">
           {!memberId && (
-            <div className="full">
+            <div className="cn-mode">
               <Segmented fill ariaLabel="Loại hội viên" value={mode} onChange={(v) => { setMode(v); setMember(null) }} options={[{ value: 'new', label: 'Hội viên mới' }, { value: 'existing', label: 'Hội viên đã có' }]} />
             </div>
           )}
           {(
             <>
-              <Field label="Họ và tên" htmlFor="cn-name">
-                <Input id="cn-name" required autoFocus readOnly={existing && !!member} placeholder={existing && !member ? 'Gõ tên, SĐT hoặc mã để tìm hội viên' : undefined} value={existing ? (member ? member.name : q) : name} onChange={(e) => (existing ? setQ(e.target.value) : setName(e.target.value))} />
+              {showErr && missingCount > 0 && <div className="form-error" role="alert">Còn {missingCount} ô bắt buộc (*) chưa nhập, đã khoanh đỏ.</div>}
+              <section className="cn-box">
+              <h3 className="cn-box-title">Khách hàng</h3>
+              <div className="form-grid cols-3">
+              <Field label="Họ và tên" htmlFor="cn-name" required>
+                <Input id="cn-name" required invalid={showErr && !nameOk} autoFocus readOnly={existing && !!member} placeholder={existing && !member ? 'Gõ tên, SĐT hoặc mã để tìm hội viên' : undefined} value={existing ? (member ? member.name : q) : name} onChange={(e) => (existing ? setQ(e.target.value) : setName(e.target.value))} />
                 {existing && !member && !memberId && q.trim().length >= 1 && (
                   <ul className="pick-list pick-drop">
                     {results.map((m) => (
@@ -344,7 +367,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                   </ul>
                 )}
               </Field>
-              <Field label="Số điện thoại" htmlFor="cn-phone"><Input id="cn-phone" type="tel" inputMode="tel" placeholder="0903123456" readOnly={existing} value={existing ? member?.phone ?? '' : phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+              <Field label="Số điện thoại" htmlFor="cn-phone" required={!existing}><Input id="cn-phone" invalid={showErr && !phoneOk} type="tel" inputMode="tel" placeholder="0903123456" readOnly={existing} value={existing ? member?.phone ?? '' : phone} onChange={(e) => setPhone(e.target.value)} /></Field>
               <Field label="Giới tính" htmlFor="cn-gender">
                 <Segmented<string> fill ariaLabel="Giới tính" disabled={existing} value={existing ? member?.gender ?? '' : gender} options={[{ value: 'male', label: 'Nam' }, { value: 'female', label: 'Nữ' }]} onChange={(v) => setGender((v === gender ? '' : v) as Gender | '')} />
               </Field>
@@ -355,11 +378,19 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                   <Button onClick={() => setFaceOpen(true)} disabled={existing && (!member || !can('members.update'))}>Chụp ảnh, đăng ký khuôn mặt</Button>
                   <span className="hint-muted">{faceNote}</span>
                 </div>
-                <label className="check face-check"><input type="checkbox" disabled aria-describedby="cn-face-hint" />Đăng ký khuôn mặt lên máy chấm công khi hợp đồng có hiệu lực</label>
-                <span id="cn-face-hint" className="hint-muted">Khả dụng khi kết nối máy chấm công</span>
               </div>
-              <Field label="Gói tập" htmlFor="cn-pkg" hint={pkgs.length === 0 ? 'Chi nhánh này chưa có gói đang bán' : pkg && pkg.price === 0 ? 'Gói này có giá 0 ₫, hãy kiểm tra lại trước khi tiếp tục' : undefined}>
-                <Select id="cn-pkg" value={pkgId} onChange={(e) => setPkgId(e.target.value)}>
+              {isGroup && (
+                <Field label="Email hội viên (nhận xác nhận đặt lịch lớp nhóm)" htmlFor="cn-email" full required error={email.trim() && !emailOk ? 'Email chưa đúng định dạng' : undefined} hint={!email.trim() ? 'Bắt buộc với gói PT nhóm' : undefined}>
+                  <Input id="cn-email" type="email" required invalid={showErr && !emailReqOk} value={email} onChange={(e) => { setEmailTouched(true); setEmail(e.target.value) }} />
+                </Field>
+              )}
+              </div>
+              </section>
+              <section className="cn-box">
+              <h3 className="cn-box-title">Gói tập</h3>
+              <div className="form-grid cols-3">
+              <Field label="Gói tập" htmlFor="cn-pkg" required hint={pkgs.length === 0 ? 'Chi nhánh này chưa có gói đang bán' : pkg && pkg.price === 0 ? 'Gói này có giá 0 ₫, hãy kiểm tra lại trước khi tiếp tục' : undefined}>
+                <Select id="cn-pkg" aria-invalid={showErr && !pkgOk ? true : undefined} value={pkgId} onChange={(e) => setPkgId(e.target.value)}>
                   <option value="">Chọn gói tập</option>
                   {PACKAGE_CATEGORIES.map((c) => {
                     const list = pkgs.filter((p) => (p.category ?? 'member') === c)
@@ -367,7 +398,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                   })}
                 </Select>
               </Field>
-              <Field label="Ngày bắt đầu" htmlFor="cn-start"><Input id="cn-start" type="date" value={start} onChange={(e) => { setStart(e.target.value); setStartTouched(true) }} /></Field>
+              <Field label="Ngày bắt đầu" htmlFor="cn-start" required><Input id="cn-start" invalid={showErr && !startOk} type="date" value={start} onChange={(e) => { setStart(e.target.value); setStartTouched(true) }} /></Field>
               <Field label="Ngày hết hạn" htmlFor="cn-end">
                 <Input id="cn-end" readOnly value={pkg ? (qt.endDate ? fmtDate(qt.endDate) : 'Tính khi kích hoạt') : ''} />
               </Field>
@@ -384,25 +415,33 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                     : <Input id="cn-promo-val" inputMode="numeric" invalid={!!promoErr} placeholder="0" value={promoValue} onChange={(e) => setPromoValue(e.target.value)} />}
                 </Field>
               )}
-              <div className="full cn-break" aria-hidden="true" />
-              <Field label="Nhân viên sale" htmlFor="cn-sale">
-                <Select id="cn-sale" value={saleId} onChange={(e) => setSaleId(e.target.value)}>
+              <Field label="Nhân viên sale" htmlFor="cn-sale" required={sales.length > 0}>
+                <Select id="cn-sale" aria-invalid={showErr && !saleOk ? true : undefined} value={saleId} onChange={(e) => setSaleId(e.target.value)}>
                   <option value="">Chọn nhân viên sale</option>
                   {sales.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </Select>
               </Field>
               {needsPt && (
-                <Field label="Nhân viên PT phụ trách" htmlFor="cn-pt">
-                  <Select id="cn-pt" value={ptId} onChange={(e) => setPtId(e.target.value)}>
+                <Field label="Nhân viên PT phụ trách" htmlFor="cn-pt" required={pts.length > 0}>
+                  <Select id="cn-pt" aria-invalid={showErr && !ptOk ? true : undefined} value={ptId} onChange={(e) => setPtId(e.target.value)}>
                     <option value="">Chọn PT phụ trách</option>
                     {pts.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
                   </Select>
                 </Field>
               )}
-              <div className="full cn-break" aria-hidden="true" />
-              <Field label="Thu ngay (đồng)" htmlFor="cn-paid" hint={`Thành tiền ${fmtMoney(qt.total)}`}>
-                <MoneyInput id="cn-paid" placeholder="0 ₫" value={paidTouched ? paid : defaultPaid ? String(defaultPaid) : ''} onValueChange={(v) => { setPaidTouched(true); setPaid(v) }} />
-              </Field>
+              </div>
+              </section>
+              <section className="cn-box">
+              <h3 className="cn-box-title">Thanh toán</h3>
+              <div className="cn-money">
+                <div className="cn-money-item"><span className="cn-money-label">Thành tiền</span><b className="cn-money-val">{fmtMoney(qt.total)}</b></div>
+                <div className="cn-money-item cn-money-in">
+                  <label className="cn-money-label" htmlFor="cn-paid">Thu ngay</label>
+                  <MoneyInput id="cn-paid" placeholder="0 ₫" value={paidTouched ? paid : defaultPaid ? String(defaultPaid) : ''} onValueChange={(v) => { setPaidTouched(true); setPaid(v) }} />
+                </div>
+                <div className="cn-money-item"><span className="cn-money-label">Còn thiếu</span><b className={`cn-money-val ${pkg && qt.remain === 0 ? 'ok' : 'bad'}`}>{pkg && qt.remain === 0 ? 'Đã thu đủ' : fmtMoney(qt.remain)}</b></div>
+              </div>
+              <div className="form-grid cols-3">
               <Field label="Ngày thanh toán" htmlFor="cn-pdate"><Input id="cn-pdate" type="date" readOnly value={todayISO()} /></Field>
               <Field label="Nhân viên thu" htmlFor="cn-staff"><Input id="cn-staff" readOnly value={user?.name ?? ''} /></Field>
               <Field label="Hình thức thanh toán" htmlFor="cn-method">
@@ -410,16 +449,12 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
                   {METHODS.map((m) => <option key={m} value={m}>{METHOD_LABEL[m]}</option>)}
                 </Select>
               </Field>
-              <Field label="Còn thiếu" htmlFor="cn-remain"><Input id="cn-remain" readOnly value={pkg && qt.remain === 0 ? 'Đã thu đủ' : fmtMoney(qt.remain)} /></Field>
               {qt.remain > 0 && (
                 <Field label="Ngày đóng tiếp theo" htmlFor="cn-next" hint={nextPay ? undefined : 'Thời hạn thanh toán 25 ngày'}><Input id="cn-next" type="date" min={todayISO()} value={nextPayDate} onChange={(e) => setNextPay(e.target.value)} /></Field>
               )}
-              {isGroup && (
-                <Field label="Email hội viên (nhận xác nhận đặt lịch lớp nhóm)" htmlFor="cn-email" full error={email.trim() && !emailOk ? 'Email chưa đúng định dạng' : undefined} hint={!email.trim() ? 'Bắt buộc với gói PT nhóm' : undefined}>
-                  <Input id="cn-email" type="email" required value={email} onChange={(e) => { setEmailTouched(true); setEmail(e.target.value) }} />
-                </Field>
-              )}
               <Field label="Ghi chú" htmlFor="cn-note" full><Textarea id="cn-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+              </div>
+              </section>
             </>
           )}
         </div>
@@ -450,7 +485,7 @@ export default function ContractNew({ memberId, onClose, onCreated }: { memberId
       {step === 3 && pkg && (
         <div className="stack">
           <div className="contract-sheet">
-            <h3>TH Gym &amp; Fitness, hợp đồng thành viên</h3>
+            <h3>TH Gym &amp; Fitness, hợp đồng hội viên</h3>
             <dl className="kv">
               <dt>Mã hợp đồng</dt><dd>(tự sinh khi hoàn tất)</dd>
               <dt>Họ và tên</dt><dd><b>{who}</b></dd>

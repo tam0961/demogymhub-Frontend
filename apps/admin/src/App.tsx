@@ -19,6 +19,7 @@ import Payments from './pages/Payments'
 import PtClasses from './pages/PtClasses'
 import PublicBooking from './pages/PublicBooking'
 import PtOne from './pages/PtOne'
+import TermsSettings from './pages/TermsSettings'
 import ZnsSettings from './pages/ZnsSettings'
 import SheetSync from './pages/SheetSync'
 import InvoiceSettings from './pages/InvoiceSettings'
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="access" element={<PermRoute permission="checkins.read"><Access /></PermRoute>} />
         <Route path="pt" element={<Navigate to="/pt/one" replace />} />
         <Route path="settings/bank" element={<PermRoute permission="roles.read"><BankSettings /></PermRoute>} />
+        <Route path="settings/terms" element={<PermRoute permission="roles.read"><TermsSettings /></PermRoute>} />
         <Route path="settings/zns" element={<PermRoute permission="roles.read"><ZnsSettings /></PermRoute>} />
         <Route path="settings/sheet-sync" element={<PermRoute permission="roles.read"><SheetSync /></PermRoute>} />
         <Route path="settings/invoice" element={<PermRoute permission="roles.read"><InvoiceSettings /></PermRoute>} />

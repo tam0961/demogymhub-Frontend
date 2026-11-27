@@ -4,7 +4,7 @@ import { apiError } from '../lib/errors'
 import { useBranch } from '../context/BranchContext'
 import { useAuth } from '../context/AuthContext'
 import { Modal } from './Modal'
-import { BranchTag, Button, Chip, Field, Input, Segmented, Select, Textarea } from './ui'
+import { Button, Field, Input, Segmented, Select, Textarea } from './ui'
 import type { Contract, ListResp, Member, PtSession } from '../types'
 
 interface Trainer { id: string; name: string }
@@ -27,6 +27,8 @@ export function PtBookModal({ day, trainers, assign, edit, initial, onClose, onS
   const [note, setNote] = useState('')
   const [partnerId, setPartnerId] = useState('')
   const [partners, setPartners] = useState<Contract[]>([])
+  const [akind, setAkind] = useState<PtKind>('pt_1on1')
+  const [apicks, setApicks] = useState<Contract[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const branch = branchId ?? (user?.branches.length === 1 ? user.branches[0].id : '')
@@ -72,7 +74,10 @@ export function PtBookModal({ day, trainers, assign, edit, initial, onClose, onS
         return
       }
       if (assign) {
-        await api.post(`/pt/sessions/${assign.id}/assign`, { member_id: memberId, contract_id: contractId || null })
+        const need = akind === 'pt_1on1' ? 1 : 2
+        if (apicks.length !== need) { setError(need === 1 ? 'Chọn 1 hội viên của PT này' : 'Buổi 1-2 phải chọn đủ 2 hội viên của PT này'); setBusy(false); return }
+        const [c, p] = apicks
+        await api.post(`/pt/sessions/${assign.id}/assign`, { member_id: c.member_id, contract_id: c.id, ...(p ? { partner: { member_id: p.member_id, contract_id: p.id } } : {}) })
         onSaved()
         return
       }
@@ -98,26 +103,27 @@ export function PtBookModal({ day, trainers, assign, edit, initial, onClose, onS
     <Modal
       title={edit ? 'Sửa lịch buổi PT' : assign ? 'Gán khách vào ca' : isPair ? 'Đặt buổi PT 1:2' : 'Đặt buổi PT 1:1'}
       onClose={onClose}
-      footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="pt-form" disabled={busy || (assign ? !memberId : !trainerId) || (isPair && !partnerId)}>{busy ? 'Đang lưu...' : edit ? 'Lưu thay đổi' : assign ? 'Gán khách' : 'Đặt buổi'}</Button></>}
+      footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="pt-form" disabled={busy || (assign ? apicks.length !== (akind === 'pt_1on1' ? 1 : 2) : !trainerId) || (isPair && !partnerId)}>{busy ? 'Đang lưu...' : edit ? 'Lưu thay đổi' : assign ? 'Gán khách' : 'Đặt buổi'}</Button></>}
     >
       <form id="pt-form" className="form-grid" onSubmit={submit}>
         {error && <div className="form-error full" role="alert">{error}</div>}
         {edit && <Field label="Hội viên" htmlFor="pt-member-name" full><Input id="pt-member-name" readOnly value={edit.member?.name ?? 'Chưa có khách'} /></Field>}
-        {!edit && <Field label="Tìm hội viên (tên, SĐT, mã)" htmlFor="pt-q" full>
+        {assign && <CustomerPicker trainerId={assign.trainer.id} branchId={assign.branch_id} kind={akind} onKind={setAkind} onPick={setApicks} />}
+        {!edit && !assign && <Field label="Tìm hội viên (tên, SĐT, mã)" htmlFor="pt-q" full>
           <Input id="pt-q" value={q} onChange={(e) => { setQ(e.target.value); setMemberId('') }} />
         </Field>}
-        {!edit && <Field label="Hội viên" htmlFor="pt-member" full>
+        {!edit && !assign && <Field label="Hội viên" htmlFor="pt-member" full>
           <Select id="pt-member" required={!!assign} value={memberId} onChange={(e) => setMemberId(e.target.value)}>
             <option value="" disabled>{members.length ? 'Chọn hội viên' : 'Nhập để tìm'}</option>
             {members.map((m) => <option key={m.id} value={m.id}>{m.name} - {m.phone}</option>)}
           </Select>
         </Field>}
-        <Field label="Hợp đồng PT (trừ buổi)" htmlFor="pt-contract" full>
+        {!assign && <Field label="Hợp đồng PT (trừ buổi)" htmlFor="pt-contract" full>
           <Select id="pt-contract" value={contractId} onChange={(e) => setContractId(e.target.value)}>
             <option value="">Không gắn hợp đồng</option>
             {contracts.map((c) => <option key={c.id} value={c.id}>{c.code} - {c.package.name} (còn {c.sessions_left} buổi)</option>)}
           </Select>
-        </Field>
+        </Field>}
         {isPair && <Field label="Khách thứ 2 (gói PT 1:2 của PT này)" htmlFor="pt-partner" full>
           <Select id="pt-partner" required value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
             <option value="" disabled>{!trainerId ? 'Chọn PT trước' : partners.length ? 'Chọn khách thứ 2' : 'PT này chưa có khách PT 1:2 khác còn buổi'}</option>
@@ -237,39 +243,64 @@ export function PtAddModal({ day, trainers, initial, onClose, onSaved }: { day: 
   )
 }
 
-const dmy = (iso: string) => { const d = vnDate(iso); return `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` }
 
-export function PtFreeSlotModal({ session, onClose, onAssigned, onComplete, onNoShow }: { session: PtSession; onClose: () => void; onAssigned: () => void; onComplete: (s: PtSession) => void; onNoShow: (s: PtSession) => void }) {
-  const [chosen, setChosen] = useState<PtSession | null>(null)
-  const { user } = useAuth()
+type PtKind = 'pt_1on1' | 'pt_1on2'
+
+function CustomerPicker({ trainerId, branchId, kind, onKind, onPick }: { trainerId: string; branchId?: string; kind: PtKind; onKind: (k: PtKind) => void; onPick: (picked: Contract[]) => void }) {
   const [contracts, setContracts] = useState<Contract[]>([])
-  const [contractId, setContractId] = useState('')
-  const [partnerId, setPartnerId] = useState('')
+  const [picked, setPicked] = useState<string[]>([])
+  const max = kind === 'pt_1on1' ? 1 : 2
+  useEffect(() => {
+    setPicked([])
+    setContracts([])
+    onPick([])
+    if (!trainerId) return
+    api.get<ListResp<Contract>>('/contracts', { params: { category: kind, status: 'active', limit: 100, branch_id: branchId, pt_user_id: trainerId } })
+      .then((r) => setContracts(r.data.data.filter((c) => c.sessions_total != null && (c.sessions_left ?? 0) > 0 && c.pt?.id === trainerId)))
+      .catch(() => setContracts([]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trainerId, kind, branchId])
+  const toggle = (id: string) => {
+    const next = picked.includes(id) ? picked.filter((x) => x !== id) : picked.length < max ? [...picked, id] : picked
+    setPicked(next)
+    onPick(contracts.filter((c) => next.includes(c.id)))
+  }
+  return (
+    <>
+      <Field label="Loại buổi" htmlFor="cp-kind" full>
+        <Segmented<PtKind> fill ariaLabel="Loại buổi" value={kind} options={[{ value: 'pt_1on1', label: '1-1' }, { value: 'pt_1on2', label: '1-2' }]} onChange={onKind} />
+      </Field>
+      <Field label={kind === 'pt_1on1' ? 'Hội viên của PT (chọn 1)' : 'Hội viên của PT (chọn đủ 2)'} htmlFor="cp-members" full hint={`Chỉ hiện hội viên đang gắn với PT này và còn buổi. ${kind === 'pt_1on1' ? 'Buổi 1-1 chọn 1 hội viên.' : 'Buổi 1-2 chọn đủ 2 hội viên có gói PT 1-2.'} Mỗi hội viên trừ buổi từ gói PT riêng của mình khi buổi hoàn thành.`}>
+        <div id="cp-members" className="ptm-list" role="group">
+          {contracts.length === 0 && <div className="cell-sub">PT này chưa có hội viên còn buổi {kind === 'pt_1on1' ? 'gói PT 1:1' : 'gói PT 1:2'}</div>}
+          {contracts.map((c) => (
+            <label key={c.id} className="ptm-row">
+              <input type="checkbox" checked={picked.includes(c.id)} disabled={!picked.includes(c.id) && picked.length >= max} onChange={() => toggle(c.id)} />
+              <span>{c.member.name}</span>
+              <span className="cell-sub">còn {c.sessions_left} buổi</span>
+            </label>
+          ))}
+        </div>
+      </Field>
+    </>
+  )
+}
+
+export function PtAssignPanel({ session, onAssigned }: { session: PtSession; onAssigned: (s: PtSession) => void }) {
+  const [kind, setKind] = useState<PtKind>('pt_1on1')
+  const [picks, setPicks] = useState<Contract[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  const branch = user?.branches.find((b) => b.id === session.branch_id)
-  const pick = contracts.find((x) => x.id === contractId)
-  const isPair = pick?.package.category === 'pt_1on2'
-  const partners = isPair ? contracts.filter((c) => c.package.category === 'pt_1on2' && c.id !== contractId) : []
-
-  useEffect(() => {
-    const load = (category: 'pt_1on1' | 'pt_1on2') => api.get<ListResp<Contract>>('/contracts', { params: { category, status: 'active', limit: 100, branch_id: session.branch_id } }).then((r) => r.data.data)
-    Promise.all([load('pt_1on1'), load('pt_1on2')])
-      .then(([a, b]) => setContracts([...a, ...b.filter((c) => c.pt?.id === session.trainer.id)].filter((c) => c.sessions_total != null && (c.sessions_left ?? 0) > 0)))
-      .catch(() => setContracts([]))
-  }, [session.branch_id, session.trainer.id])
+  const need = kind === 'pt_1on1' ? 1 : 2
 
   const assign = async () => {
-    const c = contracts.find((x) => x.id === contractId)
-    if (!c) return
-    const p = isPair ? contracts.find((x) => x.id === partnerId) : undefined
-    if (isPair && !p) return
+    if (picks.length !== need) return
+    const [c, p] = picks
     setBusy(true)
     setError('')
     try {
-      await api.post(`/pt/sessions/${session.id}/assign`, { member_id: c.member_id, contract_id: c.id, ...(p ? { partner: { member_id: p.member_id, contract_id: p.id } } : {}) })
-      setChosen({ ...session, member: c.member, contract_id: c.id, contract_code: c.code, sessions_left: c.sessions_left })
-      onAssigned()
+      const r = await api.post<{ data: PtSession }>(`/pt/sessions/${session.id}/assign`, { member_id: c.member_id, contract_id: c.id, ...(p ? { partner: { member_id: p.member_id, contract_id: p.id } } : {}) })
+      onAssigned(r.data.data)
     } catch (err) {
       setError(apiError(err).message)
     } finally {
@@ -278,36 +309,10 @@ export function PtFreeSlotModal({ session, onClose, onAssigned, onComplete, onNo
   }
 
   return (
-    <Modal
-      title={`Buổi PT ${vnTime(session.start_at)}`}
-      onClose={onClose}
-      footer={<><Button disabled={!chosen} title={chosen ? undefined : 'Chọn khách trước'} onClick={() => chosen && onNoShow(chosen)}>Vắng mặt</Button><Button variant="primary" disabled={!chosen} title={chosen ? undefined : 'Chọn khách trước'} onClick={() => chosen && onComplete(chosen)}>Hoàn thành buổi</Button></>}
-    >
-      <dl className="kv">
-        <dt>Huấn luyện viên</dt><dd>{session.trainer.name} {branch && <BranchTag branch={branch} />}</dd>
-        <dt>Ngày</dt><dd>{dmy(session.start_at)}</dd>
-        <dt>Loại</dt><dd>1-1</dd>
-        <dt>Trạng thái</dt><dd><Chip tone="neutral">Đã đặt</Chip></dd>
-      </dl>
-      <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Hội viên</h3>
-      {error && <div className="form-error" role="alert">{error}</div>}
-      <Field label="Chọn khách cho ca này" htmlFor="pf-member">
-        <span style={{ display: 'flex', gap: 8 }}>
-          <Select id="pf-member" disabled={!!chosen} value={contractId} onChange={(e) => { setContractId(e.target.value); setPartnerId('') }}>
-            <option value="" disabled>{contracts.length ? 'Chọn hội viên' : 'Chưa có hội viên còn buổi'}</option>
-            {contracts.map((c) => <option key={c.id} value={c.id}>{c.member.name} ({c.member.code}), {c.package.category === 'pt_1on2' ? 'PT 1:2, ' : ''}còn {c.sessions_left} buổi</option>)}
-          </Select>
-          <Button variant="primary" onClick={assign} disabled={busy || !contractId || !!chosen || (isPair && !partnerId)}>Chọn khách</Button>
-        </span>
-      </Field>
-      {isPair && (
-        <Field label="Khách thứ 2 (gói PT 1:2 của PT này)" htmlFor="pf-partner">
-          <Select id="pf-partner" disabled={!!chosen} value={partnerId} onChange={(e) => setPartnerId(e.target.value)}>
-            <option value="" disabled>{partners.length ? 'Chọn khách thứ 2' : 'PT này chưa có khách PT 1:2 khác còn buổi'}</option>
-            {partners.map((c) => <option key={c.id} value={c.id}>{c.member.name} ({c.member.code}), còn {c.sessions_left} buổi</option>)}
-          </Select>
-        </Field>
-      )}
-    </Modal>
+    <div className="form-grid">
+      {error && <div className="form-error full" role="alert">{error}</div>}
+      <CustomerPicker trainerId={session.trainer.id} branchId={session.branch_id} kind={kind} onKind={setKind} onPick={setPicks} />
+      <div className="full"><Button variant="primary" onClick={assign} disabled={busy || picks.length !== need}>{busy ? 'Đang lưu...' : 'Chọn khách'}</Button></div>
+    </div>
   )
 }

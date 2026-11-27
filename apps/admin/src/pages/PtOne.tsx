@@ -6,7 +6,7 @@ import { useBranch } from '../context/BranchContext'
 import { RequirePermission, usePermission } from '../context/usePermission'
 import { Modal } from '../components/Modal'
 import { PtSignModal } from '../components/PtSignModal'
-import { PtAddModal, PtBookModal, PtFreeSlotModal } from '../components/PtBookModal'
+import { PtAddModal, PtAssignPanel, PtBookModal } from '../components/PtBookModal'
 import { Button, Input, Kpi, KpiRow, Segmented, useToast } from '../components/ui'
 import { isLateCancel } from '../lib/pt'
 import { MemberAvatar } from '../components/MemberAvatar'
@@ -238,10 +238,9 @@ export default function PtOne() {
         </div>
       </div>
 
-      {picked && !picked.member && picked.status === 'scheduled' && <PtFreeSlotModal session={picked} onClose={() => setPicked(null)} onAssigned={() => { toast('Đã chọn khách'); load() }} onComplete={(s) => { setPicked(null); setSigning(s) }} onNoShow={(s) => act(s, 'no-show')} />}
-      {picked && (picked.member || picked.status !== 'scheduled') && (
+      {picked && (
         <Modal
-          title={picked.member?.name ?? 'Ca chưa có khách'}
+          title={picked.member?.name ?? `Buổi PT ${fmtTime(picked.start_at)}`}
           size="xl"
           onClose={() => setPicked(null)}
           footer={
@@ -250,12 +249,24 @@ export default function PtOne() {
               {picked.status === 'scheduled' && can('pt_sessions.cancel') && <Button variant="danger" onClick={() => { setFree(false); setCancelling(picked); setPicked(null) }}>Hủy buổi</Button>}
               {picked.status === 'scheduled' && picked.member && (can('pt_sessions.complete') || can('pt_sessions.cancel')) && <Button onClick={() => act(picked, 'no-show')}>Vắng mặt</Button>}
               {picked.status === 'scheduled' && can('pt_sessions.create') && <Button onClick={() => { setEditing(picked); setPicked(null) }}>Sửa lịch</Button>}
-              {picked.status === 'scheduled' && !picked.member && (can('pt_sessions.create') || can('pt_sessions.complete')) && <Button onClick={() => { setAssigning(picked); setPicked(null) }}>Gán khách</Button>}
-              {picked.status === 'scheduled' && picked.member && can('pt_sessions.complete') && <Button variant="primary" disabled={new Date(Date.parse(picked.start_at) + 7 * 3600000).toISOString().slice(0, 10) > new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10)} title="Chỉ hoàn thành được buổi dạy trong ngày" onClick={() => setSigning(picked)}>Hoàn thành</Button>}
+              {picked.status === 'scheduled' && picked.member && can('pt_sessions.complete') && <Button variant="primary" disabled={!canOverride && new Date(Date.parse(picked.start_at) + 7 * 3600000).toISOString().slice(0, 10) !== new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10)} title="Chỉ hoàn thành được buổi dạy trong ngày hôm đó" onClick={() => setSigning(picked)}>Hoàn thành</Button>}
             </>
           }
         >
-          <PtMemberInfo session={picked} />
+          <div style={{ minHeight: 420 }}>
+          {!picked.member && picked.status === 'scheduled' && (can('pt_sessions.create') || can('pt_sessions.complete')) ? (
+            <>
+              <dl className="kv">
+                <dt>Huấn luyện viên</dt><dd>{picked.trainer.name}</dd>
+                <dt>Giờ</dt><dd>{dmy(picked.start_at.slice(0, 10))} {fmtTime(picked.start_at)} - {fmtTime(picked.end_at)}</dd>
+              </dl>
+              <h3 style={{ margin: '16px 0 8px', fontSize: 14 }}>Chọn khách</h3>
+              <PtAssignPanel session={picked} onAssigned={(s) => { toast('Đã chọn khách'); setPicked(s); load() }} />
+            </>
+          ) : (
+            <PtMemberInfo session={picked} />
+          )}
+          </div>
         </Modal>
       )}
       {signing && <PtSignModal session={signing} onClose={() => setSigning(null)} onConfirmed={(x) => act(x, 'complete')} />}

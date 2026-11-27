@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api } from '../lib/api'
 import { apiError } from '../lib/errors'
 import type { ProcessedPhoto } from '../lib/photo'
-import { Button, Field, Input, Modal } from './ui'
+import { Button, Modal } from './ui'
 import { loadPhoto, type PhotoRef } from './MemberAvatar'
 import { DeviceCam } from './DeviceCam'
 
@@ -17,14 +16,12 @@ interface Props {
   onSent?: () => void
 }
 
-export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, onClose, onSent }: Props) {
+export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, onClose }: Props) {
   const [photo, setPhoto] = useState<ProcessedPhoto | null>(initialPhoto ?? null)
   const [current, setCurrent] = useState<string | null>(null)
-  const [faceId, setFaceId] = useState(initialFaceId)
-  const [faceErr, setFaceErr] = useState('')
+  const faceId = initialFaceId
   const [formErr, setFormErr] = useState('')
   const [busy, setBusy] = useState(false)
-  const [agree, setAgree] = useState(false)
 
   useEffect(() => {
     if (!member?.has_photo) return
@@ -34,29 +31,14 @@ export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, on
   }, [member])
 
   const save = async () => {
-    const id = faceId.trim()
-    if (id.length > 32) {
-      setFaceErr('Face ID tối đa 32 ký tự')
-      return
-    }
     setBusy(true)
-    setFaceErr('')
     setFormErr('')
     try {
-      await onSave({ photo, faceId: id })
-      if (member && agree) {
-        try {
-          await api.post('/attendance/face-jobs', { member_id: member.id, consent: true })
-          onSent?.()
-        } catch (e) {
-          setFormErr('Đã lưu ảnh nhưng chưa gửi lên máy chấm công: ' + apiError(e).message)
-          return
-        }
-      }
+      await onSave({ photo, faceId: faceId.trim() })
       onClose()
     } catch (e) {
       const a = apiError(e)
-      if (a.status === 409 || a.code === 'DUPLICATE_FACE_ID') setFaceErr('Face ID này đã được dùng cho hội viên khác')
+      if (a.status === 409 || a.code === 'DUPLICATE_FACE_ID') setFormErr('Face ID này đã được dùng cho hội viên khác')
       else if (a.code === 'INVALID_IMAGE') setFormErr('Ảnh không hợp lệ, hãy chọn ảnh khác.')
       else if (a.code === 'PHOTO_TOO_LARGE') setFormErr('Ảnh quá lớn, hãy chọn ảnh khác.')
       else setFormErr(a.message)
@@ -69,6 +51,7 @@ export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, on
   return (
     <Modal
       title="Chụp ảnh và đăng ký khuôn mặt"
+      size="large"
       onClose={onClose}
       footer={
         <>
@@ -87,16 +70,6 @@ export function FaceModal({ member, initialPhoto, initialFaceId = '', onSave, on
           <DeviceCam onPhoto={setPhoto} />
           <div className="hint-muted">Khách nhìn thẳng vào máy chấm công, đủ sáng, không đội nón hay đeo khẩu trang. Chỉ một người trong khung.</div>
         </div>
-      </div>
-      {member && (
-        <label className="check" style={{ display: 'block', marginTop: 14 }}>
-          <input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /> Khách đã đồng ý lưu khuôn mặt để vào cửa. Gửi khuôn mặt lên máy chấm công khi bấm Xong.
-        </label>
-      )}
-      <div style={{ marginTop: 14 }}>
-        <Field label="Face ID (đăng ký khuôn mặt)" htmlFor="face-id" hint="Mã khuôn mặt trên máy Hikvision. Có thể nhập sau." error={faceErr}>
-          <Input id="face-id" maxLength={40} invalid={!!faceErr} value={faceId} onChange={(e) => setFaceId(e.target.value)} />
-        </Field>
       </div>
     </Modal>
   )
