@@ -159,29 +159,6 @@ function SheetTab({ canManage }: { canManage: boolean }) {
 
       <Panel title="Bảng lương" count={`${data?.rows.length ?? 0} nhân viên`} flush>
         <DataTable columns={cols} rows={data?.rows ?? []} rowKey={(r) => r.user_id} onRowClick={setDetail} defaultSort={{ key: 'net', dir: 'desc' }} loading={loading} error={error} emptyText="Chưa có nhân viên nào được tính lương. Bật 'Đang tính lương' trong Cài đặt lương." itemLabel="nhân viên" hidePager />
-        {t && (
-          <div className="table-wrap">
-            <table className="table" aria-label="Tổng cộng">
-              <tbody>
-                <tr>
-                  <th scope="row">Tổng cộng</th>
-                  <td className="num">{fmtMoney(t.base_salary)}</td>
-                  <td className="num">{fmtMoney(t.member_commission)}</td>
-                  <td className="num">{fmtMoney(t.marketing_commission)}</td>
-                  <td className="num">{fmtMoney(t.pt_immediate)}</td>
-                  <td className="num">{fmtMoney(t.pt_session_pay)}</td>
-                  <td className="num">{fmtMoney(t.group_pay)}</td>
-                  <td className="num"><b>{fmtMoney(t.gross)}</b></td>
-                  <td className="num">{fmtMoney(t.insurance)}</td>
-                  <td className="num">{fmtMoney(t.tax)}</td>
-                  <td className="num">{fmtMoney(t.penalty)}</td>
-                  <td className="num">{fmtMoney(t.adjustment)}</td>
-                  <td className="num"><b>{fmtMoney(t.net)}</b></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        )}
       </Panel>
 
       <PtStatsSection month={month} branchId={branchId} />
