@@ -33,6 +33,7 @@ export const MATRIX: MatrixRow[] = [
   { label: 'Yêu cầu hoàn tiền và xác nhận thu', mode: 'toggle', keys: ['payments.refund_request', 'payments.confirm'] },
   { label: 'Thêm hoặc sửa gói tập', mode: 'toggle', keys: ['packages.create', 'packages.update'] },
   { label: 'Xem báo cáo và chỉ số marketing của chi nhánh mình', mode: 'toggle', keys: ['reports.view'] },
+  { label: 'Xem doanh thu của chi nhánh mình', mode: 'toggle', keys: ['reports.view_revenue'] },
   { label: 'Xem doanh thu toàn hệ thống', mode: 'none', keys: [] },
   { label: 'Quản lý tài khoản đăng nhập, nhập xuất dữ liệu', mode: 'none', keys: [] },
 ]
