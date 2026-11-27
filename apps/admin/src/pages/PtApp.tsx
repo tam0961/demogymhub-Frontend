@@ -315,7 +315,8 @@ function ClassAttend({ c, today, onChanged }: { c: Cls; today: string; onChanged
   const canMark = dayOf(c.start_at) === today && c.status !== 'cancelled'
   return (
     <div className="pta-attend">
-      {c.registrations.length === 0 && <div className="pta-sub">Chưa có học viên đăng ký.</div>}
+      {c.registered === 0 && <div className="pta-sub">Chưa có học viên đăng ký.</div>}
+      {c.registered > 0 && c.registrations.length === 0 && <div className="pta-sub">{c.registered} học viên đăng ký.</div>}
       {c.registrations.map((r) => (
         <div key={r.id} className="pta-att">
           <span className="pta-grow">{r.name} {tel(r.phone)}</span>
@@ -613,16 +614,39 @@ function Leads({ d }: { d: Shared }) {
 
 interface Perf { month: string; sessions_done: number; classes_done: number; leads_assigned: number; leads_converted: number; conversion_rate: number | null; clients: number; renewals: number; renew_rate: number | null }
 
+interface Rev { month: string; member: number; pt: number; group: number; total: number; kpi: { target: number; achieved: number; pct: number | null } }
+
 function Targets() {
   const [p, setP] = useState<Perf | null>(null)
+  const [rev, setRev] = useState<Rev | null>(null)
   useEffect(() => {
     api.get('/pt-app/performance').then(({ data }) => setP(data.data)).catch(() => setP(null))
+    api.get('/pt-app/revenue').then(({ data }) => setRev(data.data)).catch(() => setRev(null))
   }, [])
   if (!p) return null
   const pct = (v: number | null) => (v == null ? '-' : `${v}%`)
   return (
     <section className="pta-card">
       <header className="pta-cardhead"><b>Chỉ tiêu tháng {p.month.slice(5)}/{p.month.slice(0, 4)}</b></header>
+      {rev && (
+        <>
+          <div className="pta-kv">
+            <div><span>Doanh thu gói PT</span><b>{fmtMoney(rev.pt)}</b></div>
+            <div><span>Doanh thu gói member</span><b>{fmtMoney(rev.member)}</b></div>
+            <div><span>Doanh thu lớp nhóm</span><b>{fmtMoney(rev.group)}</b></div>
+            <div><span>Tổng thực thu</span><b>{fmtMoney(rev.total)}</b></div>
+          </div>
+          {rev.kpi.target > 0 ? (
+            <div className="pta-kpi">
+              <div className="pta-kpihead"><span>KPI bán gói PT</span><b>{fmtMoney(rev.kpi.achieved)} / {fmtMoney(rev.kpi.target)} ({pct(rev.kpi.pct)})</b></div>
+              <div className="pta-prog"><i style={{ width: `${Math.min(100, rev.kpi.pct ?? 0)}%` }} /></div>
+            </div>
+          ) : (
+            <p className="pta-sub">Chưa đặt chỉ tiêu bán gói PT cho tháng này.</p>
+          )}
+          <p className="pta-sub">Doanh thu = tiền thực thu từ hợp đồng do bạn bán, đã trừ hoàn tiền.</p>
+        </>
+      )}
       <div className="pta-kv">
         <div><span>Buổi PT đã dạy</span><b>{p.sessions_done}</b></div>
         <div><span>Lớp nhóm đã dạy</span><b>{p.classes_done}</b></div>

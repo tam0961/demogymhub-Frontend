@@ -143,3 +143,8 @@ i.done { background: var(--brand); }
 .pta-form label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
 .pta-cta.wide { width: 100%; }
 .pta-one { display: flex; flex-direction: column; gap: 4px; }
+
+.pta-kpi { margin-top: 10px; }
+.pta-kpihead { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 6px; }
+.pta-prog { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.pta-prog i { display: block; height: 100%; background: var(--ok); border-radius: 999px; }
