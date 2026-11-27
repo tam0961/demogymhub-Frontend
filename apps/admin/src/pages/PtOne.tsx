@@ -45,6 +45,23 @@ const cardState = (s: PtSession): CardState => {
   return !s.member && s.status === 'scheduled' ? 'blank' : map[s.status]
 }
 
+const groupHistory = (items: PtSession[]): { s: PtSession; more: PtSession[] }[] => {
+  const hist = items.filter((i) => i.source === 'gymmaster').sort((a, b) => a.start_at.localeCompare(b.start_at))
+  const out = items.filter((i) => i.source !== 'gymmaster').map((s) => ({ s, more: [] as PtSession[] }))
+  let cur: { s: PtSession; more: PtSession[]; end: number } | null = null
+  for (const h of hist) {
+    if (cur && new Date(h.start_at).getTime() < cur.end) {
+      cur.more.push(h)
+      cur.end = Math.max(cur.end, new Date(h.end_at).getTime())
+    } else {
+      if (cur) out.push({ s: cur.s, more: cur.more })
+      cur = { s: h, more: [], end: new Date(h.end_at).getTime() }
+    }
+  }
+  if (cur) out.push({ s: cur.s, more: cur.more })
+  return out
+}
+
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
 
 export default function PtOne() {
@@ -173,7 +190,7 @@ export default function PtOne() {
                   onClick={() => setAdding({ trainerId: c.trainerId, date: c.date, time: `${pad(Math.floor(m / 60))}:${pad(m % 60)}` })}
                 />
               ))}
-              {c.items.map((s) => {
+              {groupHistory(c.items).map(({ s, more }) => {
                 const st = cardState(s)
                 const top = ((minutesOf(s.start_at) - minStart) / 30) * row
                 const h = Math.max(row, ((minutesOf(s.end_at) - minutesOf(s.start_at)) / 30) * row)
@@ -183,12 +200,12 @@ export default function PtOne() {
                     type="button"
                     className={`ptg-card ptg-${st}`}
                     style={{ top: top + 1, height: h - 2, ['--pt' as string]: colorOf(s.trainer.id) }}
-                    title={`${s.trainer.name} ${fmtTime(s.start_at)} - ${fmtTime(s.end_at)}`}
+                    title={`${s.trainer.name} ${fmtTime(s.start_at)} - ${fmtTime(s.end_at)}${more.length ? `: ${[s, ...more].map((x) => x.member?.name ?? '').join(', ')}` : ''}`}
                     onClick={() => setPicked(s)}
                   >
                     {mode === 'week' && <span className="ptg-pt">{s.trainer.name}</span>}
                     <span className="ptg-line">
-                      <b className={st === 'cancel' ? 'strike' : ''}>{s.member?.name ?? 'Chưa có khách'}</b>
+                      <b className={st === 'cancel' ? 'strike' : ''}>{s.member?.name ?? 'Chưa có khách'}{more.length ? ` +${more.length}` : ''}</b>
                       {st !== 'blank' && <em>{STATE_LABEL[st]}</em>}
                     </span>
                   </button>
