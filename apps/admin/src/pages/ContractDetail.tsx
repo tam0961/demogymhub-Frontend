@@ -316,8 +316,8 @@ export default function ContractDetail() {
       )}
 
       {dlg && typeof dlg === 'object' && 'pending' in dlg && (
-        <Modal title="Giao dịch chờ xác nhận" onClose={() => { close(); load() }} footer={<Button onClick={() => { close(); load() }}>Đóng</Button>}>
-          <PendingPanel payment={dlg.pending} onConfirmed={load} />
+        <Modal title="Giao dịch chờ xác nhận" size="large" onClose={() => { close(); load() }} footer={<Button onClick={() => { close(); load() }}>Đóng</Button>}>
+          <PendingPanel payment={dlg.pending} onConfirmed={load} branchId={c.branch_id} who={{ name: c.member.name, code: c.member.code, pkg: c.package.name }} />
         </Modal>
       )}
 

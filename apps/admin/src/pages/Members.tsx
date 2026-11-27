@@ -12,6 +12,7 @@ import { Modal } from '../components/Modal'
 import { PayModal } from '../components/PayModal'
 import { QRImage } from '../components/QRImage'
 import { FaceModal, type FaceResult } from '../components/FaceModal'
+import type { ProcessedPhoto } from '../lib/photo'
 import { MemberAvatar } from '../components/MemberAvatar'
 import { FaceDeviceSend, FaceJobsLine, useFaceJobs } from '../components/FaceDeviceSend'
 import { InbodyPanel } from '../components/InbodyPanel'
@@ -451,22 +452,27 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
   return (
     <>
     <Modal
-      title={member.name}
+      title={`${member.name.toLocaleUpperCase('vi-VN')} | ${member.phone}`}
+      size="large"
       onClose={onClose}
       footer={
-        <div className="profile-foot">
+        <div className="profile-foot prof-foot-one">
           <div className="profile-foot-row">
             {canEdit && <Button onClick={() => setFaceOpen(true)}>Ảnh khuôn mặt</Button>}
             {canEdit && <FaceDeviceSend memberId={member.id} memberName={member.name} hasPhoto={!!member.has_photo} onSent={faceJobs.reload} />}
-            {canEdit && <Button onClick={onEdit}>Sửa thông tin</Button>}
           </div>
-          {can('contracts.create') && <Button variant="primary" onClick={() => nav(`/contracts/new?member_id=${member.id}`)}>Tạo HĐ mới</Button>}
+          <div className="profile-foot-row">
+            {canEdit && <Button onClick={onEdit}>Sửa thông tin</Button>}
+            {can('contracts.create') && <Button variant="primary" onClick={() => nav(`/contracts/new?member_id=${member.id}`)}>Tạo HĐ mới</Button>}
+          </div>
         </div>
       }
     >
+      <div className="prof-grid">
+      <aside className="prof-side">
       <div className="profile-head">
         <div className={`profile-photo${canEdit ? ' is-click' : ''}`} onClick={canEdit ? () => setFaceOpen(true) : undefined}>
-          {member.has_photo || member.avatar_url ? <MemberAvatar member={member} size={136} /> : <span className="photo-empty"><Icon name="me" size={44} /><span>Thêm ảnh</span></span>}
+          {member.has_photo || member.avatar_url ? <MemberAvatar member={member} size={320} /> : <span className="photo-empty"><Icon name="me" size={44} /><span>Thêm ảnh</span></span>}
         </div>
         <dl className="kv">
           <dt>Mã hội viên</dt><dd>{member.code}</dd>
@@ -478,13 +484,17 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
         </dl>
       </div>
       <FaceJobsLine jobs={faceJobs.jobs} />
+      </aside>
+      <div className="prof-main">
+      {data && data.contracts.some((c) => c.debt_amount > 0) && <div className="prof-debt" role="status">Tổng công nợ: <b>{fmtMoney(data.contracts.reduce((a, c) => a + Math.max(c.debt_amount, 0), 0))}</b></div>}
       {can('inbody.read') && <Tabs tabs={[{ value: 'info', label: 'Thông tin' }, { value: 'inbody', label: 'InBody' }]} value={tab} onChange={setTab} />}
       {tab === 'inbody' && can('inbody.read') && <InbodyPanel memberId={member.id} />}
       {error && tab === 'info' && <div className="form-error" role="alert">{error}</div>}
       {!data && !error && tab === 'info' && <div className="hint-muted">Đang tải...</div>}
       {data && tab === 'info' && (
         <>
-          <h3 className="prof-sec">Hợp đồng</h3>
+          <section className="cn-box">
+          <h3 className="cn-box-title">Hợp đồng</h3>
           {data.contracts.length === 0 && <div className="hint-muted">Chưa có hợp đồng</div>}
           {data.contracts.map((c) => {
             const st = memberStatus({ status: c.status, end_date: c.end_date })
@@ -498,9 +508,10 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
               </div>
             )
           })}
+          </section>
           {data.contracts.length > 0 && (
-            <>
-              <h3 className="prof-sec">Công nợ theo hợp đồng</h3>
+            <section className="cn-box">
+              <h3 className="cn-box-title">Công nợ theo hợp đồng</h3>
               {data.contracts.map((c) => {
                 const owes = c.debt_amount > 0 && can('payments.create')
                 const body = (
@@ -516,11 +527,11 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
                   ? <button key={c.id} type="button" className="prof-row prof-row-click" onClick={() => setPayFor(c)}>{body}</button>
                   : <div key={c.id} className="prof-row">{body}</div>
               })}
-            </>
+            </section>
           )}
           {can('payments.read') && (
-            <>
-              <h3 className="prof-sec">Lịch sử thanh toán ({data.payments.length} khoản)</h3>
+            <section className="cn-box">
+              <h3 className="cn-box-title">Lịch sử thanh toán ({data.payments.length} khoản)</h3>
               {data.payments.length === 0 && <div className="hint-muted">Chưa có thanh toán</div>}
               {data.payments.map((p) => (
                 <div key={p.id} className="prof-row">
@@ -531,11 +542,11 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
                   <div className="num">{fmtMoney(p.amount)}</div>
                 </div>
               ))}
-            </>
+            </section>
           )}
           {can('checkins.read') && (
-            <>
-              <h3 className="prof-sec">Check-in gần đây</h3>
+            <section className="cn-box">
+              <h3 className="cn-box-title">Check-in gần đây</h3>
               {data.checkins.length === 0 && <div className="hint-muted">Chưa có lượt check-in</div>}
               {data.checkins.map((c) => (
                 <div key={c.id} className="prof-row">
@@ -543,10 +554,12 @@ export function MemberProfile({ member, canEdit, onEdit, onUpdated, onClose }: {
                   <Chip tone={c.result === 'allowed' ? 'ok' : 'bad'}>{c.result === 'allowed' ? 'Cho vào' : 'Từ chối'}</Chip>
                 </div>
               ))}
-            </>
+            </section>
           )}
         </>
       )}
+      </div>
+      </div>
     </Modal>
     {payFor && <PayModal contract={payFor} onClose={() => { setPayFor(null); setReloadKey((k) => k + 1) }} onChanged={() => setReloadKey((k) => k + 1)} />}
     {faceOpen && <FaceModal member={member} initialFaceId={member.face_id ?? ''} onSave={saveFace} onSent={faceJobs.reload} onClose={() => setFaceOpen(false)} />}
@@ -571,10 +584,25 @@ export function MemberModal({ member, onClose, onSaved }: { member: Member | nul
   })
   const [errs, setErrs] = useState<{ phone?: string; form?: string }>({})
   const [busy, setBusy] = useState(false)
+  const [showErr, setShowErr] = useState(false)
+  const [faceOpen, setFaceOpen] = useState(false)
+  const [photo, setPhoto] = useState<ProcessedPhoto | null>(null)
+  const [faceId, setFaceId] = useState(member?.face_id ?? '')
+  const [saved, setSaved] = useState<Member | null>(member)
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((x) => ({ ...x, [k]: v }))
+
+  const nameOk = f.name.trim().length > 0
+  const phoneOk = f.phone.trim().length >= 8
+  const branchOk = !!f.branch_id
+  const missing = [nameOk, phoneOk, branchOk].filter((x) => !x).length
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
+    if (missing > 0) {
+      setShowErr(true)
+      window.setTimeout(() => document.querySelector<HTMLElement>('#member-form [aria-invalid="true"]')?.focus(), 0)
+      return
+    }
     setBusy(true)
     setErrs({})
     const body = { ...f, email: f.email || null, gender: f.gender || null, dob: f.dob || null }
@@ -583,7 +611,10 @@ export function MemberModal({ member, onClose, onSaved }: { member: Member | nul
         const r = await api.patch(`/members/${member.id}`, body)
         onSaved(r.data.data)
       } else {
-        const r = await api.post('/members', body)
+        const r = await api.post('/members', { ...body, ...(faceId.trim() ? { face_id: faceId.trim() } : {}) })
+        if (photo) {
+          try { await api.put(`/members/${r.data.data.id}/photo`, { content_type: photo.content_type, image_base64: photo.image_base64 }) } catch { /* ảnh lưu sau trong hồ sơ */ }
+        }
         onSaved(r.data.data)
       }
     } catch (err) {
@@ -595,9 +626,30 @@ export function MemberModal({ member, onClose, onSaved }: { member: Member | nul
     }
   }
 
+  const saveFace = async (r: { photo: ProcessedPhoto | null; faceId: string }) => {
+    if (!member) {
+      setPhoto(r.photo ?? photo)
+      setFaceId(r.faceId)
+      return
+    }
+    let cur = saved ?? member
+    if (r.photo) cur = (await api.put(`/members/${member.id}/photo`, { content_type: r.photo.content_type, image_base64: r.photo.image_base64 })).data.data
+    const nf = r.faceId || null
+    if ((cur.face_id ?? null) !== nf) cur = (await api.patch(`/members/${member.id}`, { face_id: nf })).data.data
+    setSaved(cur)
+    setFaceId(cur.face_id ?? '')
+  }
+
+  const hasPhoto = member ? !!(saved ?? member).has_photo : !!photo
+  const thumb = member
+    ? <MemberAvatar member={saved ?? member} size={56} />
+    : photo ? <img className="avatar" style={{ width: 56, height: 56 }} src={photo.dataUrl} alt="Ảnh hội viên" /> : null
+
   return (
+    <>
     <Modal
       title={member ? 'Sửa hội viên' : 'Thêm hội viên'}
+      size="large"
       onClose={onClose}
       footer={
         <>
@@ -606,46 +658,70 @@ export function MemberModal({ member, onClose, onSaved }: { member: Member | nul
         </>
       }
     >
-      <form id="member-form" className="form-grid" onSubmit={submit}>
-        {errs.form && <div className="form-error full" role="alert">{errs.form}</div>}
-        <Field label="Họ tên" htmlFor="m-name" full>
-          <Input id="m-name" required value={f.name} onChange={(e) => set('name', e.target.value)} />
-        </Field>
-        <Field label="Số điện thoại" htmlFor="m-phone" error={errs.phone}>
-          <Input id="m-phone" type="tel" inputMode="tel" required invalid={!!errs.phone} value={f.phone} onChange={(e) => set('phone', e.target.value)} />
-        </Field>
-        <Field label="Email" htmlFor="m-email">
-          <Input id="m-email" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
-        </Field>
-        <Field label="Giới tính" htmlFor="m-gender">
-          <Segmented<string> fill ariaLabel="Giới tính" value={f.gender} options={[{ value: 'male', label: 'Nam' }, { value: 'female', label: 'Nữ' }]} onChange={(v) => set('gender', (v === f.gender ? '' : v) as Gender | '')} />
-        </Field>
-        <Field label="Ngày sinh" htmlFor="m-dob">
-          <Input id="m-dob" type="date" value={f.dob} onChange={(e) => set('dob', e.target.value)} />
-        </Field>
-        <Field label="Trạng thái" htmlFor="m-status">
-          <Select id="m-status" value={f.status} onChange={(e) => set('status', e.target.value as MemberStatus)}>
-            <option value="active">Đang hiệu lực</option>
-            <option value="expired">Hết hạn</option>
-            <option value="frozen">Tạm dừng</option>
-          </Select>
-        </Field>
-        {member && (
-          <div className="full qr-box">
-            <QRImage text={member.code} size={140} />
-            <div>
-              <b>Mã QR check-in</b>
-              <div className="hint-muted">{member.code}</div>
-              <Button small onClick={() => window.print()}>In mã</Button>
-            </div>
+      <form id="member-form" className="cn-form" onSubmit={submit} noValidate>
+        {errs.form && <div className="form-error" role="alert">{errs.form}</div>}
+        {showErr && missing > 0 && <div className="form-error" role="alert">Còn {missing} ô bắt buộc (*) chưa nhập, đã khoanh đỏ.</div>}
+        <section className="cn-box">
+          <h3 className="cn-box-title">Thông tin liên hệ</h3>
+          <div className="form-grid cols-3">
+            <Field label="Họ tên" htmlFor="m-name" required>
+              <Input id="m-name" invalid={showErr && !nameOk} value={f.name} onChange={(e) => set('name', e.target.value)} />
+            </Field>
+            <Field label="Số điện thoại" htmlFor="m-phone" required error={errs.phone}>
+              <Input id="m-phone" type="tel" inputMode="tel" invalid={!!errs.phone || (showErr && !phoneOk)} value={f.phone} onChange={(e) => set('phone', e.target.value)} />
+            </Field>
+            <Field label="Email" htmlFor="m-email">
+              <Input id="m-email" type="email" value={f.email} onChange={(e) => set('email', e.target.value)} />
+            </Field>
+            <Field label="Giới tính" htmlFor="m-gender">
+              <Segmented<string> fill ariaLabel="Giới tính" value={f.gender} options={[{ value: 'male', label: 'Nam' }, { value: 'female', label: 'Nữ' }]} onChange={(v) => set('gender', (v === f.gender ? '' : v) as Gender | '')} />
+            </Field>
+            <Field label="Ngày sinh" htmlFor="m-dob">
+              <Input id="m-dob" type="date" value={f.dob} onChange={(e) => set('dob', e.target.value)} />
+            </Field>
           </div>
+        </section>
+        <section className="cn-box">
+          <h3 className="cn-box-title">Trạng thái và chi nhánh</h3>
+          <div className="form-grid cols-3">
+            <Field label="Trạng thái" htmlFor="m-status">
+              <Select id="m-status" value={f.status} onChange={(e) => set('status', e.target.value as MemberStatus)}>
+                <option value="active">Đang hiệu lực</option>
+                <option value="expired">Hết hạn</option>
+                <option value="frozen">Tạm dừng</option>
+              </Select>
+            </Field>
+            <Field label="Chi nhánh" htmlFor="m-branch" required>
+              <Select id="m-branch" aria-invalid={showErr && !branchOk ? true : undefined} value={f.branch_id} onChange={(e) => set('branch_id', e.target.value)}>
+                <option value="">Chọn chi nhánh</option>
+                {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </Select>
+            </Field>
+          </div>
+        </section>
+        <section className="cn-box">
+          <h3 className="cn-box-title">Ảnh và khuôn mặt</h3>
+          <div className="face-line">
+            {thumb}
+            <Button onClick={() => setFaceOpen(true)}>Chụp ảnh, đăng ký khuôn mặt</Button>
+            <span className="hint-muted">{`${hasPhoto ? 'Đã có ảnh.' : 'Chưa có ảnh.'}${faceId ? ` Face ID: ${faceId}.` : ''}`}</span>
+          </div>
+        </section>
+        {member && (
+          <section className="cn-box">
+            <h3 className="cn-box-title">Mã QR check-in</h3>
+            <div className="qr-box">
+              <QRImage text={member.code} size={140} />
+              <div>
+                <b>{member.code}</b>
+                <Button small onClick={() => window.print()}>In mã</Button>
+              </div>
+            </div>
+          </section>
         )}
-        <Field label="Chi nhánh" htmlFor="m-branch">
-          <Select id="m-branch" required value={f.branch_id} onChange={(e) => set('branch_id', e.target.value)}>
-            {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-          </Select>
-        </Field>
       </form>
     </Modal>
+    {faceOpen && <FaceModal member={member} initialPhoto={photo} initialFaceId={faceId} onSave={saveFace} onClose={() => setFaceOpen(false)} />}
+    </>
   )
 }

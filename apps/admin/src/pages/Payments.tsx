@@ -128,7 +128,7 @@ export default function Payments() {
         <div className="totals-row"><span>Tổng thực thu ({confirmed.length} phiếu)</span><b className="num">{fmtMoney(sum(confirmed))}</b></div>
       </div>
       {pending && (
-        <Modal title="Giao dịch chờ xác nhận" onClose={() => { setPending(null); load() }} footer={<Button onClick={() => { setPending(null); load() }}>Đóng</Button>}>
+        <Modal title="Giao dịch chờ xác nhận" size="large" onClose={() => { setPending(null); load() }} footer={<Button onClick={() => { setPending(null); load() }}>Đóng</Button>}>
           <PendingPanel payment={pending} onConfirmed={load} />
         </Modal>
       )}

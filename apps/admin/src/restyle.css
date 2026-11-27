@@ -888,3 +888,30 @@ table.table thead th { font-size: 14.5px; font-weight: 700; letter-spacing: 0.1p
 .ipad-consent { font-size: 22px; font-weight: 700; line-height: 1.35; align-items: center; gap: 14px; }
 .ipad-consent input { width: 30px; height: 30px; flex: 0 0 30px; }
 .ipad-terms { color: var(--brand-deep); text-decoration: underline; text-underline-offset: 3px; }
+.cn-money-val { white-space: nowrap; }
+.pm-who { font-size: 17px; }
+.pm-who > b { font-size: 19px; }
+
+.pending-line { display: flex; align-items: center; gap: 12px; font-size: 17px; }
+.pending-line b { font-size: 17px; }
+.pm-qr { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.pm-qr img { width: 340px; height: 340px; max-width: 100%; border: 1px solid var(--line); border-radius: var(--r-md); background: #fff; object-fit: contain; }
+.pm-qr-info { display: flex; flex-direction: column; gap: 14px; min-width: 0; flex: 1 1 260px; }
+.pm-k { display: block; font-size: 15px; font-weight: 700; color: var(--ink); margin-bottom: 2px; }
+.pm-v { font-size: 17px; }
+.pm-big { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pm-content { font-size: 22px; word-break: break-word; }
+
+.prof-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 20px; align-items: start; }
+.prof-side { display: flex; flex-direction: column; gap: 10px; }
+.prof-side .profile-head { flex-direction: column; align-items: flex-start; gap: 14px; }
+.prof-side .profile-photo { width: 200px; height: 200px; }
+.prof-side .kv { grid-template-columns: 120px 1fr; font-size: 16px; }
+.prof-side .kv dt { font-weight: 700; color: var(--ink); }
+.prof-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.prof-debt { background: var(--bad-soft); color: var(--bad); border: 1px solid var(--bad); border-radius: var(--r-md); padding: 10px 14px; font-size: 18px; font-weight: 700; }
+.prof-debt b { font-size: 24px; margin-left: 6px; }
+.prof-foot-one { flex-direction: row; justify-content: space-between; align-items: center; width: 100%; gap: 12px; flex-wrap: wrap; }
+@media (max-width: 760px) { .prof-grid { grid-template-columns: 1fr; } }
+.prof-grid { grid-template-columns: 340px minmax(0, 1fr); }
+.prof-side .profile-photo { width: 320px; height: 320px; }

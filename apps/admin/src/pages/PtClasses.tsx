@@ -9,7 +9,7 @@ import { Modal } from '../components/Modal'
 import { ConfirmDialog } from '../components/Dialogs'
 import { MemberProfile } from './Members'
 import { Button, Chip, DataTable, Field, Input, Kpi, KpiRow, Panel, Select, useToast, type ChipTone, type Column } from '../components/ui'
-import type { GroupClass, Contract, GroupReg, GroupRegStatus, GroupStats, GroupTemplate, ListResp, Member } from '../types'
+import type { GroupClass, Contract, GroupReg, GroupRegStatus, GroupStats, GroupTemplate, Member } from '../types'
 
 interface Trainer { id: string; name: string }
 
@@ -100,12 +100,9 @@ export default function PtClasses() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [trainerFilter, setTrainerFilter] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<GroupClass | null>(null)
   const [templating, setTemplating] = useState(false)
   const [reportScope, setReportScope] = useState<'week' | 'month'>('week')
   const [monthData, setMonthData] = useState<{ classes: GroupClass[]; regs: GroupReg[] }>({ classes: [], regs: [] })
-  const [registering, setRegistering] = useState<GroupClass | null>(null)
   const [detailId, setDetailId] = useState<string | null>(null)
   const [showEmpty, setShowEmpty] = useState(false)
 
@@ -284,10 +281,7 @@ export default function PtClasses() {
           onClose={() => setDetailId(null)}
         />
       )}
-      {editing && <EditClassModal cls={editing} trainers={trainers} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); toast('Đã lưu lớp'); load() }} />}
       {templating && <TemplateModal onClose={() => setTemplating(false)} />}
-      {creating && <ClassModal week={week} trainers={trainers} onClose={() => setCreating(false)} onSaved={() => { setCreating(false); toast('Đã tạo lớp'); load() }} />}
-      {registering && <RegisterModal cls={registering} onClose={() => setRegistering(null)} onSaved={() => { setRegistering(null); toast('Đã đăng ký, tạm trừ 1 buổi'); load() }} />}
     </>
   )
 }
@@ -455,146 +449,6 @@ function ClassDetailModal({ cls, regs, trainers, act, onClose }: { cls: GroupCla
           }}
         />
       )}
-    </Modal>
-  )
-}
-
-function ClassModal({ week, trainers, onClose, onSaved }: { week: string; trainers: Trainer[]; onClose: () => void; onSaved: () => void }) {
-  const { branchId } = useBranch()
-  const { user } = useAuth()
-  const [title, setTitle] = useState('Lớp nhóm')
-  const [muscle, setMuscle] = useState('')
-  const [trainerId, setTrainerId] = useState('')
-  const [date, setDate] = useState(week)
-  const [time, setTime] = useState('18:00')
-  const [duration, setDuration] = useState('60')
-  const [capacity, setCapacity] = useState('3')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  const branch = branchId ?? (user?.branches.length === 1 ? user.branches[0].id : '')
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      await api.post('/pt/classes', {
-        title,
-        muscle_group: muscle.trim() || null,
-        trainer_id: trainerId || null,
-        start_at: `${date}T${time}:00+07:00`,
-        duration_min: Number(duration),
-        capacity: Number(capacity),
-        branch_id: branch || undefined,
-      })
-      onSaved()
-    } catch (err) {
-      setError(apiError(err).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal title="Tạo lớp nhóm" onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="class-form" disabled={busy}>{busy ? 'Đang lưu...' : 'Tạo lớp'}</Button></>}>
-      <form id="class-form" className="form-grid" onSubmit={submit}>
-        {error && <div className="form-error full" role="alert">{error}</div>}
-        <Field label="Tên lớp" htmlFor="c-title" full><Input id="c-title" required value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
-        <Field label="Nhóm cơ" htmlFor="c-muscle" full><Input id="c-muscle" placeholder="Ví dụ: Core + Cardio" value={muscle} onChange={(e) => setMuscle(e.target.value)} /></Field>
-        <Field label="PT phụ trách" htmlFor="c-trainer" full>
-          <Select id="c-trainer" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
-            <option value="">Chưa phân công</option>
-            {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </Select>
-        </Field>
-        <Field label="Ngày" htmlFor="c-date"><Input id="c-date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} /></Field>
-        <Field label="Giờ bắt đầu" htmlFor="c-time"><Input id="c-time" type="time" required value={time} onChange={(e) => setTime(e.target.value)} /></Field>
-        <Field label="Thời lượng (phút)" htmlFor="c-dur"><Input id="c-dur" type="number" min={15} max={240} step={15} required value={duration} onChange={(e) => setDuration(e.target.value)} /></Field>
-        <Field label="Số chỗ tối đa" htmlFor="c-cap"><Input id="c-cap" type="number" min={1} max={50} required value={capacity} onChange={(e) => setCapacity(e.target.value)} /></Field>
-      </form>
-    </Modal>
-  )
-}
-
-function RegisterModal({ cls, onClose, onSaved }: { cls: GroupClass; onClose: () => void; onSaved: () => void }) {
-  const { branchId } = useBranch()
-  const [q, setQ] = useState('')
-  const [members, setMembers] = useState<Member[]>([])
-  const [memberId, setMemberId] = useState('')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  useEffect(() => {
-    if (q.trim().length < 2) { setMembers([]); return }
-    const t = setTimeout(() => {
-      api.get<ListResp<Member>>('/members', { params: { q: q.trim(), branch_id: cls.branch_id ?? branchId ?? undefined, limit: 10 } }).then((r) => setMembers(r.data.data)).catch(() => setMembers([]))
-    }, 250)
-    return () => clearTimeout(t)
-  }, [q, cls.branch_id, branchId])
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      await api.post(`/pt/classes/${cls.id}/registrations`, { member_id: memberId })
-      onSaved()
-    } catch (err) {
-      setError(apiError(err).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal title={`Đăng ký khách - ${classTitle(cls.title)} ${fmtDateTime(cls.start_at)}`} onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="reg-form" disabled={busy || !memberId}>{busy ? 'Đang lưu...' : 'Đăng ký'}</Button></>}>
-      <form id="reg-form" className="form-grid" onSubmit={submit}>
-        {error && <div className="form-error full" role="alert">{error}</div>}
-        <Field label="Tìm hội viên (tên, SĐT, mã)" htmlFor="r-q" full><Input id="r-q" value={q} onChange={(e) => { setQ(e.target.value); setMemberId('') }} /></Field>
-        <Field label="Hội viên" htmlFor="r-member" full hint="Đăng ký sẽ tạm trừ 1 buổi gói PT nhóm. PT xác nhận dạy xong thì trừ chính thức; hủy thì trả lại buổi.">
-          <Select id="r-member" required value={memberId} onChange={(e) => setMemberId(e.target.value)}>
-            <option value="" disabled>{members.length ? 'Chọn hội viên' : 'Nhập để tìm'}</option>
-            {members.map((m) => <option key={m.id} value={m.id}>{m.name} - {m.phone}</option>)}
-          </Select>
-        </Field>
-      </form>
-    </Modal>
-  )
-}
-
-function EditClassModal({ cls, trainers, onClose, onSaved }: { cls: GroupClass; trainers: Trainer[]; onClose: () => void; onSaved: () => void }) {
-  const [muscle, setMuscle] = useState(cls.muscle_group ?? '')
-  const [trainerId, setTrainerId] = useState(cls.trainer?.id ?? '')
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    setBusy(true)
-    setError('')
-    try {
-      await api.patch(`/pt/classes/${cls.id}`, { muscle_group: muscle.trim() || null })
-      if ((cls.trainer?.id ?? '') !== trainerId) await api.post(`/pt/classes/${cls.id}/trainer`, { trainer_id: trainerId || null })
-      onSaved()
-    } catch (err) {
-      setError(apiError(err).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <Modal title={`Sửa lớp ${fmtDateTime(cls.start_at)}`} onClose={onClose} footer={<><Button onClick={onClose}>Hủy</Button><Button variant="primary" type="submit" form="edit-class-form" disabled={busy}>{busy ? 'Đang lưu...' : 'Lưu'}</Button></>}>
-      <form id="edit-class-form" className="form-grid" onSubmit={submit}>
-        {error && <div className="form-error full" role="alert">{error}</div>}
-        <Field label="Nhóm cơ" htmlFor="e-muscle" full><Input id="e-muscle" value={muscle} onChange={(e) => setMuscle(e.target.value)} /></Field>
-        <Field label="PT phụ trách" htmlFor="e-trainer" full>
-          <Select id="e-trainer" value={trainerId} onChange={(e) => setTrainerId(e.target.value)}>
-            <option value="">Chưa phân công</option>
-            {trainers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-          </Select>
-        </Field>
-      </form>
     </Modal>
   )
 }
