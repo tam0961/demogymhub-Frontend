@@ -10,9 +10,9 @@ interface ScanMember {
   id: string; code: string; name: string; phone: string; has_photo: boolean; photo_version: number | null
   package_name: string | null; end_date: string | null; state: 'ok' | 'expired' | 'frozen' | 'not_started' | 'no_package'
   sessions_left: number | null; debt: number
-  branch?: { code: string; name: string } | null; contract_id?: string | null; checkin_before?: string | null
+  branch?: { code: string; name: string } | null; contract_id?: string | null; checkin_before?: string | null; last_checkin_at?: string | null; outside_count?: number; outside_at?: string[]
   debt_contract?: { id: string; code: string; amount: number; due_date?: string | null; overdue_days?: number } | null
-  pt?: { package_name: string; sessions_left: number | null; sessions_total: number | null } | null
+  pt?: { package_name: string; sessions_left: number | null; sessions_total: number | null; pt_name?: string | null } | null
 }
 interface ScanItem { id: string; employee_no: string; scanned_at: string; result: 'allowed' | 'denied' | null; reason: string | null; member: ScanMember | null }
 
@@ -20,7 +20,7 @@ const REASON: Record<string, { label: string; tone: 'warn' | 'bad' }> = {
   EXPIRED: { label: 'Hết hạn', tone: 'bad' },
   FROZEN: { label: 'Đang bảo lưu', tone: 'warn' },
   NO_SESSIONS: { label: 'Hết buổi', tone: 'bad' },
-  OUTSIDE_HOURS: { label: 'Quá giờ của gói', tone: 'warn' },
+  OUTSIDE_HOURS: { label: 'Quá giờ', tone: 'warn' },
   NO_ACTIVE_CONTRACT: { label: 'Chưa có gói', tone: 'bad' },
   WRONG_BRANCH: { label: 'Sai chi nhánh', tone: 'bad' },
 }
@@ -43,11 +43,7 @@ function packageChip(m: ScanMember): { label: string; tone: Tone } {
   return { label: 'Đang hoạt động', tone: 'ok' }
 }
 
-const hourText = (hm: string) => {
-  const [h, m] = hm.split(':')
-  return m && m !== '00' ? `${Number(h)}h${m}` : `${Number(h)}h`
-}
-
+const vnHM = (iso: string) => new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Ho_Chi_Minh' })
 function beep(ok: boolean) {
   try {
     const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
@@ -126,7 +122,7 @@ export default function ScanPopup() {
   const at = new Date(cur.scanned_at)
   const hm = at.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false })
   const chip = m ? packageChip(m) : null
-  const outside = cur.reason === 'OUTSIDE_HOURS'
+  const away = m?.last_checkin_at ? Math.max(1, Math.round((Date.now() - Date.parse(m.last_checkin_at)) / 86400000)) : null
   const go = (to: string) => { next(); nav(to) }
   return (
     <>
@@ -153,7 +149,9 @@ export default function ScanPopup() {
                 <dd>
                   <b>{hm}</b>
                   <span className={`scan-chip ${cur.result === 'allowed' ? 'ok' : v.tone}`}>{cur.result === 'allowed' ? 'Đúng giờ' : v.label}</span>
-                  {outside && m.checkin_before && <div className="scan-hint">Gói chỉ vào tập trước {hourText(m.checkin_before)}, cần xử lý (thu bù hoặc đổi gói).</div>}
+                  {(m.outside_count ?? 0) > 0 && <span className="scan-hint">Quá giờ {m.outside_count} lần{m.outside_at?.length ? ` (${m.outside_at.map(vnHM).join(', ')})` : ''}</span>}
+                  {away != null && away > 14 && <span className="scan-chip warn">Lâu chưa đến</span>}
+                  <div className="scan-hint">{m.last_checkin_at ? `Lần trước: ${fmtDate(m.last_checkin_at)} (${away} ngày trước)` : 'Chưa có lần check-in trước'}</div>
                 </dd>
               </div>
               <div className="scan-row">
@@ -162,30 +160,35 @@ export default function ScanPopup() {
                   <b>{m.package_name ?? 'Chưa có gói member'}</b>
                   {chip && <span className={`scan-chip ${chip.tone}`}>{chip.label}</span>}
                   {m.end_date && <div className="scan-hint">Đến {fmtDate(m.end_date)}{days ? `, ${days}` : ''}</div>}
-                  {m.checkin_before && <div className="scan-hint">Gói chỉ vào tập trước {hourText(m.checkin_before)}</div>}
                 </dd>
               </div>
               {m.pt && (
                 <div className="scan-row">
                   <dt>Gói PT</dt>
-                  <dd><b>{m.pt.package_name}</b>{m.pt.sessions_left != null ? `: còn ${m.pt.sessions_left} buổi` : ''}</dd>
+                  <dd>
+                    <b>{m.pt.package_name}</b>
+                    {m.pt.pt_name && <span className="scan-hint"> · PT {m.pt.pt_name}</span>}
+                    {m.pt.sessions_left != null && m.pt.sessions_total ? (
+                      <div className="scan-pt">
+                        <div className="scan-bar"><span style={{ width: `${Math.max(0, Math.min(100, ((m.pt.sessions_total - m.pt.sessions_left) / m.pt.sessions_total) * 100))}%` }} /></div>
+                        <span className={m.pt.sessions_left <= 3 ? 'scan-debt' : ''}>Còn {m.pt.sessions_left}/{m.pt.sessions_total} buổi{m.pt.sessions_left <= 3 ? ', sắp hết, nhắc gia hạn' : ''}</span>
+                      </div>
+                    ) : null}
+                    {m.state === 'expired' && (m.pt.sessions_left ?? 0) > 0 && <div className="scan-debt" style={{ marginTop: 4 }}>Còn {m.pt.sessions_left} buổi PT, cần gia hạn member để tập tiếp</div>}
+                  </dd>
                 </div>
               )}
+              {m.debt > 0 && (
               <div className="scan-row">
                 <dt>Công nợ</dt>
                 <dd>{m.debt > 0 ? <><span className="scan-debt">{fmtMoney(m.debt)}</span>{m.debt_contract ? ` (${m.debt_contract.code})` : ''}{m.debt_contract?.due_date ? ` hạn đóng ${fmtDate(m.debt_contract.due_date)}` : ''}{(m.debt_contract?.overdue_days ?? 0) > 0 && <> <Chip tone="bad">quá hạn {m.debt_contract!.overdue_days} ngày</Chip></>}</> : 'Không có'}</dd>
               </div>
-              {m.debt_contract?.due_date && (
-                <div className="scan-row">
-                  <dt>Hạn thanh toán</dt>
-                  <dd className={(m.debt_contract.overdue_days ?? 0) > 0 ? 'scan-debt' : ''}>{fmtDate(m.debt_contract.due_date)}</dd>
-                </div>
               )}
             </dl>
             <div className="scan-foot">
               <Button onClick={() => go(`/members?q=${encodeURIComponent(m.code)}`)}>Mở hồ sơ</Button>
-              {m.debt_contract && <Button onClick={() => go(`/contracts/${m.debt_contract!.id}`)}>Thu tiền</Button>}
-              {cur.result !== 'allowed' && <Button onClick={() => go(`/contracts/new?member_id=${m.id}`)}>Đăng ký mới</Button>}
+              {m.debt_contract && <Button variant="primary" onClick={() => go(`/contracts/${m.debt_contract!.id}`)}>Thu tiền</Button>}
+              {cur.result !== 'allowed' && <Button variant={m.debt_contract ? 'secondary' : 'primary'} onClick={() => go(`/contracts/new?member_id=${m.id}`)}>Gia hạn</Button>}
             </div>
           </>
         ) : (
