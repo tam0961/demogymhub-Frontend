@@ -64,6 +64,21 @@ function beep(ok: boolean) {
   } catch { /* trình duyệt chặn âm thanh: bỏ qua */ }
 }
 
+function notify(it: ScanItem, label: string) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+  if (!document.hidden && document.hasFocus()) return
+  try {
+    const m = it.member
+    const n = new Notification(m ? `${label}: ${m.name}` : 'Khách quét mặt chưa nhận ra', {
+      body: m ? `${m.code} · ${m.package_name ?? 'Chưa có gói'}${m.debt > 0 ? ` · Nợ ${fmtMoney(m.debt)}` : ''}` : `Mã ${it.employee_no}`,
+      tag: `scan-${it.id}`,
+      requireInteraction: it.result !== 'allowed',
+      icon: '/icon-192.png',
+    })
+    n.onclick = () => { window.focus(); n.close() }
+  } catch { /* trình duyệt không cho tạo thông báo: bỏ qua */ }
+}
+
 export default function ScanPopup() {
   const nav = useNavigate()
   const { can } = usePermission()
@@ -72,6 +87,7 @@ export default function ScanPopup() {
   const [queue, setQueue] = useState<ScanItem[]>([])
   const [bridgeOk, setBridgeOk] = useState<boolean | null>(null)
   const [paused, setPaused] = useState<boolean | null>(null)
+  const [perm, setPerm] = useState<NotificationPermission | 'none'>(typeof Notification === 'undefined' ? 'none' : Notification.permission)
   const cur = queue[0]
 
   useEffect(() => {
@@ -80,7 +96,6 @@ export default function ScanPopup() {
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
     const loop = async () => {
       while (alive) {
-        if (document.hidden) { await sleep(1500); continue }
         try {
           const params: Record<string, string | number> = { wait: 20 }
           if (since.current) params.since = since.current
@@ -89,7 +104,10 @@ export default function ScanPopup() {
           since.current = data.data.now
           setBridgeOk(data.data.bridge_ok)
           setPaused(data.data.paused ?? null)
-          if (data.data.items.length) setQueue((q) => [...q, ...data.data.items])
+          if (data.data.items.length) {
+            data.data.items.forEach((it) => notify(it, verdict(it).label))
+            setQueue((q) => [...q, ...data.data.items])
+          }
         } catch {
           await sleep(2000)
         }
@@ -115,7 +133,10 @@ export default function ScanPopup() {
   }, [cur, next])
 
   const warn = bridgeOk === false && !paused ? <div className="scan-offline" role="alert">Cầu nối máy chấm công đang tắt. Khách quét mặt sẽ không hiện popup và không tự check-in. Hãy mở lại chay-quet.bat trên máy này.</div> : null
-  if (!cur) return warn
+  const ask = perm === 'default' ? (
+    <button type="button" className="scan-notify" onClick={() => { void Notification.requestPermission().then(setPerm) }}>Bật thông báo để popup check-in hiện cả khi không mở tab này</button>
+  ) : null
+  if (!cur) return <>{warn}{ask}</>
   const m = cur.member
   const v = verdict(cur)
   const days = m?.end_date ? daysLeftText(m.end_date) : ''
@@ -127,6 +148,7 @@ export default function ScanPopup() {
   return (
     <>
     {warn}
+    {ask}
     <div className="scan-overlay" role="alertdialog" aria-live="assertive" aria-label="Khách vừa quét mặt">
       <div className={`scan-card scan-${v.tone}`}>
         <div className="scan-banner">
